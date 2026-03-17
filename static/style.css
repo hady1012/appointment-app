@@ -1,0 +1,363 @@
+html {
+    scroll-behavior: smooth;
+}
+
+body {
+    font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+    background: #f5f7fb;
+    margin: 0;
+    padding: 0;
+    color: #1f2937;
+}
+
+/* NAVBAR */
+.navbar {
+    background: rgba(255, 255, 255, 0.95);
+    backdrop-filter: blur(8px);
+    padding: 18px 48px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    box-shadow: 0 4px 18px rgba(0, 0, 0, 0.06);
+    position: sticky;
+    top: 0;
+    z-index: 1000;
+}
+
+.nav-logo {
+    font-size: 20px;
+    font-weight: 800;
+    color: #0d6efd;
+    letter-spacing: 0.3px;
+}
+
+.nav-links {
+    display: flex;
+    gap: 28px;
+}
+
+.nav-links a {
+    text-decoration: none;
+    color: #374151;
+    font-weight: 600;
+    transition: 0.25s ease;
+    position: relative;
+}
+
+.nav-links a:hover {
+    color: #0d6efd;
+}
+
+.nav-links a::after {
+    content: "";
+    position: absolute;
+    right: 0;
+    bottom: -6px;
+    width: 0;
+    height: 2px;
+    background: #0d6efd;
+    transition: 0.25s ease;
+}
+
+.nav-links a:hover::after {
+    width: 100%;
+}
+
+/* HERO */
+.hero {
+    background: linear-gradient(135deg, #0d6efd 0%, #17c0eb 100%);
+    color: white;
+    text-align: center;
+    padding: 120px 20px 110px;
+}
+
+.hero-content {
+    max-width: 900px;
+    margin: 0 auto;
+}
+
+.hero h1 {
+    font-size: 64px;
+    margin-bottom: 24px;
+    color: white;
+    font-weight: 800;
+    line-height: 1.2;
+}
+
+.hero p {
+    font-size: 24px;
+    line-height: 1.9;
+    margin-bottom: 36px;
+    color: rgba(255, 255, 255, 0.95);
+}
+
+.hero-btn {
+    display: inline-block;
+    background: white;
+    color: #0d6efd;
+    padding: 16px 34px;
+    border-radius: 14px;
+    text-decoration: none;
+    font-weight: 700;
+    font-size: 18px;
+    box-shadow: 0 8px 24px rgba(0, 0, 0, 0.12);
+    transition: all 0.25s ease;
+}
+
+.hero-btn:hover {
+    background: #eef5ff;
+    color: #0b5ed7;
+    transform: translateY(-2px);
+}
+
+/* FEATURES */
+.features {
+    padding: 80px 20px 20px;
+}
+
+.features-container {
+    display: flex;
+    justify-content: center;
+    gap: 28px;
+    max-width: 1100px;
+    margin: 0 auto;
+    flex-wrap: wrap;
+}
+
+.feature-card {
+    background: white;
+    border-radius: 20px;
+    width: 300px;
+    padding: 32px 24px;
+    text-align: center;
+    box-shadow: 0 10px 28px rgba(15, 23, 42, 0.08);
+    transition: all 0.25s ease;
+    border: 1px solid rgba(0, 0, 0, 0.03);
+}
+
+.feature-card:hover {
+    transform: translateY(-8px);
+    box-shadow: 0 14px 34px rgba(15, 23, 42, 0.12);
+}
+
+.feature-card h3 {
+    color: #0d6efd;
+    margin-bottom: 14px;
+    font-size: 26px;
+    font-weight: 700;
+}
+
+.feature-card p {
+    color: #5b6472;
+    font-size: 18px;
+    line-height: 1.8;
+    margin: 0;
+}
+
+/* MAIN CONTAINER */
+.container {
+    width: 90%;
+    max-width: 950px;
+    margin: 60px auto 80px;
+    background: white;
+    padding: 42px;
+    border-radius: 22px;
+    box-shadow: 0 12px 34px rgba(15, 23, 42, 0.08);
+}
+
+.container h1 {
+    text-align: center;
+    color: #111827;
+    margin-bottom: 30px;
+    font-size: 42px;
+    font-weight: 800;
+}
+
+/* FORM */
+.booking-form {
+    display: flex;
+    flex-direction: column;
+}
+
+label {
+    margin: 12px 0 8px;
+    font-weight: 700;
+    color: #1f2937;
+    font-size: 18px;
+}
+
+input {
+    padding: 15px 16px;
+    border: 1px solid #d1d5db;
+    border-radius: 12px;
+    margin-bottom: 18px;
+    font-size: 16px;
+    background: #fafafa;
+    transition: 0.2s ease;
+}
+
+input:focus {
+    outline: none;
+    border-color: #0d6efd;
+    background: white;
+    box-shadow: 0 0 0 4px rgba(13, 110, 253, 0.12);
+}
+
+button {
+    padding: 15px;
+    border: none;
+    background: linear-gradient(135deg, #0d6efd, #1aa0ff);
+    color: white;
+    font-size: 18px;
+    font-weight: 700;
+    border-radius: 12px;
+    cursor: pointer;
+    transition: 0.25s ease;
+    margin-top: 8px;
+}
+
+button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 10px 20px rgba(13, 110, 253, 0.2);
+}
+
+/* LINKS */
+.view-link {
+    display: block;
+    margin-top: 24px;
+    text-align: center;
+    text-decoration: none;
+    color: #0d6efd;
+    font-weight: 700;
+    font-size: 18px;
+}
+
+.view-link:hover {
+    color: #0b5ed7;
+}
+
+/* ERROR */
+.error-message {
+    background: #ffe5e5;
+    color: #c1121f;
+    padding: 14px;
+    border-radius: 12px;
+    text-align: center;
+    margin-bottom: 24px;
+    font-weight: 700;
+    border: 1px solid #ffc9c9;
+}
+
+/* TABLE */
+table {
+    width: 100%;
+    border-collapse: collapse;
+    margin-top: 20px;
+    overflow: hidden;
+    border-radius: 16px;
+}
+
+th, td {
+    padding: 16px 14px;
+    text-align: center;
+}
+
+th {
+    background: linear-gradient(135deg, #0d6efd, #189eff);
+    color: white;
+    font-size: 17px;
+}
+
+td {
+    background: #ffffff;
+    border-bottom: 1px solid #e5e7eb;
+    font-size: 16px;
+}
+
+tr:hover td {
+    background: #f8fbff;
+}
+
+/* DELETE BUTTON */
+.delete-btn {
+    background: linear-gradient(135deg, #dc3545, #c82333);
+    padding: 10px 16px;
+    font-size: 14px;
+    border-radius: 10px;
+}
+
+.delete-btn:hover {
+    box-shadow: 0 8px 18px rgba(220, 53, 69, 0.22);
+}
+
+/* PARAGRAPHS */
+p {
+    text-align: center;
+    color: #5b6472;
+    font-size: 18px;
+}
+
+/* RESPONSIVE */
+@media (max-width: 992px) {
+    .hero h1 {
+        font-size: 48px;
+    }
+
+    .hero p {
+        font-size: 21px;
+    }
+
+    .container h1 {
+        font-size: 34px;
+    }
+}
+
+@media (max-width: 768px) {
+    .navbar {
+        flex-direction: column;
+        gap: 14px;
+        padding: 16px 20px;
+    }
+
+    .nav-links {
+        gap: 18px;
+        flex-wrap: wrap;
+        justify-content: center;
+    }
+
+    .hero {
+        padding: 90px 20px 80px;
+    }
+
+    .hero h1 {
+        font-size: 38px;
+    }
+
+    .hero p {
+        font-size: 18px;
+    }
+
+    .hero-btn {
+        font-size: 16px;
+        padding: 14px 24px;
+    }
+
+    .container {
+        padding: 24px;
+    }
+
+    .container h1 {
+        font-size: 30px;
+    }
+
+    .feature-card {
+        width: 100%;
+        max-width: 360px;
+    }
+
+    table {
+        display: block;
+        overflow-x: auto;
+        white-space: nowrap;
+    }
+}

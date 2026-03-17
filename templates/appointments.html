@@ -1,0 +1,54 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>כל התורים</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+    <nav class="navbar">
+        <div class="nav-logo">Appointment System</div>
+        <div class="nav-links">
+            <a href="/">בית</a>
+            <a href="/#booking-form">קביעת תור</a>
+            <a href="/appointments">כל התורים</a>
+        </div>
+    </nav>
+
+    <div class="container">
+        <h1>כל התורים</h1>
+
+        {% if appointments %}
+        <table>
+            <thead>
+                <tr>
+                    <th>שם מלא</th>
+                    <th>מספר טלפון</th>
+                    <th>תאריך</th>
+                    <th>שעה</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for appointment in appointments %}
+                <tr>
+                    <td>{{ appointment.full_name }}</td>
+                    <td>{{ appointment.phone }}</td>
+                    <td>{{ appointment.date }}</td>
+                    <td>{{ appointment.time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+        {% else %}
+        <p>עדיין אין תורים.</p>
+        {% endif %}
+
+        <a href="/" class="view-link">חזרה לדף קביעת תור</a>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+</body>
+</html>

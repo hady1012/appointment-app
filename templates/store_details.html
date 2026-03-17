@@ -1,0 +1,83 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ store.name }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-links">
+        <a href="/">בית</a>
+        <a href="/work">Work</a>
+        <a href="/pick">Pick</a>
+    </div>
+</nav>
+
+<div class="container">
+    <h1>{{ store.name }}</h1>
+
+    <p><strong>קטגוריה:</strong> {{ store.category }}</p>
+    <p><strong>תיאור:</strong> {{ store.description }}</p>
+    <p><strong>יתרונות:</strong> {{ store.advantages }}</p>
+    <p><strong>מחיר:</strong> ₪{{ store.price }}</p>
+    <p><strong>משך זמן:</strong> {{ store.duration_minutes }} דקות</p>
+    <p><strong>קישור לשיתוף:</strong> /store/{{ store.id }}</p>
+
+    <hr style="margin: 30px 0;">
+
+    <h1 style="font-size: 32px;">קביעת תור</h1>
+
+    <form action="/book/{{ store.id }}" method="POST" class="booking-form">
+        <label>שם לקוח</label>
+        <input type="text" name="customer_name" required>
+
+        <label>טלפון</label>
+        <input type="text" name="customer_phone" required>
+
+        <label>תאריך</label>
+        <input type="date" name="appointment_date" min="{{ min_date }}" max="{{ max_date }}" required>
+
+        <label>שעה</label>
+        <input type="time" name="appointment_time" required>
+
+        <button type="submit">קבע תור</button>
+    </form>
+
+    <hr style="margin: 40px 0;">
+
+    <h1 style="font-size: 32px;">תורים קיימים</h1>
+
+    {% if appointments %}
+    <table>
+        <thead>
+            <tr>
+                <th>שם לקוח</th>
+                <th>טלפון</th>
+                <th>תאריך</th>
+                <th>שעה</th>
+            </tr>
+        </thead>
+        <tbody>
+            {% for appointment in appointments %}
+            <tr>
+                <td>{{ appointment.customer_name }}</td>
+                <td>{{ appointment.customer_phone }}</td>
+                <td>{{ appointment.date }}</td>
+                <td>{{ appointment.time }}</td>
+            </tr>
+            {% endfor %}
+        </tbody>
+    </table>
+    {% else %}
+    <p>עדיין אין תורים לעסק הזה.</p>
+    {% endif %}
+</div>
+
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+</body>
+</html>

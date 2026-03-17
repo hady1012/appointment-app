@@ -1,0 +1,51 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Marketplace Booking</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+
+<nav class="navbar">
+    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-links">
+        <a href="/">בית</a>
+        <a href="/work">Work</a>
+        <a href="/pick">Pick</a>
+    </div>
+</nav>
+
+<section class="hero">
+    <div class="hero-content">
+        <h1>הפלטפורמה למציאת עסקים וקביעת תורים</h1>
+        <p>בעלי עסקים יכולים לפרסם חנות. לקוחות יכולים לחפש, לבחור ולזמן תור בקלות.</p>
+        <div style="margin-top: 30px;">
+            <a href="/work" class="hero-btn">אני בעל עסק</a>
+            <a href="/pick" class="hero-btn" style="margin-right: 12px;">אני מחפש עסק</a>
+        </div>
+    </div>
+</section>
+
+<section class="features">
+    <div class="features-container">
+        <div class="feature-card">
+            <h3>🏪 הוסף חנות</h3>
+            <p>פרסם את העסק שלך עם פרטים מלאים, מחיר ומשך זמן.</p>
+        </div>
+        <div class="feature-card">
+            <h3>🔎 חפש עסקים</h3>
+            <p>מצא חנויות לפי שם או קטגוריה דרך דף חיפוש פשוט.</p>
+        </div>
+        <div class="feature-card">
+            <h3>📅 הזמן תור</h3>
+            <p>בחר תאריך ושעה עד שבוע קדימה לכל עסק.</p>
+        </div>
+    </div>
+</section>
+
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+</body>
+</html>
