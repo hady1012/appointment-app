@@ -1,23 +1,24 @@
+import os
 import pyodbc
 from datetime import date, timedelta
 from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
-import os
-import pyodbc
-
+# ---------------- DATABASE CONNECTION ----------------
 def get_connection():
     conn = pyodbc.connect(
         "DRIVER={ODBC Driver 17 for SQL Server};"
-        f"SERVER={os.environ.get('DB_SERVER', 'localhost')};"
-        f"DATABASE={os.environ.get('DB_NAME', 'appointments_db')};"
-       f"UID={os.environ.get('DB_USER', 'appuser')};"
-        f"PWD={os.environ.get('DB_PASSWORD', 'Hady123!!')};"
+        f"SERVER={os.environ.get('DB_SERVER')};"
+        f"DATABASE={os.environ.get('DB_NAME')};"
+        f"UID={os.environ.get('DB_USER')};"
+        f"PWD={os.environ.get('DB_PASSWORD')};"
         "Encrypt=yes;"
         "TrustServerCertificate=yes;"
     )
     return conn
+
+
 # ---------------- HOME ----------------
 @app.route('/')
 def home():
@@ -185,5 +186,6 @@ def book(store_id):
     return redirect(url_for('store_details', store_id=store_id))
 
 
+# ---------------- RUN APP ----------------
 if __name__ == '__main__':
     app.run(debug=True)
