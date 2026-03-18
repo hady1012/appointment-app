@@ -1,22 +1,14 @@
 import os
-import pyodbc
+import psycopg2
 from datetime import date, timedelta
 from flask import Flask, render_template, request, redirect, url_for
 
 app = Flask(__name__)
 
+
 # ---------------- DATABASE CONNECTION ----------------
 def get_connection():
-    conn = pyodbc.connect(
-        "DRIVER={ODBC Driver 17 for SQL Server};"
-        f"SERVER={os.environ.get('DB_SERVER')};"
-        f"DATABASE={os.environ.get('DB_NAME')};"
-        f"UID={os.environ.get('DB_USER')};"
-        f"PWD={os.environ.get('DB_PASSWORD')};"
-        "Encrypt=yes;"
-        "TrustServerCertificate=yes;"
-    )
-    return conn
+    return psycopg2.connect(os.environ.get("DATABASE_URL"))
 
 
 # ---------------- HOME ----------------
@@ -45,10 +37,11 @@ def add_store():
 
     cursor.execute("""
         INSERT INTO stores (name, category, description, advantages, price, duration_minutes)
-        VALUES (?, ?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s, %s)
     """, (name, category, description, advantages, price, duration_minutes))
 
     conn.commit()
+    cursor.close()
     conn.close()
 
     return redirect(url_for('pick'))
@@ -66,7 +59,7 @@ def pick():
         cursor.execute("""
             SELECT id, name, category, description, advantages, price, duration_minutes
             FROM stores
-            WHERE name LIKE ? OR category LIKE ?
+            WHERE name ILIKE %s OR category ILIKE %s
             ORDER BY id DESC
         """, (f'%{search}%', f'%{search}%'))
     else:
@@ -77,6 +70,7 @@ def pick():
         """)
 
     rows = cursor.fetchall()
+    cursor.close()
     conn.close()
 
     stores = []
@@ -103,22 +97,24 @@ def store_details(store_id):
     cursor.execute("""
         SELECT id, name, category, description, advantages, price, duration_minutes
         FROM stores
-        WHERE id = ?
+        WHERE id = %s
     """, (store_id,))
     row = cursor.fetchone()
 
     if not row:
+        cursor.close()
         conn.close()
         return "Store not found", 404
 
     cursor.execute("""
         SELECT customer_name, customer_phone, appointment_date, appointment_time
         FROM appointments
-        WHERE store_id = ?
+        WHERE store_id = %s
         ORDER BY appointment_date, appointment_time
     """, (store_id,))
     appointment_rows = cursor.fetchall()
 
+    cursor.close()
     conn.close()
 
     store = {
@@ -166,21 +162,23 @@ def book(store_id):
     cursor.execute("""
         SELECT 1
         FROM appointments
-        WHERE store_id = ? AND appointment_date = ? AND appointment_time = ?
+        WHERE store_id = %s AND appointment_date = %s AND appointment_time = %s
     """, (store_id, appointment_date, appointment_time))
 
     exists = cursor.fetchone()
 
     if exists:
+        cursor.close()
         conn.close()
         return redirect(url_for('store_details', store_id=store_id))
 
     cursor.execute("""
         INSERT INTO appointments (store_id, customer_name, customer_phone, appointment_date, appointment_time)
-        VALUES (?, ?, ?, ?, ?)
+        VALUES (%s, %s, %s, %s, %s)
     """, (store_id, customer_name, customer_phone, appointment_date, appointment_time))
 
     conn.commit()
+    cursor.close()
     conn.close()
 
     return redirect(url_for('store_details', store_id=store_id))
