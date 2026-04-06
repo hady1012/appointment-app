@@ -1,9 +1,12 @@
 import os
-import psycopg2
 from datetime import date, timedelta
-from flask import Flask, render_template, request, redirect, url_for
+
+import psycopg2
+from flask import Flask, render_template, request, redirect, url_for, session, flash
+from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
+app.secret_key = "my_super_secret_key_123"
 
 
 # ---------------- DATABASE CONNECTION ----------------
@@ -17,28 +20,119 @@ def home():
     return render_template('index.html')
 
 
+# ---------------- SIGNUP ----------------
+@app.route('/signup/<role>', methods=['GET', 'POST'])
+def signup(role):
+    if role not in ['customer', 'owner']:
+        return "Invalid role", 400
+
+    if request.method == 'POST':
+        full_name = request.form['full_name'].strip()
+        email = request.form['email'].strip()
+        password = request.form['password'].strip()
+
+        password_hash = generate_password_hash(password)
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
+        existing_user = cursor.fetchone()
+
+        if existing_user:
+            cursor.close()
+            conn.close()
+            flash("Email already exists")
+            return redirect(url_for('signup', role=role))
+
+        cursor.execute("""
+            INSERT INTO users (full_name, email, password_hash, role)
+            VALUES (%s, %s, %s, %s)
+        """, (full_name, email, password_hash, role))
+
+        conn.commit()
+        cursor.close()
+        conn.close()
+
+        flash("Account created successfully. Please login.")
+        return redirect(url_for('login'))
+
+    return render_template('signup.html', role=role)
+
+
+# ---------------- LOGIN ----------------
+@app.route('/login', methods=['GET', 'POST'])
+def login():
+    if request.method == 'POST':
+        email = request.form['email'].strip()
+        password = request.form['password'].strip()
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        cursor.execute("""
+            SELECT id, full_name, email, password_hash, role
+            FROM users
+            WHERE email = %s
+        """, (email,))
+        user = cursor.fetchone()
+
+        cursor.close()
+        conn.close()
+
+        if user and check_password_hash(user[3], password):
+            session['user_id'] = user[0]
+            session['full_name'] = user[1]
+            session['email'] = user[2]
+            session['role'] = user[4]
+
+            if user[4] == 'owner':
+                return redirect(url_for('work'))
+            else:
+                return redirect(url_for('pick'))
+
+        flash("Invalid email or password")
+        return redirect(url_for('login'))
+
+    return render_template('login.html')
+
+
+# ---------------- LOGOUT ----------------
+@app.route('/logout')
+def logout():
+    session.clear()
+    return redirect(url_for('home'))
+
+
 # ---------------- WORK / ADD STORE ----------------
 @app.route('/work')
 def work():
+    if 'user_id' not in session or session.get('role') != 'owner':
+        return redirect(url_for('login'))
+
     return render_template('work.html')
 
 
 @app.route('/add-store', methods=['POST'])
 def add_store():
+    if 'user_id' not in session or session.get('role') != 'owner':
+        return redirect(url_for('login'))
+
     name = request.form['name'].strip()
     category = request.form['category'].strip()
     description = request.form['description'].strip()
     advantages = request.form['advantages'].strip()
     price = request.form['price'].strip()
     duration_minutes = request.form['duration_minutes'].strip()
+    owner_id = session['user_id']
 
     conn = get_connection()
     cursor = conn.cursor()
 
     cursor.execute("""
-        INSERT INTO stores (name, category, description, advantages, price, duration_minutes)
-        VALUES (%s, %s, %s, %s, %s, %s)
-    """, (name, category, description, advantages, price, duration_minutes))
+        INSERT INTO stores (name, category, description, advantages, price, duration_minutes, owner_id)
+        VALUES (%s, %s, %s, %s, %s, %s, %s)
+    """, (name, category, description, advantages, price, duration_minutes, owner_id))
 
     conn.commit()
     cursor.close()
@@ -151,10 +245,14 @@ def store_details(store_id):
 # ---------------- BOOK APPOINTMENT ----------------
 @app.route('/book/<int:store_id>', methods=['POST'])
 def book(store_id):
-    customer_name = request.form['customer_name'].strip()
+    if 'user_id' not in session or session.get('role') != 'customer':
+        return redirect(url_for('login'))
+
+    customer_name = session.get('full_name')
     customer_phone = request.form['customer_phone'].strip()
     appointment_date = request.form['appointment_date']
     appointment_time = request.form['appointment_time']
+    customer_id = session['user_id']
 
     conn = get_connection()
     cursor = conn.cursor()
@@ -170,17 +268,19 @@ def book(store_id):
     if exists:
         cursor.close()
         conn.close()
+        flash("This time is already booked.")
         return redirect(url_for('store_details', store_id=store_id))
 
     cursor.execute("""
-        INSERT INTO appointments (store_id, customer_name, customer_phone, appointment_date, appointment_time)
-        VALUES (%s, %s, %s, %s, %s)
-    """, (store_id, customer_name, customer_phone, appointment_date, appointment_time))
+        INSERT INTO appointments (store_id, customer_id, customer_name, customer_phone, appointment_date, appointment_time)
+        VALUES (%s, %s, %s, %s, %s, %s)
+    """, (store_id, customer_id, customer_name, customer_phone, appointment_date, appointment_time))
 
     conn.commit()
     cursor.close()
     conn.close()
 
+    flash("Appointment booked successfully.")
     return redirect(url_for('store_details', store_id=store_id))
 
 
