@@ -6,44 +6,367 @@
     <title>הוספת חנות</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .section-box {
+            background: #fff;
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .section-title {
+            font-size: 24px;
+            font-weight: bold;
+            margin-bottom: 20px;
+            color: #0d1b3d;
+        }
+
+        .service-box, .day-box {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 18px;
+            margin-bottom: 16px;
+            background: #fafafa;
+        }
+
+        .service-header, .day-header {
+            font-weight: bold;
+            margin-bottom: 12px;
+            color: #0d1b3d;
+        }
+
+        .day-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr 1fr;
+            gap: 12px;
+            align-items: end;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .small-note {
+            color: #6b7280;
+            font-size: 14px;
+            margin-top: 8px;
+        }
+
+        .add-service-btn {
+            background: #198754;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .add-service-btn:hover {
+            background: #157347;
+        }
+
+        .remove-service-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 8px 14px;
+            border-radius: 10px;
+            cursor: pointer;
+            margin-top: 12px;
+        }
+
+        .remove-service-btn:hover {
+            background: #bb2d3b;
+        }
+
+        @media (max-width: 768px) {
+            .service-grid,
+            .day-grid {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
 </head>
 <body>
 
 <nav class="navbar">
     <div class="nav-logo">My Marketplace</div>
     <div class="nav-links">
-        <a href="/">בית</a>
-        <a href="/work">Work</a>
-        <a href="/pick">Pick</a>
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('work') }}">אזור בעל עסק</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+        <a href="{{ url_for('logout') }}">התנתקות</a>
     </div>
 </nav>
 
 <div class="container">
-    <h1>הוספת חנות חדשה</h1>
+    <h1 style="margin-bottom: 30px;">הוספת חנות חדשה</h1>
 
     <form action="/add-store" method="POST" class="booking-form">
-        <label>שם החנות</label>
-        <input type="text" name="name" required>
 
-        <label>קטגוריה</label>
-        <input type="text" name="category" required>
+        <div class="section-box">
+            <div class="section-title">פרטי העסק</div>
 
-        <label>תיאור העסק</label>
-        <input type="text" name="description" required>
+            <label>שם החנות</label>
+            <input type="text" name="name" required>
 
-        <label>יתרונות / שירותים</label>
-        <input type="text" name="advantages" required>
+            <label>קטגוריה</label>
+            <select name="category" required>
+                <option value="">בחר קטגוריה</option>
+                <option value="Barber">Barber</option>
+                <option value="Car Wash">Car Wash</option>
+                <option value="Nails">Nails</option>
+            </select>
 
-        <label>מחיר</label>
-        <input type="number" step="0.01" name="price" required>
+            <label>תיאור העסק</label>
+            <input type="text" name="description" required>
 
-        <label>משך זמן בדקות</label>
-        <input type="number" name="duration_minutes" required>
+            <label>יתרונות / מידע נוסף</label>
+            <input type="text" name="advantages" required>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">שירותים</div>
+            <p class="small-note">אפשר להגדיר עד 6 שירותים. לכל שירות יש שם, מחיר ומשך זמן בדקות.</p>
+
+            <div id="services-container">
+                <div class="service-box">
+                    <div class="service-header">שירות 1</div>
+                    <div class="service-grid">
+                        <div>
+                            <label>שם השירות</label>
+                            <input type="text" name="service_name[]" required>
+                        </div>
+                        <div>
+                            <label>מחיר</label>
+                            <input type="number" step="0.01" min="0" name="service_price[]" required>
+                        </div>
+                        <div>
+                            <label>משך זמן בדקות</label>
+                            <input type="number" min="5" name="service_duration[]" required>
+                        </div>
+                    </div>
+                </div>
+            </div>
+
+            <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
+        </div>
+
+        <div class="section-box">
+            <div class="section-title">שעות עבודה שבועיות</div>
+            <p class="small-note">הגדר שעות עבודה לכל יום. לקוחות יוכלו לקבוע תורים רק בתוך השעות האלו.</p>
+
+            <div class="day-box">
+                <div class="day-header">יום ראשון</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_sunday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_sunday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_sunday" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום שני</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_monday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_monday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_monday" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום שלישי</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_tuesday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_tuesday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_tuesday" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום רביעי</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_wednesday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_wednesday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_wednesday" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום חמישי</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_thursday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_thursday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_thursday" value="17:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום שישי</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_friday">
+                            <option value="true">כן</option>
+                            <option value="false">לא</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_friday" value="09:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_friday" value="15:00">
+                    </div>
+                </div>
+            </div>
+
+            <div class="day-box">
+                <div class="day-header">יום שבת</div>
+                <div class="day-grid">
+                    <div>
+                        <label>פתוח?</label>
+                        <select name="is_open_saturday">
+                            <option value="false">לא</option>
+                            <option value="true">כן</option>
+                        </select>
+                    </div>
+                    <div>
+                        <label>משעה</label>
+                        <input type="time" name="start_time_saturday" value="10:00">
+                    </div>
+                    <div>
+                        <label>עד שעה</label>
+                        <input type="time" name="end_time_saturday" value="16:00">
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <button type="submit">שמור חנות</button>
     </form>
 </div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+<script>
+    const servicesContainer = document.getElementById('services-container');
+    const addServiceBtn = document.getElementById('add-service-btn');
+    let serviceCount = 1;
+    const maxServices = 6;
+
+    addServiceBtn.addEventListener('click', function () {
+        if (serviceCount >= maxServices) {
+            alert('אפשר להוסיף עד 6 שירותים בלבד');
+            return;
+        }
+
+        serviceCount++;
+
+        const serviceBox = document.createElement('div');
+        serviceBox.className = 'service-box';
+
+        serviceBox.innerHTML = `
+            <div class="service-header">שירות ${serviceCount}</div>
+            <div class="service-grid">
+                <div>
+                    <label>שם השירות</label>
+                    <input type="text" name="service_name[]" required>
+                </div>
+                <div>
+                    <label>מחיר</label>
+                    <input type="number" step="0.01" min="0" name="service_price[]" required>
+                </div>
+                <div>
+                    <label>משך זמן בדקות</label>
+                    <input type="number" min="5" name="service_duration[]" required>
+                </div>
+            </div>
+            <button type="button" class="remove-service-btn">מחק שירות</button>
+        `;
+
+        servicesContainer.appendChild(serviceBox);
+
+        serviceBox.querySelector('.remove-service-btn').addEventListener('click', function () {
+            serviceBox.remove();
+            serviceCount--;
+            updateServiceTitles();
+        });
+    });
+
+    function updateServiceTitles() {
+        const allServices = servicesContainer.querySelectorAll('.service-box');
+        allServices.forEach((box, index) => {
+            const header = box.querySelector('.service-header');
+            header.textContent = `שירות ${index + 1}`;
+        });
+    }
+</script>
+
 </body>
 </html>

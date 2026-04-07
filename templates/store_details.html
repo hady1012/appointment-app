@@ -6,78 +6,286 @@
     <title>{{ store.name }}</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        .section-box {
+            background: #fff;
+            border-radius: 18px;
+            padding: 24px;
+            margin-bottom: 24px;
+            box-shadow: 0 4px 20px rgba(0,0,0,0.06);
+        }
+
+        .section-title {
+            font-size: 26px;
+            font-weight: bold;
+            margin-bottom: 18px;
+            color: #0d1b3d;
+        }
+
+        .service-list {
+            display: grid;
+            gap: 14px;
+        }
+
+        .service-card {
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 16px;
+            background: #fafafa;
+        }
+
+        .service-name {
+            font-size: 18px;
+            font-weight: bold;
+            margin-bottom: 8px;
+            color: #0d1b3d;
+        }
+
+        .share-box {
+            background: #f8f9fa;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 12px;
+            direction: ltr;
+            text-align: left;
+            margin-top: 10px;
+        }
+
+        .login-note {
+            background: #fff3cd;
+            border: 1px solid #ffe69c;
+            color: #664d03;
+            padding: 14px;
+            border-radius: 12px;
+            margin-bottom: 18px;
+        }
+
+        .slots-box {
+            margin-top: 14px;
+        }
+
+        .slots-note {
+            font-size: 14px;
+            color: #6b7280;
+            margin-top: 8px;
+        }
+
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            background: #fff;
+        }
+
+        th, td {
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        th {
+            background: #f8f9fa;
+        }
+    </style>
 </head>
 <body>
 
 <nav class="navbar">
     <div class="nav-logo">My Marketplace</div>
     <div class="nav-links">
-        <a href="/">בית</a>
-        <a href="/work">Work</a>
-        <a href="/pick">Pick</a>
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+
+        {% if session.get('user_id') %}
+            {% if session.get('role') == 'owner' %}
+                <a href="{{ url_for('work') }}">אזור בעל עסק</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">התנתקות</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">התחברות</a>
+            <a href="{{ url_for('signup', role='customer') }}">הרשמת לקוח</a>
+            <a href="{{ url_for('signup', role='owner') }}">הרשמת בעל עסק</a>
+        {% endif %}
     </div>
 </nav>
 
-<div class="container">
-    <h1>{{ store.name }}</h1>
+<div class="container" style="margin-top: 30px; margin-bottom: 40px;">
 
-    <p><strong>קטגוריה:</strong> {{ store.category }}</p>
-    <p><strong>תיאור:</strong> {{ store.description }}</p>
-    <p><strong>יתרונות:</strong> {{ store.advantages }}</p>
-    <p><strong>מחיר:</strong> ₪{{ store.price }}</p>
-    <p><strong>משך זמן:</strong> {{ store.duration_minutes }} דקות</p>
-    <p><strong>קישור לשיתוף:</strong> /store/{{ store.id }}</p>
-
-    <hr style="margin: 30px 0;">
-
-    <h1 style="font-size: 32px;">קביעת תור</h1>
-
-    <form action="/book/{{ store.id }}" method="POST" class="booking-form">
-        <label>שם לקוח</label>
-        <input type="text" name="customer_name" required>
-
-        <label>טלפון</label>
-        <input type="text" name="customer_phone" required>
-
-        <label>תאריך</label>
-        <input type="date" name="appointment_date" min="{{ min_date }}" max="{{ max_date }}" required>
-
-        <label>שעה</label>
-        <input type="time" name="appointment_time" required>
-
-        <button type="submit">קבע תור</button>
-    </form>
-
-    <hr style="margin: 40px 0;">
-
-    <h1 style="font-size: 32px;">תורים קיימים</h1>
-
-    {% if appointments %}
-    <table>
-        <thead>
-            <tr>
-                <th>שם לקוח</th>
-                <th>טלפון</th>
-                <th>תאריך</th>
-                <th>שעה</th>
-            </tr>
-        </thead>
-        <tbody>
-            {% for appointment in appointments %}
-            <tr>
-                <td>{{ appointment.customer_name }}</td>
-                <td>{{ appointment.customer_phone }}</td>
-                <td>{{ appointment.date }}</td>
-                <td>{{ appointment.time }}</td>
-            </tr>
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-info text-center">{{ message }}</div>
             {% endfor %}
-        </tbody>
-    </table>
-    {% else %}
-    <p>עדיין אין תורים לעסק הזה.</p>
-    {% endif %}
+        {% endif %}
+    {% endwith %}
+
+    <div class="section-box">
+        <h1 style="margin-bottom: 20px;">{{ store.name }}</h1>
+
+        <p><strong>קטגוריה:</strong> {{ store.category }}</p>
+        <p><strong>תיאור:</strong> {{ store.description }}</p>
+        <p><strong>יתרונות / מידע נוסף:</strong> {{ store.advantages }}</p>
+
+        <p><strong>קישור לשיתוף:</strong></p>
+        <div class="share-box">{{ request.url }}</div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">השירותים בעסק</div>
+
+        {% if services %}
+            <div class="service-list">
+                {% for service in services %}
+                    <div class="service-card">
+                        <div class="service-name">{{ service.name }}</div>
+                        <p><strong>מחיר:</strong> ₪{{ service.price }}</p>
+                        <p><strong>משך זמן:</strong> {{ service.duration }} דקות</p>
+                    </div>
+                {% endfor %}
+            </div>
+        {% else %}
+            <p>עדיין לא הוגדרו שירותים לעסק הזה.</p>
+        {% endif %}
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">קביעת תור</div>
+
+        {% if not session.get('user_id') %}
+            <div class="login-note">
+                כדי לקבוע תור צריך להתחבר כלקוח.
+            </div>
+            <a href="{{ url_for('login') }}" class="btn btn-dark">להתחברות</a>
+
+        {% elif session.get('role') != 'customer' %}
+            <div class="login-note">
+                רק לקוחות יכולים לקבוע תורים.
+            </div>
+
+        {% else %}
+            <form action="{{ url_for('book', store_id=store.id) }}" method="POST" class="booking-form">
+                <label>שירות</label>
+                <select name="service_id" id="service_id" required>
+                    <option value="">בחר שירות</option>
+                    {% for service in services %}
+                        <option value="{{ service.id }}">
+                            {{ service.name }} - ₪{{ service.price }} - {{ service.duration }} דקות
+                        </option>
+                    {% endfor %}
+                </select>
+
+                <label>טלפון</label>
+                <input type="text" name="customer_phone" required>
+
+                <label>תאריך</label>
+                <input type="date" name="appointment_date" id="appointment_date" min="{{ min_date }}" max="{{ max_date }}" required>
+
+                <label>שעה זמינה</label>
+                <select name="appointment_time" id="appointment_time" required>
+                    <option value="">בחר קודם שירות ותאריך</option>
+                </select>
+
+                <div class="slots-box">
+                    <div class="slots-note" id="slots_note">
+                        המערכת תציג רק שעות פנויות לפי שעות העבודה של העסק.
+                    </div>
+                </div>
+
+                <button type="submit">קבע תור</button>
+            </form>
+        {% endif %}
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">תורים קיימים</div>
+
+        {% if appointments %}
+            <table>
+                <thead>
+                    <tr>
+                        <th>שם לקוח</th>
+                        <th>טלפון</th>
+                        <th>שירות</th>
+                        <th>תאריך</th>
+                        <th>שעה</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    {% for appointment in appointments %}
+                        <tr>
+                            <td>{{ appointment.customer_name }}</td>
+                            <td>{{ appointment.customer_phone }}</td>
+                            <td>{{ appointment.service_name }}</td>
+                            <td>{{ appointment.date }}</td>
+                            <td>{{ appointment.time }}</td>
+                        </tr>
+                    {% endfor %}
+                </tbody>
+            </table>
+        {% else %}
+            <p>עדיין אין תורים לעסק הזה.</p>
+        {% endif %}
+    </div>
+
 </div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
+<script>
+    const serviceSelect = document.getElementById('service_id');
+    const dateInput = document.getElementById('appointment_date');
+    const timeSelect = document.getElementById('appointment_time');
+    const slotsNote = document.getElementById('slots_note');
+
+    async function loadAvailableSlots() {
+        if (!serviceSelect || !dateInput || !timeSelect) return;
+
+        const serviceId = serviceSelect.value;
+        const appointmentDate = dateInput.value;
+
+        timeSelect.innerHTML = '<option value="">טוען שעות...</option>';
+
+        if (!serviceId || !appointmentDate) {
+            timeSelect.innerHTML = '<option value="">בחר קודם שירות ותאריך</option>';
+            slotsNote.textContent = 'המערכת תציג רק שעות פנויות לפי שעות העבודה של העסק.';
+            return;
+        }
+
+        try {
+            const response = await fetch(`/available-slots/{{ store.id }}?service_id=${serviceId}&appointment_date=${appointmentDate}`);
+            const data = await response.json();
+
+            timeSelect.innerHTML = '';
+
+            if (!data.slots || data.slots.length === 0) {
+                timeSelect.innerHTML = '<option value="">אין שעות פנויות ביום הזה</option>';
+                slotsNote.textContent = 'לא נמצאו שעות פנויות עבור השירות והתאריך שנבחרו.';
+                return;
+            }
+
+            const defaultOption = document.createElement('option');
+            defaultOption.value = '';
+            defaultOption.textContent = 'בחר שעה';
+            timeSelect.appendChild(defaultOption);
+
+            data.slots.forEach(slot => {
+                const option = document.createElement('option');
+                option.value = slot;
+                option.textContent = slot;
+                timeSelect.appendChild(option);
+            });
+
+            slotsNote.textContent = 'מוצגות רק שעות זמינות לפי שעות העבודה של העסק ומשך השירות.';
+        } catch (error) {
+            timeSelect.innerHTML = '<option value="">שגיאה בטעינת שעות</option>';
+            slotsNote.textContent = 'אירעה שגיאה בטעינת השעות הזמינות.';
+        }
+    }
+
+    if (serviceSelect && dateInput) {
+        serviceSelect.addEventListener('change', loadAvailableSlots);
+        dateInput.addEventListener('change', loadAvailableSlots);
+    }
+</script>
+
 </body>
 </html>
