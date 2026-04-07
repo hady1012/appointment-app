@@ -12,18 +12,18 @@
 <nav class="navbar">
     <div class="nav-logo">My Marketplace</div>
     <div class="nav-links">
-        <a href="/">בית</a>
-        <a href="/pick">עסקים</a>
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
 
         {% if session.get('user_id') %}
             {% if session.get('role') == 'owner' %}
-                <a href="/work">אזור בעל עסק</a>
+                <a href="{{ url_for('work') }}">אזור בעל עסק</a>
             {% endif %}
-            <a href="/logout">התנתקות</a>
+            <a href="{{ url_for('logout') }}">התנתקות</a>
         {% else %}
-            <a href="/login">התחברות</a>
-            <a href="/signup/customer">הרשמת לקוח</a>
-            <a href="/signup/owner">הרשמת בעל עסק</a>
+            <a href="{{ url_for('login') }}">התחברות</a>
+            <a href="{{ url_for('signup', role='customer') }}">הרשמת לקוח</a>
+            <a href="{{ url_for('signup', role='owner') }}">הרשמת בעל עסק</a>
         {% endif %}
     </div>
 </nav>
@@ -36,13 +36,13 @@
         <div style="margin-top: 30px;">
             {% if session.get('user_id') %}
                 {% if session.get('role') == 'owner' %}
-                    <a href="/work" class="hero-btn">כניסה לאזור בעל עסק</a>
+                    <a href="{{ url_for('work') }}" class="hero-btn">כניסה לאזור בעל עסק</a>
                 {% else %}
-                    <a href="/pick" class="hero-btn">צפייה בכל העסקים</a>
+                    <a href="{{ url_for('pick') }}" class="hero-btn">צפייה בכל העסקים</a>
                 {% endif %}
             {% else %}
-                <a href="/signup/owner" class="hero-btn">אני בעל עסק</a>
-                <a href="/signup/customer" class="hero-btn" style="margin-right: 12px;">אני מחפש עסק</a>
+                <a href="{{ url_for('signup', role='owner') }}" class="hero-btn">אני בעל עסק</a>
+                <a href="{{ url_for('signup', role='customer') }}" class="hero-btn" style="margin-right: 12px;">אני מחפש עסק</a>
             {% endif %}
         </div>
     </div>
