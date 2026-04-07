@@ -1,57 +1,62 @@
 # 📅 Appointment Booking Web App
 
-A full-stack web application for managing stores and booking appointments.
+A full-stack web application that allows users to discover businesses and book appointments easily, while enabling business owners to manage their stores.
 
-Built with Flask, PostgreSQL (Neon), and deployed on Render.
+Built with Flask, PostgreSQL, and deployed on Render.
 
 ---
 
 ## 🚀 Live Demo
 
-Production URL: `https://appointment-app-jcyq.onrender.com`
+🌍 https://appointment-app-jcyq.onrender.com
 
 ---
 
 ## ✨ Features
 
-### 👤 User Side
-- View all available stores
-- Search stores by name or category
-- View store details
-- Book appointments
-- See existing appointments for each store
+### 👤 Customer Features
 
-### 🏪 Store Owner
-- Add a new store
-- Define:
-  - Name
-  - Category
-  - Description
-  - Advantages
-  - Price
-  - Duration
+* Browse all available stores
+* Search stores by name or category
+* View detailed store information
+* Book appointments easily
+* View existing booked time slots
+
+### 🏪 Business Owner Features
+
+* Register as a store owner
+* Add and manage stores
+* Define:
+
+  * Store name
+  * Category
+  * Description
+  * Advantages
+  * Price
+  * Service duration
 
 ### 📆 Booking System
-- Prevents duplicate bookings for the same store, date, and time
-- Limits booking dates from today up to 7 days ahead
-- Displays booked appointments clearly
+
+* Prevents double bookings (same date & time)
+* Limits bookings from today up to 7 days ahead
+* Displays booked slots clearly
 
 ---
 
 ## 🏗️ Tech Stack
 
-- **Backend:** Flask (Python)
-- **Database:** PostgreSQL (Neon)
-- **Frontend:** HTML, CSS
-- **Deployment:** Render
-- **Production Server:** Gunicorn
-- **Version Control:** Git + GitHub
+* **Backend:** Flask (Python)
+* **Database:** PostgreSQL (Neon)
+* **Frontend:** HTML, CSS (Bootstrap)
+* **Deployment:** Render
+* **Server:** Gunicorn
+* **Version Control:** Git + GitHub
 
 ---
 
 ## 📁 Project Structure
 
-```text
+```
 appointment-app/
 │
 ├── app.py
@@ -67,37 +72,77 @@ appointment-app/
 │
 └── templates/
     ├── index.html
-    ├── work.html
+    ├── login.html
+    ├── signup.html
     ├── pick.html
     ├── store_details.html
-    └── appointments.html
-⚙️ Local Setup
-1. Clone the repo
+    ├── work.html
+```
+
+---
+
+## ⚙️ Local Setup
+
+### 1. Clone the repository
+
+```bash
 git clone https://github.com/hady1012/appointment-app.git
 cd appointment-app
-2. Create and activate virtual environment
+```
+
+### 2. Create virtual environment
+
+```bash
 python -m venv .venv
 .venv\Scripts\activate
-3. Install dependencies
+```
+
+### 3. Install dependencies
+
+```bash
 pip install -r requirements.txt
-4. Create environment variable
+```
 
-Create a .env file locally:
+### 4. Configure environment variables
 
+Create a `.env` file:
+
+```
 DATABASE_URL=your_neon_connection_string
+```
 
 Example:
 
+```
 DATABASE_URL=postgresql://username:password@host/database?sslmode=require
-5. Run the app
+```
+
+### 5. Run the application
+
+```bash
 python app.py
+```
 
-Then open:
+Open in browser:
 
+```
 http://127.0.0.1:5000
-🧠 Database Setup
+```
 
-Run this in Neon SQL Editor:
+---
+
+## 🧠 Database Setup
+
+Run the following SQL in Neon:
+
+```sql
+CREATE TABLE IF NOT EXISTS users (
+    id SERIAL PRIMARY KEY,
+    full_name VARCHAR(255),
+    email VARCHAR(255) UNIQUE NOT NULL,
+    password_hash TEXT NOT NULL,
+    role VARCHAR(50) NOT NULL
+);
 
 CREATE TABLE IF NOT EXISTS stores (
     id SERIAL PRIMARY KEY,
@@ -106,71 +151,73 @@ CREATE TABLE IF NOT EXISTS stores (
     description TEXT,
     advantages TEXT,
     price NUMERIC(10,2) NOT NULL,
-    duration_minutes INT NOT NULL
+    duration_minutes INT NOT NULL,
+    owner_id INT REFERENCES users(id)
 );
 
 CREATE TABLE IF NOT EXISTS appointments (
     id SERIAL PRIMARY KEY,
-    store_id INT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
-    customer_name VARCHAR(255) NOT NULL,
-    customer_phone VARCHAR(50) NOT NULL,
+    store_id INT REFERENCES stores(id) ON DELETE CASCADE,
+    customer_id INT REFERENCES users(id),
+    customer_name VARCHAR(255),
+    customer_phone VARCHAR(50),
     appointment_date DATE NOT NULL,
     appointment_time TIME NOT NULL
 );
+```
 
-Optional sample data:
+---
 
-INSERT INTO stores (name, category, description, advantages, price, duration_minutes)
-VALUES (
-    'Demo Barber',
-    'Barbershop',
-    'Professional haircut and beard service',
-    'Fast service, clean place, friendly staff',
-    80.00,
-    45
-);
-🌍 Deployment
+## 🌍 Deployment
 
-This project is deployed on Render and uses Neon PostgreSQL as the cloud database.
+### Render Setup
 
-Render
+**Build Command**
 
-Build Command
-
+```bash
 pip install -r requirements.txt
+```
 
-Start Command
+**Start Command**
 
+```bash
 gunicorn app:app
-Environment Variable on Render
+```
+
+### Environment Variable
+
+```
 DATABASE_URL=your_neon_connection_string
-🔐 Security Notes
+```
 
-Secrets are stored in environment variables, not in code
+---
 
-.env is excluded through .gitignore
+## 🔐 Security
 
-Parameterized SQL queries are used to reduce SQL injection risk
+* Passwords are hashed using Werkzeug
+* Sensitive data stored in environment variables
+* `.env` excluded via `.gitignore`
+* Parameterized SQL queries used (prevents SQL injection)
 
-Public repos should never contain database passwords, tokens, or API keys
+---
 
-🎯 Future Improvements
+## 🎯 Future Improvements
 
-User authentication
+* 👤 Customer dashboard ("My bookings")
+* 🧑‍💼 Owner dashboard (appointments & stats)
+* ❌ Cancel/edit appointments
+* 📱 Mobile-friendly UI improvements
+* ⏱️ Automatic time slot generation
+* 💳 Payment integration
+* 🔔 Notifications system
 
-Store owner dashboard
+---
 
-Better mobile UI
+## 👨‍💻 Author
 
-Automatic available time slots
-
-Booking cancellation/editing
-
-Admin panel
-
-Payment integration
-
-👨‍💻 Author
-
-Hady Amasha
+**Hady Amasha**
 Software Engineering Student
+
+---
+
+⭐ If you like this project, consider giving it a star on GitHub!
