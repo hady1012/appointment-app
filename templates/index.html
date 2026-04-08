@@ -28,18 +28,27 @@
     </div>
 </nav>
 
+{% if session.get('role') == 'owner' %}
+<section class="hero">
+    <div class="hero-content">
+        <h1>ברוך הבא לאזור בעל העסק</h1>
+        <p>כאן אפשר לנהל את העסק, לעדכן שעות פתיחה, שירותים ולקבל גישה לתורים שנקבעו.</p>
+
+        <div style="margin-top: 30px;">
+            <a href="{{ url_for('work') }}" class="hero-btn">כניסה לאזור האישי</a>
+            <a href="{{ url_for('pick') }}" class="hero-btn" style="margin-right: 12px;">צפייה בעסקים</a>
+        </div>
+    </div>
+</section>
+{% else %}
 <section class="hero">
     <div class="hero-content">
         <h1>הפלטפורמה למציאת עסקים וקביעת תורים</h1>
-        <p>בעלי עסקים יכולים לפרסם חנות. לקוחות יכולים לחפש, לבחור ולקבוע תור בקלות.</p>
+        <p>לקוחות יכולים לחפש עסקים, לבחור שירות ולקבוע תור בקלות.</p>
 
         <div style="margin-top: 30px;">
             {% if session.get('user_id') %}
-                {% if session.get('role') == 'owner' %}
-                    <a href="{{ url_for('work') }}" class="hero-btn">כניסה לאזור בעל עסק</a>
-                {% else %}
-                    <a href="{{ url_for('pick') }}" class="hero-btn">צפייה בכל העסקים</a>
-                {% endif %}
+                <a href="{{ url_for('pick') }}" class="hero-btn">צפייה בכל העסקים</a>
             {% else %}
                 <a href="{{ url_for('signup', role='owner') }}" class="hero-btn">אני בעל עסק</a>
                 <a href="{{ url_for('signup', role='customer') }}" class="hero-btn" style="margin-right: 12px;">אני מחפש עסק</a>
@@ -51,19 +60,20 @@
 <section class="features">
     <div class="features-container">
         <div class="feature-card">
-            <h3>🏪 הוסף חנות</h3>
-            <p>בעלי עסקים יכולים להירשם, להתחבר ולפרסם את העסק שלהם עם פרטים מלאים.</p>
+            <h3>🏪 ניהול עסק</h3>
+            <p>בעלי עסקים יכולים להקים עסק אחד, להגדיר שירותים, מחירים ושעות עבודה.</p>
         </div>
         <div class="feature-card">
-            <h3>🔎 חפש עסקים</h3>
+            <h3>🔎 חיפוש עסקים</h3>
             <p>לקוחות יכולים לצפות בכל העסקים ולחפש לפי שם או קטגוריה.</p>
         </div>
         <div class="feature-card">
             <h3>📅 קביעת תור</h3>
-            <p>לקוח מחובר יכול לבחור תאריך ושעה ולקבוע תור בקלות.</p>
+            <p>לקוח מחובר יכול לבחור שירות ולראות רק שעות זמינות באמת.</p>
         </div>
     </div>
 </section>
+{% endif %}
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 </body>

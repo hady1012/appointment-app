@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>הוספת חנות</title>
+    <title>אזור בעל עסק</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
     <style>
@@ -83,6 +83,20 @@
             background: #bb2d3b;
         }
 
+        .delete-btn {
+            background: #dc3545;
+            color: white;
+            border: none;
+            padding: 10px 18px;
+            border-radius: 10px;
+            cursor: pointer;
+            font-weight: 600;
+        }
+
+        .delete-btn:hover {
+            background: #bb2d3b;
+        }
+
         @media (max-width: 768px) {
             .service-grid,
             .day-grid {
@@ -103,213 +117,195 @@
     </div>
 </nav>
 
-<div class="container">
-    <h1 style="margin-bottom: 30px;">הוספת חנות חדשה</h1>
+<div class="container" style="margin-top: 30px; margin-bottom: 40px;">
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="alert alert-info text-center">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
 
-    <form action="/add-store" method="POST" class="booking-form">
+    {% set days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] %}
+    {% set day_labels = {
+        'sunday':'יום ראשון',
+        'monday':'יום שני',
+        'tuesday':'יום שלישי',
+        'wednesday':'יום רביעי',
+        'thursday':'יום חמישי',
+        'friday':'יום שישי',
+        'saturday':'יום שבת'
+    } %}
 
-        <div class="section-box">
-            <div class="section-title">פרטי העסק</div>
+    {% if store %}
+        <h1 style="margin-bottom: 30px;">האזור האישי של העסק</h1>
 
-            <label>שם החנות</label>
-            <input type="text" name="name" required>
+        <form action="{{ url_for('update_store', store_id=store.id) }}" method="POST" class="booking-form">
+            <div class="section-box">
+                <div class="section-title">פרטי העסק</div>
 
-            <label>קטגוריה</label>
-            <select name="category" required>
-                <option value="">בחר קטגוריה</option>
-                <option value="Barber">Barber</option>
-                <option value="Car Wash">Car Wash</option>
-                <option value="Nails">Nails</option>
-            </select>
+                <label>שם העסק</label>
+                <input type="text" name="name" value="{{ store.name }}" required>
 
-            <label>תיאור העסק</label>
-            <input type="text" name="description" required>
+                <label>קטגוריה</label>
+                <select name="category" required>
+                    <option value="Barber" {% if store.category == 'Barber' %}selected{% endif %}>Barber</option>
+                    <option value="Car Wash" {% if store.category == 'Car Wash' %}selected{% endif %}>Car Wash</option>
+                    <option value="Nails" {% if store.category == 'Nails' %}selected{% endif %}>Nails</option>
+                </select>
 
-            <label>יתרונות / מידע נוסף</label>
-            <input type="text" name="advantages" required>
-        </div>
+                <label>תיאור העסק</label>
+                <input type="text" name="description" value="{{ store.description }}" required>
+            </div>
 
-        <div class="section-box">
-            <div class="section-title">שירותים</div>
-            <p class="small-note">אפשר להגדיר עד 6 שירותים. לכל שירות יש שם, מחיר ומשך זמן בדקות.</p>
+            <div class="section-box">
+                <div class="section-title">שירותים</div>
+                <p class="small-note">אפשר להגדיר עד 6 שירותים.</p>
 
-            <div id="services-container">
-                <div class="service-box">
-                    <div class="service-header">שירות 1</div>
-                    <div class="service-grid">
-                        <div>
-                            <label>שם השירות</label>
-                            <input type="text" name="service_name[]" required>
+                <div id="services-container">
+                    {% for service in services %}
+                        <div class="service-box">
+                            <div class="service-header">שירות {{ loop.index }}</div>
+                            <div class="service-grid">
+                                <div>
+                                    <label>שם השירות</label>
+                                    <input type="text" name="service_name[]" value="{{ service.name }}" required>
+                                </div>
+                                <div>
+                                    <label>מחיר</label>
+                                    <input type="number" step="0.01" min="0" name="service_price[]" value="{{ service.price }}" required>
+                                </div>
+                                <div>
+                                    <label>משך זמן בדקות</label>
+                                    <input type="number" min="5" name="service_duration[]" value="{{ service.duration }}" required>
+                                </div>
+                            </div>
+                            {% if loop.index > 1 %}
+                                <button type="button" class="remove-service-btn">מחק שירות</button>
+                            {% endif %}
                         </div>
-                        <div>
-                            <label>מחיר</label>
-                            <input type="number" step="0.01" min="0" name="service_price[]" required>
+                    {% endfor %}
+                </div>
+
+                {% if services|length < 6 %}
+                    <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
+                {% endif %}
+            </div>
+
+            <div class="section-box">
+                <div class="section-title">שעות עבודה שבועיות</div>
+
+                {% for day in days %}
+                    {% set day_data = working_hours.get(day, {'is_open': False, 'start_time': '09:00', 'end_time': '17:00'}) %}
+                    <div class="day-box">
+                        <div class="day-header">{{ day_labels[day] }}</div>
+                        <div class="day-grid">
+                            <div>
+                                <label>פתוח?</label>
+                                <select name="is_open_{{ day }}">
+                                    <option value="true" {% if day_data.is_open %}selected{% endif %}>כן</option>
+                                    <option value="false" {% if not day_data.is_open %}selected{% endif %}>לא</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>משעה</label>
+                                <input type="time" name="start_time_{{ day }}" value="{{ day_data.start_time }}">
+                            </div>
+                            <div>
+                                <label>עד שעה</label>
+                                <input type="time" name="end_time_{{ day }}" value="{{ day_data.end_time }}">
+                            </div>
                         </div>
-                        <div>
-                            <label>משך זמן בדקות</label>
-                            <input type="number" min="5" name="service_duration[]" required>
+                    </div>
+                {% endfor %}
+            </div>
+
+            <button type="submit">שמור שינויים</button>
+        </form>
+
+        <form action="{{ url_for('delete_store', store_id=store.id) }}" method="POST" style="margin-top: 20px;" onsubmit="return confirm('האם אתה בטוח שברצונך למחוק את העסק?');">
+            <button type="submit" class="delete-btn">מחק את העסק</button>
+        </form>
+
+    {% else %}
+        <h1 style="margin-bottom: 30px;">הוספת עסק חדש</h1>
+
+        <form action="{{ url_for('add_store') }}" method="POST" class="booking-form">
+            <div class="section-box">
+                <div class="section-title">פרטי העסק</div>
+
+                <label>שם העסק</label>
+                <input type="text" name="name" required>
+
+                <label>קטגוריה</label>
+                <select name="category" required>
+                    <option value="">בחר קטגוריה</option>
+                    <option value="Barber">Barber</option>
+                    <option value="Car Wash">Car Wash</option>
+                    <option value="Nails">Nails</option>
+                </select>
+
+                <label>תיאור העסק</label>
+                <input type="text" name="description" required>
+            </div>
+
+            <div class="section-box">
+                <div class="section-title">שירותים</div>
+                <p class="small-note">אפשר להגדיר עד 6 שירותים. לכל שירות יש שם, מחיר ומשך זמן בדקות.</p>
+
+                <div id="services-container">
+                    <div class="service-box">
+                        <div class="service-header">שירות 1</div>
+                        <div class="service-grid">
+                            <div>
+                                <label>שם השירות</label>
+                                <input type="text" name="service_name[]" required>
+                            </div>
+                            <div>
+                                <label>מחיר</label>
+                                <input type="number" step="0.01" min="0" name="service_price[]" required>
+                            </div>
+                            <div>
+                                <label>משך זמן בדקות</label>
+                                <input type="number" min="5" name="service_duration[]" required>
+                            </div>
                         </div>
                     </div>
                 </div>
+
+                <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
             </div>
 
-            <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
-        </div>
+            <div class="section-box">
+                <div class="section-title">שעות עבודה שבועיות</div>
 
-        <div class="section-box">
-            <div class="section-title">שעות עבודה שבועיות</div>
-            <p class="small-note">הגדר שעות עבודה לכל יום. לקוחות יוכלו לקבוע תורים רק בתוך השעות האלו.</p>
-
-            <div class="day-box">
-                <div class="day-header">יום ראשון</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_sunday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
+                {% for day in days %}
+                    <div class="day-box">
+                        <div class="day-header">{{ day_labels[day] }}</div>
+                        <div class="day-grid">
+                            <div>
+                                <label>פתוח?</label>
+                                <select name="is_open_{{ day }}">
+                                    <option value="true" {% if day != 'saturday' %}selected{% endif %}>כן</option>
+                                    <option value="false" {% if day == 'saturday' %}selected{% endif %}>לא</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label>משעה</label>
+                                <input type="time" name="start_time_{{ day }}" value="09:00">
+                            </div>
+                            <div>
+                                <label>עד שעה</label>
+                                <input type="time" name="end_time_{{ day }}" value="{% if day == 'friday' %}15:00{% elif day == 'saturday' %}16:00{% else %}17:00{% endif %}">
+                            </div>
+                        </div>
                     </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_sunday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_sunday" value="17:00">
-                    </div>
-                </div>
+                {% endfor %}
             </div>
 
-            <div class="day-box">
-                <div class="day-header">יום שני</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_monday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_monday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_monday" value="17:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="day-box">
-                <div class="day-header">יום שלישי</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_tuesday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_tuesday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_tuesday" value="17:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="day-box">
-                <div class="day-header">יום רביעי</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_wednesday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_wednesday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_wednesday" value="17:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="day-box">
-                <div class="day-header">יום חמישי</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_thursday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_thursday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_thursday" value="17:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="day-box">
-                <div class="day-header">יום שישי</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_friday">
-                            <option value="true">כן</option>
-                            <option value="false">לא</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_friday" value="09:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_friday" value="15:00">
-                    </div>
-                </div>
-            </div>
-
-            <div class="day-box">
-                <div class="day-header">יום שבת</div>
-                <div class="day-grid">
-                    <div>
-                        <label>פתוח?</label>
-                        <select name="is_open_saturday">
-                            <option value="false">לא</option>
-                            <option value="true">כן</option>
-                        </select>
-                    </div>
-                    <div>
-                        <label>משעה</label>
-                        <input type="time" name="start_time_saturday" value="10:00">
-                    </div>
-                    <div>
-                        <label>עד שעה</label>
-                        <input type="time" name="end_time_saturday" value="16:00">
-                    </div>
-                </div>
-            </div>
-        </div>
-
-        <button type="submit">שמור חנות</button>
-    </form>
+            <button type="submit">שמור עסק</button>
+        </form>
+    {% endif %}
 </div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
@@ -317,43 +313,53 @@
 <script>
     const servicesContainer = document.getElementById('services-container');
     const addServiceBtn = document.getElementById('add-service-btn');
-    let serviceCount = 1;
+    let serviceCount = document.querySelectorAll('.service-box').length || 1;
     const maxServices = 6;
 
-    addServiceBtn.addEventListener('click', function () {
-        if (serviceCount >= maxServices) {
-            alert('אפשר להוסיף עד 6 שירותים בלבד');
-            return;
-        }
+    if (addServiceBtn) {
+        addServiceBtn.addEventListener('click', function () {
+            if (serviceCount >= maxServices) {
+                alert('אפשר להוסיף עד 6 שירותים בלבד');
+                return;
+            }
 
-        serviceCount++;
+            serviceCount++;
 
-        const serviceBox = document.createElement('div');
-        serviceBox.className = 'service-box';
+            const serviceBox = document.createElement('div');
+            serviceBox.className = 'service-box';
 
-        serviceBox.innerHTML = `
-            <div class="service-header">שירות ${serviceCount}</div>
-            <div class="service-grid">
-                <div>
-                    <label>שם השירות</label>
-                    <input type="text" name="service_name[]" required>
+            serviceBox.innerHTML = `
+                <div class="service-header">שירות ${serviceCount}</div>
+                <div class="service-grid">
+                    <div>
+                        <label>שם השירות</label>
+                        <input type="text" name="service_name[]" required>
+                    </div>
+                    <div>
+                        <label>מחיר</label>
+                        <input type="number" step="0.01" min="0" name="service_price[]" required>
+                    </div>
+                    <div>
+                        <label>משך זמן בדקות</label>
+                        <input type="number" min="5" name="service_duration[]" required>
+                    </div>
                 </div>
-                <div>
-                    <label>מחיר</label>
-                    <input type="number" step="0.01" min="0" name="service_price[]" required>
-                </div>
-                <div>
-                    <label>משך זמן בדקות</label>
-                    <input type="number" min="5" name="service_duration[]" required>
-                </div>
-            </div>
-            <button type="button" class="remove-service-btn">מחק שירות</button>
-        `;
+                <button type="button" class="remove-service-btn">מחק שירות</button>
+            `;
 
-        servicesContainer.appendChild(serviceBox);
+            servicesContainer.appendChild(serviceBox);
 
-        serviceBox.querySelector('.remove-service-btn').addEventListener('click', function () {
-            serviceBox.remove();
+            serviceBox.querySelector('.remove-service-btn').addEventListener('click', function () {
+                serviceBox.remove();
+                serviceCount--;
+                updateServiceTitles();
+            });
+        });
+    }
+
+    document.querySelectorAll('.remove-service-btn').forEach(btn => {
+        btn.addEventListener('click', function () {
+            btn.closest('.service-box').remove();
             serviceCount--;
             updateServiceTitles();
         });

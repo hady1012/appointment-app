@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>כל החנויות</title>
+    <title>כל העסקים</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 </head>
@@ -12,18 +12,28 @@
 <nav class="navbar">
     <div class="nav-logo">My Marketplace</div>
     <div class="nav-links">
-        <a href="/">בית</a>
-        <a href="/work">Work</a>
-        <a href="/pick">Pick</a>
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+
+        {% if session.get('user_id') %}
+            {% if session.get('role') == 'owner' %}
+                <a href="{{ url_for('work') }}">אזור בעל עסק</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">התנתקות</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">התחברות</a>
+            <a href="{{ url_for('signup', role='customer') }}">הרשמת לקוח</a>
+            <a href="{{ url_for('signup', role='owner') }}">הרשמת בעל עסק</a>
+        {% endif %}
     </div>
 </nav>
 
-<div class="container">
+<div class="container" style="margin-top: 30px; margin-bottom: 40px;">
     <h1>חיפוש עסקים</h1>
 
-    <form method="GET" action="/pick" class="booking-form">
-        <label>חפש לפי שם חנות או קטגוריה</label>
-        <input type="text" name="search" value="{{ search }}" placeholder="למשל barber, nails, clinic">
+    <form method="GET" action="{{ url_for('pick') }}" class="booking-form">
+        <label>חפש לפי שם עסק או קטגוריה</label>
+        <input type="text" name="search" value="{{ search }}" placeholder="למשל Barber, Nails, Car Wash">
         <button type="submit">חפש</button>
     </form>
 
@@ -33,11 +43,10 @@
             <h3>{{ store.name }}</h3>
             <p><strong>קטגוריה:</strong> {{ store.category }}</p>
             <p><strong>תיאור:</strong> {{ store.description }}</p>
-            <p><strong>יתרונות:</strong> {{ store.advantages }}</p>
-            <p><strong>מחיר:</strong> ₪{{ store.price }}</p>
-            <p><strong>משך:</strong> {{ store.duration_minutes }} דקות</p>
-            <a href="/store/{{ store.id }}" class="hero-btn">לצפייה בעסק</a>
+            <a href="{{ url_for('store_details', store_id=store.id) }}" class="hero-btn">לצפייה בעסק</a>
         </div>
+        {% else %}
+        <p>לא נמצאו עסקים.</p>
         {% endfor %}
     </div>
 </div>
