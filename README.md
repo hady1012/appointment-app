@@ -1,8 +1,6 @@
 # 📅 Appointment Booking Web App
 
-A full-stack web application that allows users to discover businesses and book appointments easily, while enabling business owners to fully manage their stores, services, and working hours.
-
-Built with Flask, PostgreSQL (Neon), and deployed on Render.
+A full-stack web application that allows users to discover businesses and book appointments easily, while enabling business owners to manage their stores, services, and working hours.
 
 ---
 
@@ -18,10 +16,10 @@ Built with Flask, PostgreSQL (Neon), and deployed on Render.
 
 - Browse all available businesses
 - Search by name or category
-- View detailed store pages
+- View store details
 - View services (price + duration)
 - Book appointments easily
-- View existing bookings
+- See existing bookings per store
 - Choose from **available time slots only**
 - Prevents invalid or overlapping bookings
 
@@ -31,19 +29,19 @@ Built with Flask, PostgreSQL (Neon), and deployed on Render.
 
 - Register as a store owner
 - Create and manage stores
-- Add multiple services per store:
-  - Service name
+- Add multiple services:
+  - Name
   - Price
   - Duration
 - Define **weekly working hours**:
   - Open / closed days
-  - Start and end time per day
+  - Start and end time
 
 ---
 
 ### 📆 Smart Booking System
 
-- Generates time slots automatically based on:
+- Generates time slots dynamically based on:
   - Working hours
   - Service duration
   - Existing bookings
@@ -51,7 +49,7 @@ Built with Flask, PostgreSQL (Neon), and deployed on Render.
   - Double booking
   - Overlapping appointments
 - Limits booking range (today → 7 days ahead)
-- Validates bookings on backend (secure)
+- Backend validation ensures data integrity
 
 ---
 
@@ -67,8 +65,12 @@ Built with Flask, PostgreSQL (Neon), and deployed on Render.
 ---
 
 ## 📁 Project Structure
-ts.txt
-├── startup.txt
+
+
+appointment-booking/
+│
+├── app.py
+├── requirements.txt
 ├── README.md
 ├── .gitignore
 │
@@ -121,13 +123,10 @@ DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 5️⃣ Run the app
 python app.py
 
-Open:
+Open in browser:
 
 http://127.0.0.1:5000
 🧠 Database Schema
-
-Run in Neon:
-
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     full_name VARCHAR(255),
@@ -173,26 +172,32 @@ CREATE TABLE appointments (
     appointment_time TIME
 );
 🌍 Deployment (Render)
+
 Build Command
+
 pip install -r requirements.txt
+
 Start Command
+
 gunicorn app:app
+
 Environment Variables
+
 DATABASE_URL=your_neon_connection_string
 🔐 Security
 Passwords hashed using Werkzeug
 Environment variables for secrets
-.env excluded via .gitignore
-SQL injection prevented using parameterized queries
+.env excluded using .gitignore
+SQL injection protection (parameterized queries)
 Backend validation for booking logic
 🎯 Future Improvements
-👤 Customer dashboard ("My bookings")
-🧑‍💼 Owner dashboard (appointments + analytics)
+👤 Customer dashboard (My bookings)
+🧑‍💼 Owner dashboard (analytics + bookings)
 ❌ Cancel / reschedule appointments
-📱 Mobile UI (React / React Native)
+📱 Mobile app (React / React Native)
 🔔 Notifications (email / SMS)
 💳 Payment integration (Stripe)
-📊 Business insights (revenue, bookings)
+📊 Business analytics
 👨‍💻 Author
 
 Hady Amasha
@@ -202,10 +207,9 @@ Software Engineering Student
 
 If you like this project:
 
-👉 Give it a ⭐ on GitHub
-👉 Share it with others
-👉 Use it as a base for your own startup 😉
-
+⭐ Star it on GitHub
+🚀 Use it as a base for your own project
+💡 Improve and expand it
 💡 Project Level
 
 This project demonstrates:
@@ -214,29 +218,4 @@ Full-stack development
 Real-world booking logic
 Database design
 Backend validation
-Clean UI + UX
-
-👉 Ready to evolve into a real SaaS product
-
-
----
-
-## 🔥 What changed (important)
-
-I upgraded your README to match your real system:
-
-- ✅ services table
-- ✅ working_hours
-- ✅ smart slot generation
-- ✅ no old `price/duration` in stores
-- ✅ production-level explanation
-
----
-
-If you want next level (🔥):
-
-👉 I can turn this into:
-- GitHub **portfolio-level README (with screenshots + badges)**
-- or **CV project description (for jobs)**
-
-Just say: `make it portfolio level`
+Clean UI / UX

@@ -6,6 +6,199 @@
     <title>Marketplace Booking</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <style>
+        body {
+            background: linear-gradient(to bottom, #f8fbff, #f5f7fb);
+        }
+
+        .home-wrap {
+            max-width: 1180px;
+            margin: 30px auto 50px;
+            padding: 0 14px;
+        }
+
+        .hero-modern {
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            color: white;
+            border-radius: 30px;
+            padding: 42px 34px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
+            overflow: hidden;
+            position: relative;
+            margin-bottom: 28px;
+        }
+
+        .hero-modern::after {
+            content: "";
+            position: absolute;
+            top: -60px;
+            left: -60px;
+            width: 220px;
+            height: 220px;
+            background: rgba(255,255,255,0.08);
+            border-radius: 50%;
+        }
+
+        .hero-modern::before {
+            content: "";
+            position: absolute;
+            bottom: -80px;
+            right: -70px;
+            width: 260px;
+            height: 260px;
+            background: rgba(255,255,255,0.06);
+            border-radius: 50%;
+        }
+
+        .hero-content-modern {
+            position: relative;
+            z-index: 2;
+            max-width: 720px;
+        }
+
+        .hero-content-modern h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 14px;
+            line-height: 1.2;
+        }
+
+        .hero-content-modern p {
+            font-size: 1.05rem;
+            color: rgba(255,255,255,0.88);
+            line-height: 1.8;
+            margin-bottom: 24px;
+        }
+
+        .hero-actions {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 12px;
+        }
+
+        .hero-main-btn,
+        .hero-secondary-btn {
+            text-decoration: none;
+            border-radius: 16px;
+            padding: 13px 20px;
+            font-weight: 800;
+            display: inline-block;
+            transition: 0.2s ease;
+        }
+
+        .hero-main-btn {
+            background: white;
+            color: #1d4ed8;
+            box-shadow: 0 10px 24px rgba(255,255,255,0.14);
+        }
+
+        .hero-main-btn:hover {
+            color: #1d4ed8;
+            transform: translateY(-1px);
+        }
+
+        .hero-secondary-btn {
+            background: rgba(255,255,255,0.12);
+            color: white;
+            border: 1px solid rgba(255,255,255,0.18);
+        }
+
+        .hero-secondary-btn:hover {
+            color: white;
+            background: rgba(255,255,255,0.18);
+        }
+
+        .info-strip {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 16px;
+            margin-bottom: 28px;
+        }
+
+        .info-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            padding: 20px;
+            box-shadow: 0 10px 28px rgba(0,0,0,0.05);
+        }
+
+        .info-card h3 {
+            font-size: 1.08rem;
+            font-weight: 800;
+            margin-bottom: 10px;
+            color: #0f172a;
+        }
+
+        .info-card p {
+            color: #475569;
+            margin: 0;
+            line-height: 1.7;
+        }
+
+        .section-title {
+            font-size: 1.6rem;
+            font-weight: 800;
+            margin-bottom: 18px;
+            color: #0f172a;
+        }
+
+        .features-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 18px;
+        }
+
+        .feature-card-modern {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            padding: 22px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
+        }
+
+        .feature-card-modern:hover {
+            transform: translateY(-4px);
+            box-shadow: 0 16px 36px rgba(15, 23, 42, 0.08);
+        }
+
+        .feature-icon {
+            width: 52px;
+            height: 52px;
+            border-radius: 16px;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-size: 24px;
+            margin-bottom: 14px;
+            background: #e8f1ff;
+        }
+
+        .feature-card-modern h3 {
+            font-size: 1.15rem;
+            font-weight: 800;
+            color: #0f172a;
+            margin-bottom: 10px;
+        }
+
+        .feature-card-modern p {
+            color: #475569;
+            line-height: 1.7;
+            margin: 0;
+        }
+
+        @media (max-width: 992px) {
+            .info-strip,
+            .features-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .hero-content-modern h1 {
+                font-size: 2rem;
+            }
+        }
+    </style>
 </head>
 <body>
 
@@ -28,52 +221,83 @@
     </div>
 </nav>
 
-{% if session.get('role') == 'owner' %}
-<section class="hero">
-    <div class="hero-content">
-        <h1>ברוך הבא לאזור בעל העסק</h1>
-        <p>כאן אפשר לנהל את העסק, לעדכן שעות פתיחה, שירותים ולקבל גישה לתורים שנקבעו.</p>
+<div class="home-wrap">
 
-        <div style="margin-top: 30px;">
-            <a href="{{ url_for('work') }}" class="hero-btn">כניסה לאזור האישי</a>
-            <a href="{{ url_for('pick') }}" class="hero-btn" style="margin-right: 12px;">צפייה בעסקים</a>
-        </div>
-    </div>
-</section>
-{% else %}
-<section class="hero">
-    <div class="hero-content">
-        <h1>הפלטפורמה למציאת עסקים וקביעת תורים</h1>
-        <p>לקוחות יכולים לחפש עסקים, לבחור שירות ולקבוע תור בקלות.</p>
+    {% if session.get('role') == 'owner' %}
+        <section class="hero-modern">
+            <div class="hero-content-modern">
+                <h1>ברוך הבא לאזור בעל העסק</h1>
+                <p>
+                    כאן אפשר לנהל את העסק שלך, לעדכן שירותים, להגדיר שעות פתיחה,
+                    ולעקוב אחרי התורים שנקבעו.
+                </p>
 
-        <div style="margin-top: 30px;">
-            {% if session.get('user_id') %}
-                <a href="{{ url_for('pick') }}" class="hero-btn">צפייה בכל העסקים</a>
-            {% else %}
-                <a href="{{ url_for('signup', role='owner') }}" class="hero-btn">אני בעל עסק</a>
-                <a href="{{ url_for('signup', role='customer') }}" class="hero-btn" style="margin-right: 12px;">אני מחפש עסק</a>
-            {% endif %}
-        </div>
-    </div>
-</section>
+                <div class="hero-actions">
+                    <a href="{{ url_for('work') }}" class="hero-main-btn">כניסה לאזור האישי</a>
+                    <a href="{{ url_for('pick') }}" class="hero-secondary-btn">צפייה בעסקים</a>
+                </div>
+            </div>
+        </section>
 
-<section class="features">
-    <div class="features-container">
-        <div class="feature-card">
-            <h3>🏪 ניהול עסק</h3>
-            <p>בעלי עסקים יכולים להקים עסק אחד, להגדיר שירותים, מחירים ושעות עבודה.</p>
+        <div class="info-strip">
+            <div class="info-card">
+                <h3>ניהול פרטי העסק</h3>
+                <p>עדכן שם עסק, קטגוריה ותיאור בצורה מהירה ופשוטה.</p>
+            </div>
+            <div class="info-card">
+                <h3>שירותים ושעות עבודה</h3>
+                <p>הגדר שירותים, מחירים, משך זמן ושעות פעילות לכל ימות השבוע.</p>
+            </div>
+            <div class="info-card">
+                <h3>מעקב אחרי תורים</h3>
+                <p>צפה רק בתורים של העסק שלך ונהל את הפעילות שלך בצורה מסודרת.</p>
+            </div>
         </div>
-        <div class="feature-card">
-            <h3>🔎 חיפוש עסקים</h3>
-            <p>לקוחות יכולים לצפות בכל העסקים ולחפש לפי שם או קטגוריה.</p>
+
+    {% else %}
+        <section class="hero-modern">
+            <div class="hero-content-modern">
+                <h1>הפלטפורמה למציאת עסקים וקביעת תורים</h1>
+                <p>
+                    חפש עסקים, בחר שירות מתאים וקבע תור בקלות.
+                    המערכת מציגה רק שעות פנויות אמיתיות לפי שעות הפעילות של העסק.
+                </p>
+
+                <div class="hero-actions">
+                    {% if session.get('user_id') %}
+                        <a href="{{ url_for('pick') }}" class="hero-main-btn">צפייה בכל העסקים</a>
+                    {% else %}
+                        <a href="{{ url_for('signup', role='owner') }}" class="hero-main-btn">אני בעל עסק</a>
+                        <a href="{{ url_for('signup', role='customer') }}" class="hero-secondary-btn">אני מחפש עסק</a>
+                    {% endif %}
+                </div>
+            </div>
+        </section>
+
+        <div class="section-title">למה להשתמש במערכת?</div>
+
+        <div class="features-grid">
+            <div class="feature-card-modern">
+                <div class="feature-icon">🏪</div>
+                <h3>ניהול עסק פשוט</h3>
+                <p>בעלי עסקים יכולים להקים עסק אחד, להגדיר שירותים, מחירים ושעות פעילות בקלות.</p>
+            </div>
+
+            <div class="feature-card-modern">
+                <div class="feature-icon">🔎</div>
+                <h3>חיפוש מהיר</h3>
+                <p>לקוחות יכולים לצפות בכל העסקים, לחפש לפי שם או קטגוריה ולמצוא בדיוק את מה שהם צריכים.</p>
+            </div>
+
+            <div class="feature-card-modern">
+                <div class="feature-icon">📅</div>
+                <h3>קביעת תור חכמה</h3>
+                <p>לקוח בוחר שירות ורואה רק שעות זמינות באמת, ללא כפילויות וללא חפיפות.</p>
+            </div>
         </div>
-        <div class="feature-card">
-            <h3>📅 קביעת תור</h3>
-            <p>לקוח מחובר יכול לבחור שירות ולראות רק שעות זמינות באמת.</p>
-        </div>
-    </div>
-</section>
-{% endif %}
+    {% endif %}
+
+</div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 </body>
