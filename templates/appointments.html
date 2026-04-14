@@ -61,6 +61,7 @@
             padding: 14px;
             border: 1px solid #e5e7eb;
             text-align: center;
+            vertical-align: middle;
         }
 
         .appointments-table th {
@@ -71,6 +72,58 @@
 
         .appointments-table td {
             background: #fff;
+        }
+
+        .rating-form {
+            display: flex;
+            gap: 8px;
+            align-items: center;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .rating-form select {
+            padding: 8px 10px;
+            border-radius: 10px;
+            border: 1px solid #dbe3ee;
+            background: #fff;
+        }
+
+        .rating-btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            border: none;
+            border-radius: 10px;
+            padding: 8px 14px;
+            font-weight: 700;
+        }
+
+        .status-chip {
+            display: inline-block;
+            padding: 6px 12px;
+            border-radius: 999px;
+            font-weight: 700;
+            font-size: 0.92rem;
+        }
+
+        .status-pending {
+            background: #fef3c7;
+            color: #92400e;
+        }
+
+        .status-accepted {
+            background: #dcfce7;
+            color: #166534;
+        }
+
+        .status-declined {
+            background: #fee2e2;
+            color: #991b1b;
+        }
+
+        .status-none {
+            background: #e2e8f0;
+            color: #475569;
         }
 
         .empty-state {
@@ -93,6 +146,7 @@
 
         .back-btn:hover {
             opacity: 0.95;
+            color: #fff;
         }
 
         @media (max-width: 768px) {
@@ -131,9 +185,17 @@
 
 <div class="page-wrap">
 
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="section-box" style="margin-bottom:20px;">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="page-hero">
         <h1>התורים שלי</h1>
-        <p>כאן ניתן לצפות בכל התורים שקבעת.</p>
+        <p>כאן ניתן לצפות בכל התורים שקבעת ולשלוח דירוג לאחר סיום התור.</p>
     </div>
 
     <div class="section-box">
@@ -142,19 +204,53 @@
         <table class="appointments-table">
             <thead>
                 <tr>
-                    <th>שם מלא</th>
-                    <th>טלפון</th>
+                    <th>עסק</th>
+                    <th>שירות</th>
                     <th>תאריך</th>
                     <th>שעה</th>
+                    <th>סטטוס דירוג</th>
+                    <th>שליחת דירוג</th>
                 </tr>
             </thead>
             <tbody>
                 {% for appointment in appointments %}
                 <tr>
-                    <td>{{ appointment.full_name }}</td>
-                    <td>{{ appointment.phone }}</td>
+                    <td>{{ appointment.store_name }}</td>
+                    <td>{{ appointment.service_name }}</td>
                     <td>{{ appointment.date }}</td>
                     <td>{{ appointment.time }}</td>
+                    <td>
+                        {% if appointment.rating_status == 'accepted' %}
+                            <span class="status-chip status-accepted">אושר</span>
+                        {% elif appointment.rating_status == 'pending' %}
+                            <span class="status-chip status-pending">ממתין לאישור</span>
+                        {% elif appointment.rating_status == 'declined' %}
+                            <span class="status-chip status-declined">נדחה</span>
+                        {% else %}
+                            <span class="status-chip status-none">לא נשלח</span>
+                        {% endif %}
+                    </td>
+                    <td>
+                        {% if appointment.rating_status == 'not_sent' %}
+                        <form action="{{ url_for('request_rating', appointment_id=appointment.appointment_id) }}" method="POST" class="rating-form">
+                            <select name="rating" required>
+                                <option value="">בחר דירוג</option>
+                                <option value="1">1 ★</option>
+                                <option value="2">2 ★★</option>
+                                <option value="3">3 ★★★</option>
+                                <option value="4">4 ★★★★</option>
+                                <option value="5">5 ★★★★★</option>
+                            </select>
+                            <button type="submit" class="rating-btn">שלח</button>
+                        </form>
+                        {% elif appointment.rating_status == 'pending' %}
+                            נשלח וממתין
+                        {% elif appointment.rating_status == 'accepted' %}
+                            אושר
+                        {% elif appointment.rating_status == 'declined' %}
+                            נדחה
+                        {% endif %}
+                    </td>
                 </tr>
                 {% endfor %}
             </tbody>
