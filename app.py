@@ -610,8 +610,6 @@ def add_store():
 
     flash("העסק נוצר בהצלחה.")
     return redirect(url_for("work"))
-
-
 @app.route("/update-store/<int:store_id>", methods=["POST"])
 def update_store(store_id):
     if "user_id" not in session or session.get("role") != "owner":
@@ -622,7 +620,10 @@ def update_store(store_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT id FROM stores WHERE id = %s AND owner_id = %s", (store_id, owner_id))
+        cursor.execute(
+            "SELECT id FROM stores WHERE id = %s AND owner_id = %s",
+            (store_id, owner_id)
+        )
         if not cursor.fetchone():
             flash("אין לך הרשאה לערוך את העסק הזה.")
             return redirect(url_for("work"))
@@ -646,22 +647,8 @@ def update_store(store_id):
             (name, category, description, store_id, owner_id),
         )
 
-        cursor.execute("DELETE FROM services WHERE store_id = %s", (store_id,))
+        # update ONLY working hours
         cursor.execute("DELETE FROM working_hours WHERE store_id = %s", (store_id,))
-
-        service_names = request.form.getlist("service_name[]")
-        service_prices = request.form.getlist("service_price[]")
-        service_durations = request.form.getlist("service_duration[]")
-
-        for i in range(len(service_names)):
-            if service_names[i].strip() and service_prices[i].strip() and service_durations[i].strip():
-                cursor.execute(
-                    """
-                    INSERT INTO services (store_id, name, price, duration_minutes)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (store_id, service_names[i].strip(), service_prices[i].strip(), service_durations[i].strip()),
-                )
 
         for day in DAYS:
             is_open = request.form.get(f"is_open_{day}") == "true"
@@ -677,14 +664,18 @@ def update_store(store_id):
             )
 
         conn.commit()
+        flash("העסק ושעות העבודה עודכנו בהצלחה.")
+
+    except Exception as e:
+        conn.rollback()
+        print("UPDATE STORE ERROR:", e)
+        flash(f"שגיאה בעדכון העסק: {e}")
+
     finally:
         cursor.close()
         conn.close()
 
-    flash("העסק עודכן בהצלחה.")
     return redirect(url_for("work"))
-
-
 @app.route("/delete-store/<int:store_id>", methods=["POST"])
 def delete_store(store_id):
     if "user_id" not in session or session.get("role") != "owner":
