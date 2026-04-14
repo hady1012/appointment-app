@@ -442,7 +442,7 @@
 
                         {% if session.get('role') == 'customer' %}
                         <button type="button" class="rate-btn"
-                                onclick="openRatingModal({{ store.id }}, '{{ store.name|replace(\"'\", \"&#39;\") }}')">
+                                onclick='openRatingModal({{ store.id }}, {{ store.name|tojson }})'>
                             ⭐ דרג
                         </button>
                         {% endif %}
