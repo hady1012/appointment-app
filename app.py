@@ -74,6 +74,8 @@ def get_categories():
         cursor.execute("SELECT name FROM business_categories ORDER BY LOWER(name)")
         rows = cursor.fetchall()
         return [r[0] for r in rows]
+    except Exception:
+        return []
     finally:
         cursor.close()
         conn.close()
@@ -116,63 +118,48 @@ def generate_available_slots(store_id, service_id, appointment_date):
     cursor = conn.cursor()
 
     try:
-        cursor.execute(
-            """
-            SELECT duration_minutes
-            FROM services
-            WHERE id = %s AND store_id = %s
-            """,
-            (service_id, store_id),
-        )
-        service_row = cursor.fetchone()
-        if not service_row:
-            return []
-
-        service_duration = int(service_row[0])
         day_name = get_day_name_from_date(appointment_date)
 
         cursor.execute(
             """
-            SELECT is_open, start_time, end_time
-            FROM working_hours
-            WHERE store_id = %s AND day_of_week = %s
+            SELECT s.duration_minutes, wh.is_open, wh.start_time, wh.end_time
+            FROM services s
+            JOIN working_hours wh
+              ON wh.store_id = s.store_id
+            WHERE s.id = %s
+              AND s.store_id = %s
+              AND wh.day_of_week = %s
             """,
-            (store_id, day_name),
+            (service_id, store_id, day_name),
         )
-        working_row = cursor.fetchone()
-        if not working_row:
+        row = cursor.fetchone()
+        if not row:
             return []
 
-        is_open, start_time, end_time = working_row
+        service_duration, is_open, start_time, end_time = row
+
         if not is_open or not start_time or not end_time:
             return []
 
+        service_duration = int(service_duration)
         start_minutes = time_to_minutes(start_time)
         end_minutes = time_to_minutes(end_time)
 
         cursor.execute(
             """
-            SELECT appointment_time, service_id
-            FROM appointments
-            WHERE store_id = %s AND appointment_date = %s
+            SELECT a.appointment_time, s.duration_minutes
+            FROM appointments a
+            JOIN services s ON a.service_id = s.id
+            WHERE a.store_id = %s AND a.appointment_date = %s
             """,
             (store_id, appointment_date),
         )
         existing_rows = cursor.fetchall()
 
         busy_ranges = []
-        for appointment_time, existing_service_id in existing_rows:
-            cursor.execute(
-                "SELECT duration_minutes FROM services WHERE id = %s",
-                (existing_service_id,),
-            )
-            existing_service = cursor.fetchone()
-            if not existing_service:
-                continue
-
-            existing_duration = int(existing_service[0])
+        for appointment_time, existing_duration in existing_rows:
             existing_start = time_to_minutes(appointment_time)
-            existing_end = existing_start + existing_duration
+            existing_end = existing_start + int(existing_duration)
             busy_ranges.append((existing_start, existing_end))
 
         slots = []
@@ -203,9 +190,17 @@ def get_store_calendar_days(store_id):
     cursor = conn.cursor()
 
     try:
-        cursor.execute("SELECT MIN(duration_minutes) FROM services WHERE store_id = %s", (store_id,))
-        row = cursor.fetchone()
-        min_duration = int(row[0]) if row and row[0] else None
+        cursor.execute(
+            """
+            SELECT id
+            FROM services
+            WHERE store_id = %s
+            ORDER BY duration_minutes ASC, id ASC
+            LIMIT 1
+            """,
+            (store_id,),
+        )
+        service_row = cursor.fetchone()
     finally:
         cursor.close()
         conn.close()
@@ -216,32 +211,14 @@ def get_store_calendar_days(store_id):
         d_iso = d.isoformat()
         day_name = get_day_name_from_date(d_iso)
 
-        if min_duration is None:
+        if not service_row:
             status = "closed"
         else:
-            conn = get_connection()
-            cursor = conn.cursor()
             try:
-                cursor.execute(
-                    """
-                    SELECT id
-                    FROM services
-                    WHERE store_id = %s
-                    ORDER BY duration_minutes ASC, id ASC
-                    LIMIT 1
-                    """,
-                    (store_id,),
-                )
-                service_row = cursor.fetchone()
-            finally:
-                cursor.close()
-                conn.close()
-
-            if service_row:
                 slots = generate_available_slots(store_id, service_row[0], d_iso)
                 status = "available" if slots else "busy"
-            else:
-                status = "closed"
+            except Exception:
+                status = "busy"
 
         days.append(
             {
@@ -533,16 +510,31 @@ def work():
             pending_ratings=[],
         )
 
+    try:
+        calendar_days = get_store_calendar_days(data["store"]["id"])
+    except Exception:
+        calendar_days = []
+
+    try:
+        pending_ratings = get_pending_owner_rating_requests(data["store"]["id"])
+    except Exception:
+        pending_ratings = []
+
+    try:
+        day_appointments = get_owner_day_appointments(data["store"]["id"], selected_date)
+    except Exception:
+        day_appointments = []
+
     return render_template(
         "work.html",
         store=data["store"],
         services=data["services"],
         working_hours=data["working_hours"],
         categories=get_categories(),
-        calendar_days=get_store_calendar_days(data["store"]["id"]),
+        calendar_days=calendar_days,
         selected_date=selected_date,
-        day_appointments=get_owner_day_appointments(data["store"]["id"], selected_date),
-        pending_ratings=get_pending_owner_rating_requests(data["store"]["id"]),
+        day_appointments=day_appointments,
+        pending_ratings=pending_ratings,
     )
 
 
@@ -841,6 +833,16 @@ def store_details(store_id):
 
     min_date, max_date = today_range()
 
+    try:
+        calendar_days = get_store_calendar_days(store_id)
+    except Exception:
+        calendar_days = []
+
+    try:
+        ratings_summary = get_store_ratings_summary(store_id)
+    except Exception:
+        ratings_summary = {"average": 0, "count": 0, "items": []}
+
     return render_template(
         "store_details.html",
         store=store,
@@ -850,8 +852,8 @@ def store_details(store_id):
         min_date=min_date,
         max_date=max_date,
         working_hours=working_hours,
-        calendar_days=get_store_calendar_days(store_id),
-        ratings_summary=get_store_ratings_summary(store_id),
+        calendar_days=calendar_days,
+        ratings_summary=ratings_summary,
     )
 
 
@@ -863,7 +865,12 @@ def available_slots(store_id):
     if not service_id or not appointment_date:
         return jsonify({"slots": []})
 
-    return jsonify({"slots": generate_available_slots(store_id, service_id, appointment_date)})
+    try:
+        slots = generate_available_slots(store_id, service_id, appointment_date)
+    except Exception:
+        slots = []
+
+    return jsonify({"slots": slots})
 
 
 @app.route("/book/<int:store_id>", methods=["POST"])
@@ -928,9 +935,8 @@ def request_rating(appointment_id):
         cursor.execute(
             """
             SELECT a.id, a.store_id, a.customer_id, a.customer_name,
-                   a.appointment_date, a.appointment_time, s.duration_minutes
+                   a.appointment_date, a.appointment_time
             FROM appointments a
-            LEFT JOIN services s ON a.service_id = s.id
             WHERE a.id = %s
             """,
             (appointment_id,),
