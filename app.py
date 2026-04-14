@@ -1019,7 +1019,15 @@ def add_rating_from_pick():
             """
             SELECT a.id, a.appointment_date, a.appointment_time
             FROM appointments a
-            WHERE a.customer_id = %s AND a.store_id = %s
+            WHERE a.customer_id = %s
+              AND a.store_id = %s
+              AND (
+                    a.appointment_date < CURRENT_DATE
+                    OR (
+                        a.appointment_date = CURRENT_DATE
+                        AND a.appointment_time <= CURRENT_TIME
+                    )
+              )
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
             LIMIT 1
             """,
@@ -1028,13 +1036,8 @@ def add_rating_from_pick():
         appointment = cursor.fetchone()
 
         if not appointment:
-            flash("אפשר לדרג רק אם היה לך תור בעסק הזה.")
-            return redirect(url_for("pick"))
-
-        appointment_dt = datetime.combine(appointment[1], appointment[2])
-        if datetime.now() < appointment_dt:
-            flash("אפשר לדרג רק אחרי שהתור הסתיים.")
-            return redirect(url_for("pick"))
+            flash("אפשר לדרג רק אם היה לך תור שהסתיים בעסק הזה.")
+            return redirect(url_for("store_details", store_id=store_id))
 
         cursor.execute(
             """
