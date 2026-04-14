@@ -170,6 +170,23 @@
             color: #0f172a;
         }
 
+        .rating-stars {
+            color: #f59e0b;
+            font-size: 22px;
+            letter-spacing: 2px;
+            display: inline-block;
+        }
+
+        .rating-comment-box {
+            background: #fff;
+            padding: 12px;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            margin-top: 8px;
+            color: #334155;
+            line-height: 1.6;
+        }
+
         label {
             display: block;
             font-weight: 700;
@@ -397,24 +414,44 @@
 
     <div class="section-box">
         <h2>בקשות דירוג מלקוחות</h2>
-        <div class="section-note">בשלב הזה רואים רק את שם הלקוח. הדירוג יוצג רק אחרי אישור.</div>
+        <div class="section-note">כאן בעל העסק רואה את פרטי הדירוג לפני אישור או דחייה.</div>
 
         {% for item in pending_ratings %}
         <div class="rating-row">
+
             <strong>{{ item.customer_name }}</strong><br>
             נשלח בתאריך {{ item.created_at }}<br><br>
+
+            ⭐ דירוג:
+            <span class="rating-stars">
+                {{ '★' * item.rating }}{{ '☆' * (5 - item.rating) }}
+            </span>
+
+            <br><br>
+
+            💬 תגובה:
+            <div class="rating-comment-box">
+                {{ item.comment or 'אין תגובה' }}
+            </div>
+
+            <br>
 
             <form method="POST"
                   action="{{ url_for('owner_rating_action', rating_id=item.id, action='accept') }}"
                   style="display:inline-block">
-                <button class="action-btn approve" type="submit">אשר והצג דירוג</button>
+                <button class="action-btn approve" type="submit">
+                    אשר והצג דירוג
+                </button>
             </form>
 
             <form method="POST"
                   action="{{ url_for('owner_rating_action', rating_id=item.id, action='decline') }}"
                   style="display:inline-block">
-                <button class="action-btn decline" type="submit">דחה</button>
+                <button class="action-btn decline" type="submit">
+                    דחה
+                </button>
             </form>
+
         </div>
         {% else %}
         <p>אין בקשות דירוג ממתינות.</p>

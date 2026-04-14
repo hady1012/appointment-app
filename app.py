@@ -345,7 +345,7 @@ def get_store_ratings_summary(store_id):
 
         cursor.execute(
             """
-            SELECT customer_name, rating, created_at
+            SELECT customer_name, rating, comment, created_at
             FROM ratings
             WHERE store_id = %s AND status = 'accepted'
             ORDER BY created_at DESC
@@ -362,7 +362,8 @@ def get_store_ratings_summary(store_id):
                 {
                     "customer_name": r[0],
                     "rating": r[1],
-                    "created_at": r[2].strftime("%d/%m/%Y") if r[2] else "",
+                    "comment": r[2] or "",
+                    "created_at": r[3].strftime("%d/%m/%Y") if r[3] else "",
                 }
                 for r in rows
             ],
@@ -379,7 +380,7 @@ def get_pending_owner_rating_requests(store_id):
     try:
         cursor.execute(
             """
-            SELECT id, customer_name, created_at
+            SELECT id, customer_name, rating, comment, created_at
             FROM ratings
             WHERE store_id = %s AND status = 'pending'
             ORDER BY created_at DESC
@@ -392,7 +393,9 @@ def get_pending_owner_rating_requests(store_id):
             {
                 "id": r[0],
                 "customer_name": r[1],
-                "created_at": r[2].strftime("%d/%m/%Y %H:%M") if r[2] else "",
+                "rating": r[2],
+                "comment": r[3] or "",
+                "created_at": r[4].strftime("%d/%m/%Y %H:%M") if r[4] else "",
             }
             for r in rows
         ]
@@ -923,13 +926,21 @@ def request_rating(appointment_id):
     if "user_id" not in session or session.get("role") != "customer":
         return redirect(url_for("login"))
 
-    rating = int(request.form["rating"])
+    try:
+        rating = int(request.form["rating"])
+    except (KeyError, ValueError):
+        flash("דירוג לא תקין.")
+        return redirect(request.referrer or url_for("pick"))
+
+    comment = request.form.get("comment", "").strip()
+
     if rating < 1 or rating > 5:
         flash("הדירוג חייב להיות בין 1 ל-5.")
         return redirect(request.referrer or url_for("pick"))
 
     conn = get_connection()
     cursor = conn.cursor()
+    store_id_for_redirect = None
 
     try:
         cursor.execute(
@@ -947,6 +958,8 @@ def request_rating(appointment_id):
             flash("התור לא נמצא.")
             return redirect(request.referrer or url_for("pick"))
 
+        store_id_for_redirect = row[1]
+
         if row[2] != session["user_id"]:
             flash("אין לך הרשאה לשלוח דירוג על התור הזה.")
             return redirect(request.referrer or url_for("pick"))
@@ -958,12 +971,18 @@ def request_rating(appointment_id):
 
         cursor.execute(
             """
-            INSERT INTO ratings (appointment_id, store_id, customer_id, customer_name, rating, status)
-            VALUES (%s, %s, %s, %s, %s, 'pending')
+            INSERT INTO ratings (
+                appointment_id, store_id, customer_id, customer_name, rating, comment, status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending')
             ON CONFLICT (appointment_id)
-            DO UPDATE SET rating = EXCLUDED.rating, status = 'pending', customer_name = EXCLUDED.customer_name
+            DO UPDATE SET
+                rating = EXCLUDED.rating,
+                comment = EXCLUDED.comment,
+                status = 'pending',
+                customer_name = EXCLUDED.customer_name
             """,
-            (row[0], row[1], session["user_id"], session.get("full_name"), rating),
+            (row[0], row[1], session["user_id"], session.get("full_name"), rating, comment),
         )
         conn.commit()
     finally:
@@ -971,7 +990,7 @@ def request_rating(appointment_id):
         conn.close()
 
     flash("בקשת הדירוג נשלחה לבעל העסק לאישור.")
-    return redirect(request.referrer or url_for("store_details", store_id=row[1]))
+    return redirect(request.referrer or url_for("store_details", store_id=store_id_for_redirect))
 
 
 @app.route("/owner/rating/<int:rating_id>/<action>", methods=["POST"])

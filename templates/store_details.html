@@ -66,6 +66,15 @@
             color: #0f172a;
         }
 
+        .section-title-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 12px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+        }
+
         .service-list,
         .ratings-list,
         .hours-list {
@@ -156,7 +165,8 @@
         }
 
         .booking-form input:focus,
-        .booking-form select:focus {
+        .booking-form select:focus,
+        .rating-textarea:focus {
             border-color: #93c5fd;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
             outline: none;
@@ -221,6 +231,116 @@
 
         .appointments-table td {
             background: #fff;
+        }
+
+        .rate-open-btn {
+            background: #facc15;
+            color: #111827;
+            border: none;
+            padding: 10px 16px;
+            border-radius: 12px;
+            font-weight: 800;
+            cursor: pointer;
+        }
+
+        .rate-open-btn:hover {
+            background: #eab308;
+        }
+
+        .rating-modal {
+            display: none;
+            position: fixed;
+            inset: 0;
+            background: rgba(15, 23, 42, 0.55);
+            z-index: 9999;
+            padding: 20px;
+        }
+
+        .rating-modal.open {
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+
+        .rating-modal-card {
+            width: 100%;
+            max-width: 460px;
+            background: #fff;
+            border-radius: 24px;
+            padding: 24px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.20);
+        }
+
+        .rating-modal-card h3 {
+            margin: 0 0 8px 0;
+            font-size: 1.5rem;
+            font-weight: 800;
+            color: #0f172a;
+            text-align: center;
+        }
+
+        .rating-modal-card p {
+            margin: 0 0 16px 0;
+            color: #64748b;
+            line-height: 1.6;
+            text-align: center;
+        }
+
+        .stars-row {
+            display: flex;
+            justify-content: center;
+            gap: 8px;
+            margin: 16px 0 18px;
+        }
+
+        .star-btn {
+            background: transparent;
+            border: none;
+            font-size: 34px;
+            cursor: pointer;
+            line-height: 1;
+            color: #cbd5e1;
+            padding: 0;
+        }
+
+        .star-btn.active {
+            color: #f59e0b;
+        }
+
+        .rating-textarea {
+            width: 100%;
+            min-height: 110px;
+            border: 1px solid #dbe3ee;
+            border-radius: 14px;
+            padding: 12px 14px;
+            font-size: 1rem;
+            resize: vertical;
+        }
+
+        .modal-actions {
+            display: flex;
+            gap: 10px;
+            margin-top: 16px;
+            justify-content: center;
+            flex-wrap: wrap;
+        }
+
+        .modal-submit-btn {
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            border: none;
+            border-radius: 14px;
+            padding: 12px 18px;
+            font-weight: 700;
+        }
+
+        .modal-cancel-btn {
+            background: #e2e8f0;
+            color: #334155;
+            border: none;
+            border-radius: 14px;
+            padding: 12px 18px;
+            font-weight: 700;
         }
 
         @media (max-width: 992px) {
@@ -385,7 +505,16 @@
     </div>
 
     <div class="section-box">
-        <div class="section-title">דירוגים מאושרים</div>
+        <div class="section-title-row">
+            <div class="section-title" style="margin-bottom:0;">דירוגים מאושרים</div>
+
+            {% if session.get('role') == 'customer' %}
+            <button type="button" class="rate-open-btn" onclick="openRatingModal()">
+                ⭐ דרג את העסק
+            </button>
+            {% endif %}
+        </div>
+
         <div class="ratings-list">
             {% for item in ratings_summary["items"] %}
             <div class="rating-card">
@@ -428,6 +557,33 @@
     {% endif %}
 </div>
 
+<div id="ratingModal" class="rating-modal">
+    <div class="rating-modal-card">
+        <h3>דרג את העסק</h3>
+        <p>אפשר לשלוח דירוג רק אם היה לך תור בעסק הזה.</p>
+
+        <form method="POST" action="{{ url_for('add_rating') }}">
+            <input type="hidden" name="store_id" value="{{ store.id }}">
+            <input type="hidden" name="rating" id="ratingValue">
+
+            <div class="stars-row" id="stars">
+                <button type="button" class="star-btn" data-value="1" onclick="setRating(1)">☆</button>
+                <button type="button" class="star-btn" data-value="2" onclick="setRating(2)">☆</button>
+                <button type="button" class="star-btn" data-value="3" onclick="setRating(3)">☆</button>
+                <button type="button" class="star-btn" data-value="4" onclick="setRating(4)">☆</button>
+                <button type="button" class="star-btn" data-value="5" onclick="setRating(5)">☆</button>
+            </div>
+
+            <textarea class="rating-textarea" name="comment" placeholder="כתוב תגובה..."></textarea>
+
+            <div class="modal-actions">
+                <button type="submit" class="modal-submit-btn">שלח דירוג</button>
+                <button type="button" class="modal-cancel-btn" onclick="closeModal()">סגור</button>
+            </div>
+        </form>
+    </div>
+</div>
+
 <script>
 const serviceSelect = document.getElementById('service_id');
 const dateInput = document.getElementById('appointment_date');
@@ -467,6 +623,35 @@ document.querySelectorAll('.calendar-day').forEach(card => {
             loadSlots();
         }
     });
+});
+
+function openRatingModal() {
+    document.getElementById('ratingModal').classList.add('open');
+}
+
+function closeModal() {
+    document.getElementById('ratingModal').classList.remove('open');
+}
+
+function setRating(value) {
+    document.getElementById('ratingValue').value = value;
+
+    document.querySelectorAll('#stars .star-btn').forEach(btn => {
+        const btnValue = Number(btn.dataset.value);
+        if (btnValue <= value) {
+            btn.textContent = '★';
+            btn.classList.add('active');
+        } else {
+            btn.textContent = '☆';
+            btn.classList.remove('active');
+        }
+    });
+}
+
+document.getElementById('ratingModal').addEventListener('click', function (e) {
+    if (e.target === this) {
+        closeModal();
+    }
 });
 </script>
 
