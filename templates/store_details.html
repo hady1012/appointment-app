@@ -208,6 +208,15 @@
             letter-spacing: 2px;
         }
 
+        .rating-comment {
+            margin-top: 10px;
+            color: #475569;
+            background: #fff;
+            border: 1px solid #e5e7eb;
+            border-radius: 12px;
+            padding: 10px 12px;
+        }
+
         .appointments-table {
             width: 100%;
             border-collapse: collapse;
@@ -520,6 +529,9 @@
             <div class="rating-card">
                 <strong>{{ item.customer_name }}</strong> • {{ item.created_at }}<br>
                 <span class="stars">{{ '★' * item.rating }}{{ '☆' * (5 - item.rating) }}</span>
+                {% if item.comment %}
+                <div class="rating-comment">{{ item.comment }}</div>
+                {% endif %}
             </div>
             {% else %}
             <div class="rating-card">אין דירוגים מאושרים עדיין.</div>
@@ -562,7 +574,7 @@
         <h3>דרג את העסק</h3>
         <p>אפשר לשלוח דירוג רק אם היה לך תור בעסק הזה.</p>
 
-        <form method="POST" action="{{ url_for('add_rating') }}">
+        <form method="POST" action="{{ url_for('add_rating_from_pick') }}">
             <input type="hidden" name="store_id" value="{{ store.id }}">
             <input type="hidden" name="rating" id="ratingValue">
 
