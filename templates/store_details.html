@@ -9,113 +9,255 @@
 
     <style>
         body {
+            font-family: Arial, sans-serif;
             background: linear-gradient(to bottom, #f8fbff, #f5f7fb);
+            margin: 0;
+            padding: 0;
         }
 
         .page-wrap {
-            max-width: 1100px;
-            margin: 30px auto;
-        }
-
-        .section-box {
-            background: #fff;
-            border-radius: 20px;
-            padding: 24px;
-            margin-bottom: 24px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-        }
-
-        .section-title {
-            font-size: 24px;
-            font-weight: 800;
-            margin-bottom: 16px;
+            max-width: 1300px;
+            margin: 40px auto 60px;
+            padding: 0 24px;
         }
 
         .store-header {
             background: linear-gradient(135deg, #0f172a, #1e3a8a);
             color: white;
-            border-radius: 24px;
-            padding: 30px;
-            margin-bottom: 24px;
+            border-radius: 28px;
+            padding: 40px 34px;
+            margin-bottom: 28px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
         }
 
         .store-header h1 {
-            font-size: 2rem;
-            font-weight: bold;
+            font-size: 2.4rem;
+            font-weight: 800;
+            margin: 0 0 10px 0;
         }
 
-        .service-list {
+        .store-header p {
+            font-size: 1.08rem;
+            margin: 0 0 14px 0;
+            color: rgba(255,255,255,0.92);
+        }
+
+        .summary-rating {
+            font-size: 1.1rem;
+            font-weight: 700;
+            background: rgba(255,255,255,0.12);
+            display: inline-block;
+            padding: 10px 16px;
+            border-radius: 14px;
+        }
+
+        .section-box {
+            background: #fff;
+            border-radius: 24px;
+            padding: 28px;
+            margin-bottom: 26px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        }
+
+        .section-title {
+            font-size: 1.7rem;
+            font-weight: 800;
+            margin-bottom: 18px;
+            color: #0f172a;
+        }
+
+        .service-list,
+        .ratings-list,
+        .hours-list {
             display: grid;
-            gap: 14px;
+            gap: 16px;
         }
 
-        .service-card {
+        .service-card,
+        .rating-card,
+        .hours-row {
             border: 1px solid #e5e7eb;
-            border-radius: 16px;
-            padding: 16px;
+            border-radius: 18px;
+            padding: 18px;
             background: #f8fafc;
         }
 
-        .service-name {
-            font-weight: bold;
-            font-size: 18px;
+        .service-card strong,
+        .hours-row strong,
+        .rating-card strong {
+            font-size: 1.08rem;
+            color: #0f172a;
+        }
+
+        .service-card {
+            line-height: 1.7;
+            font-size: 1rem;
+        }
+
+        .booking-note {
+            margin-bottom: 16px;
+            font-size: 1rem;
+            color: #475569;
+            font-weight: 600;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .calendar-day {
+            border-radius: 18px;
+            padding: 18px 14px;
+            text-align: center;
+            cursor: pointer;
+            border: 1px solid #e5e7eb;
+            font-size: 1rem;
+            font-weight: 700;
+            transition: 0.2s ease;
+        }
+
+        .calendar-day.available {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #166534;
+        }
+
+        .calendar-day.busy {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+
+        .calendar-day.selected {
+            outline: 3px solid #2563eb;
+            transform: translateY(-2px);
+        }
+
+        .booking-form label {
+            display: block;
+            margin-bottom: 8px;
+            font-weight: 700;
+            color: #0f172a;
+            font-size: 1rem;
         }
 
         .booking-form input,
         .booking-form select {
             width: 100%;
-            border-radius: 12px;
-            padding: 10px;
-            margin-bottom: 10px;
-            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            padding: 13px 14px;
+            margin-bottom: 16px;
+            border: 1px solid #dbe3ee;
+            font-size: 1rem;
+            background: #fff;
+        }
+
+        .booking-form input:focus,
+        .booking-form select:focus {
+            border-color: #93c5fd;
+            box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
+            outline: none;
         }
 
         .booking-form button {
-            background: #2563eb;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
             color: white;
             border: none;
-            padding: 12px;
-            border-radius: 12px;
-            font-weight: bold;
+            padding: 14px;
+            border-radius: 14px;
+            font-weight: 700;
             width: 100%;
+            font-size: 1rem;
         }
 
         .booking-form button:hover {
-            background: #1d4ed8;
+            opacity: 0.96;
         }
 
         .login-note {
             background: #fff3cd;
-            padding: 14px;
-            border-radius: 12px;
+            color: #7c5b00;
+            padding: 16px;
+            border-radius: 14px;
             margin-bottom: 16px;
+            font-weight: 700;
+        }
+
+        .hours-row,
+        .rating-card {
+            font-size: 1rem;
+            line-height: 1.7;
+        }
+
+        .stars {
+            color: #f59e0b;
+            font-size: 24px;
+            letter-spacing: 2px;
         }
 
         .appointments-table {
             width: 100%;
             border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 18px;
         }
 
         .appointments-table th,
         .appointments-table td {
-            padding: 10px;
+            padding: 14px;
             border: 1px solid #e5e7eb;
             text-align: center;
+            font-size: 1rem;
         }
 
         .appointments-table th {
             background: #f1f5f9;
+            color: #0f172a;
+            font-weight: 800;
         }
 
-        .share-box {
-            background: #f1f5f9;
-            padding: 10px;
-            border-radius: 10px;
-            direction: ltr;
+        .appointments-table td {
+            background: #fff;
+        }
+
+        @media (max-width: 992px) {
+            .calendar-grid {
+                grid-template-columns: repeat(2, 1fr);
+            }
+        }
+
+        @media (max-width: 768px) {
+            .page-wrap {
+                padding: 0 16px;
+            }
+
+            .store-header {
+                padding: 30px 22px;
+            }
+
+            .store-header h1 {
+                font-size: 1.9rem;
+            }
+
+            .calendar-grid {
+                grid-template-columns: 1fr;
+            }
+
+            .section-box {
+                padding: 20px;
+            }
+
+            .appointments-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
         }
     </style>
 </head>
-
 <body>
 
 <nav class="navbar">
@@ -123,6 +265,10 @@
     <div class="nav-links">
         <a href="{{ url_for('home') }}">בית</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
+
+        {% if session.get('user_id') and session.get('role') == 'customer' %}
+            <a href="{{ url_for('my_bookings') }}">התורים שלי</a>
+        {% endif %}
 
         {% if session.get('user_id') %}
             {% if session.get('role') == 'owner' %}
@@ -137,33 +283,53 @@
 
 <div class="page-wrap">
 
-    <!-- STORE HEADER -->
+    {% with messages = get_flashed_messages() %}
+        {% if messages %}
+            {% for message in messages %}
+                <div class="section-box">{{ message }}</div>
+            {% endfor %}
+        {% endif %}
+    {% endwith %}
+
     <div class="store-header">
         <h1>{{ store.name }}</h1>
         <p>{{ store.category }} • {{ store.description }}</p>
+        <div class="summary-rating">
+            דירוג ממוצע: {{ ratings_summary.average }} / 5
+            ({{ ratings_summary.count }} דירוגים)
+        </div>
     </div>
 
-    <!-- SERVICES -->
     <div class="section-box">
         <div class="section-title">השירותים</div>
 
         {% if services %}
-        <div class="service-list">
-            {% for service in services %}
-            <div class="service-card">
-                <div class="service-name">{{ service.name }}</div>
-                ₪{{ service.price }} • {{ service.duration }} דקות
+            <div class="service-list">
+                {% for service in services %}
+                <div class="service-card">
+                    <strong>{{ service.name }}</strong><br>
+                    ₪{{ service.price }} • {{ service.duration }} דקות
+                </div>
+                {% endfor %}
             </div>
-            {% endfor %}
-        </div>
         {% else %}
-        <p>אין שירותים עדיין</p>
+            <p>אין שירותים עדיין.</p>
         {% endif %}
     </div>
 
-    <!-- BOOKING -->
     <div class="section-box">
         <div class="section-title">קביעת תור</div>
+        <p class="booking-note">ירוק = יש זמינות, אדום = היום מלא.</p>
+
+        <div class="calendar-grid" id="calendar-grid">
+            {% for day in calendar_days %}
+            <div class="calendar-day {{ 'available' if day.status == 'available' else 'busy' }}"
+                 data-date="{{ day.date }}">
+                <strong>{{ day.day_label }}</strong><br>
+                {{ day.display }}
+            </div>
+            {% endfor %}
+        </div>
 
         {% if not session.get('user_id') %}
             <div class="login-note">יש להתחבר כדי לקבוע תור</div>
@@ -189,11 +355,12 @@
             <input type="text" name="customer_phone" required>
 
             <label>תאריך</label>
-            <input type="date" id="appointment_date" name="appointment_date" required>
+            <input type="date" id="appointment_date" name="appointment_date"
+                   min="{{ min_date }}" max="{{ max_date }}" required>
 
             <label>שעה</label>
-            <select id="appointment_time" name="appointment_time">
-                <option>בחר קודם</option>
+            <select id="appointment_time" name="appointment_time" required>
+                <option value="">בחר קודם</option>
             </select>
 
             <button type="submit">קבע תור</button>
@@ -201,10 +368,39 @@
         {% endif %}
     </div>
 
-    <!-- OWNER ONLY -->
+    <div class="section-box">
+        <div class="section-title">ימי עבודה ושעות</div>
+        <div class="hours-list">
+            {% for hour in working_hours %}
+                <div class="hours-row">
+                    <strong>{{ hour.day_label }}</strong> —
+                    {% if hour.is_open %}
+                        {{ hour.start_time }} - {{ hour.end_time }}
+                    {% else %}
+                        סגור
+                    {% endif %}
+                </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <div class="section-box">
+        <div class="section-title">דירוגים מאושרים</div>
+        <div class="ratings-list">
+            {% for item in ratings_summary.items %}
+            <div class="rating-card">
+                <strong>{{ item.customer_name }}</strong> • {{ item.created_at }}<br>
+                <span class="stars">{{ '★' * item.rating }}{{ '☆' * (5 - item.rating) }}</span>
+            </div>
+            {% else %}
+            <div class="rating-card">אין דירוגים מאושרים עדיין.</div>
+            {% endfor %}
+        </div>
+    </div>
+
     {% if is_owner_view %}
     <div class="section-box">
-        <div class="section-title">תורים</div>
+        <div class="section-title">כל התורים של העסק</div>
 
         {% if appointments %}
         <table class="appointments-table">
@@ -226,11 +422,10 @@
             {% endfor %}
         </table>
         {% else %}
-        <p>אין תורים עדיין</p>
+        <p>אין תורים עדיין.</p>
         {% endif %}
     </div>
     {% endif %}
-
 </div>
 
 <script>
@@ -239,7 +434,7 @@ const dateInput = document.getElementById('appointment_date');
 const timeSelect = document.getElementById('appointment_time');
 
 async function loadSlots() {
-    if (!serviceSelect.value || !dateInput.value) return;
+    if (!serviceSelect || !dateInput || !serviceSelect.value || !dateInput.value) return;
 
     const res = await fetch(`/available-slots/{{ store.id }}?service_id=${serviceSelect.value}&appointment_date=${dateInput.value}`);
     const data = await res.json();
@@ -247,7 +442,7 @@ async function loadSlots() {
     timeSelect.innerHTML = "";
 
     if (!data.slots || data.slots.length === 0) {
-        timeSelect.innerHTML = "<option>אין שעות</option>";
+        timeSelect.innerHTML = '<option value="">אין שעות</option>';
         return;
     }
 
@@ -261,7 +456,20 @@ async function loadSlots() {
 
 serviceSelect?.addEventListener("change", loadSlots);
 dateInput?.addEventListener("change", loadSlots);
+
+document.querySelectorAll('.calendar-day').forEach(card => {
+    card.addEventListener('click', () => {
+        document.querySelectorAll('.calendar-day').forEach(c => c.classList.remove('selected'));
+        card.classList.add('selected');
+
+        if (dateInput) {
+            dateInput.value = card.dataset.date;
+            loadSlots();
+        }
+    });
+});
 </script>
 
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 </body>
 </html>

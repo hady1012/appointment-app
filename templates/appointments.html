@@ -3,30 +3,147 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>כל התורים</title>
+    <title>התורים שלי</title>
+
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #f8fbff, #f5f7fb);
+            margin: 0;
+        }
+
+        .page-wrap {
+            max-width: 1200px;
+            margin: 40px auto 60px;
+            padding: 0 20px;
+        }
+
+        .page-hero {
+            background: linear-gradient(135deg, #0f172a, #1e3a8a);
+            color: #fff;
+            border-radius: 28px;
+            padding: 34px 30px;
+            margin-bottom: 28px;
+            box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
+        }
+
+        .page-hero h1 {
+            font-size: 2.2rem;
+            font-weight: 800;
+            margin-bottom: 8px;
+        }
+
+        .page-hero p {
+            margin: 0;
+            color: rgba(255,255,255,0.9);
+            font-size: 1.05rem;
+        }
+
+        .section-box {
+            background: #fff;
+            border-radius: 24px;
+            padding: 28px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
+        }
+
+        .appointments-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
+            border-radius: 18px;
+        }
+
+        .appointments-table th,
+        .appointments-table td {
+            padding: 14px;
+            border: 1px solid #e5e7eb;
+            text-align: center;
+        }
+
+        .appointments-table th {
+            background: #f1f5f9;
+            font-weight: 800;
+            color: #0f172a;
+        }
+
+        .appointments-table td {
+            background: #fff;
+        }
+
+        .empty-state {
+            text-align: center;
+            padding: 40px 20px;
+            color: #64748b;
+            font-size: 1.1rem;
+        }
+
+        .back-btn {
+            display: inline-block;
+            margin-top: 24px;
+            padding: 12px 20px;
+            border-radius: 14px;
+            background: linear-gradient(135deg, #2563eb, #1d4ed8);
+            color: #fff;
+            text-decoration: none;
+            font-weight: 700;
+        }
+
+        .back-btn:hover {
+            opacity: 0.95;
+        }
+
+        @media (max-width: 768px) {
+            .appointments-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
+            }
+
+            .page-hero h1 {
+                font-size: 1.7rem;
+            }
+        }
+    </style>
 </head>
+
 <body>
 
-    <nav class="navbar">
-        <div class="nav-logo">Appointment System</div>
-        <div class="nav-links">
-            <a href="/">בית</a>
-            <a href="/#booking-form">קביעת תור</a>
-            <a href="/appointments">כל התורים</a>
-        </div>
-    </nav>
+<nav class="navbar">
+    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-links">
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+        <a href="{{ url_for('my_bookings') }}">התורים שלי</a>
 
-    <div class="container">
-        <h1>כל התורים</h1>
+        {% if session.get('user_id') %}
+            {% if session.get('role') == 'owner' %}
+                <a href="{{ url_for('work') }}">אזור בעל עסק</a>
+            {% endif %}
+            <a href="{{ url_for('logout') }}">התנתקות</a>
+        {% else %}
+            <a href="{{ url_for('login') }}">התחברות</a>
+        {% endif %}
+    </div>
+</nav>
+
+<div class="page-wrap">
+
+    <div class="page-hero">
+        <h1>התורים שלי</h1>
+        <p>כאן ניתן לצפות בכל התורים שקבעת.</p>
+    </div>
+
+    <div class="section-box">
 
         {% if appointments %}
-        <table>
+        <table class="appointments-table">
             <thead>
                 <tr>
                     <th>שם מלא</th>
-                    <th>מספר טלפון</th>
+                    <th>טלפון</th>
                     <th>תאריך</th>
                     <th>שעה</th>
                 </tr>
@@ -43,12 +160,19 @@
             </tbody>
         </table>
         {% else %}
-        <p>עדיין אין תורים.</p>
+        <div class="empty-state">
+            אין תורים עדיין.
+        </div>
         {% endif %}
 
-        <a href="/" class="view-link">חזרה לדף קביעת תור</a>
-    </div>
+        <a href="{{ url_for('home') }}" class="back-btn">
+            חזרה לדף הראשי
+        </a>
 
-    <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+    </div>
+</div>
+
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+
 </body>
 </html>

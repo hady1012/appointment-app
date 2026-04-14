@@ -6,82 +6,85 @@
     <title>כל העסקים</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+
     <style>
         body {
             background: linear-gradient(to bottom, #f8fbff, #f5f7fb);
+            font-family: Arial, sans-serif;
+            margin: 0;
+            padding: 0;
         }
 
         .page-wrap {
-            max-width: 1150px;
-            margin: 30px auto 50px;
-            padding: 0 14px;
+            max-width: 1300px;
+            margin: 40px auto 60px;
+            padding: 0 24px;
         }
 
         .page-hero {
             background: linear-gradient(135deg, #0f172a, #1e3a8a);
-            color: white;
-            border-radius: 26px;
-            padding: 32px 28px;
+            color: #fff;
+            border-radius: 28px;
+            padding: 42px 36px;
             box-shadow: 0 18px 45px rgba(15, 23, 42, 0.16);
-            margin-bottom: 24px;
+            margin-bottom: 28px;
         }
 
         .page-hero h1 {
-            font-size: 2rem;
+            margin: 0 0 12px 0;
+            font-size: 2.4rem;
             font-weight: 800;
-            margin-bottom: 8px;
         }
 
         .page-hero p {
             margin: 0;
-            color: rgba(255,255,255,0.88);
-            font-size: 1rem;
+            font-size: 1.1rem;
+            color: rgba(255, 255, 255, 0.9);
         }
 
         .search-box {
             background: #fff;
-            border-radius: 22px;
-            padding: 22px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.06);
-            margin-bottom: 26px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+            padding: 26px;
+            margin-bottom: 28px;
         }
 
-        .search-box label {
-            display: block;
-            font-weight: 700;
-            margin-bottom: 10px;
-            color: #0f172a;
-        }
-
-        .search-row {
+        .search-grid {
             display: grid;
-            grid-template-columns: 1fr auto;
-            gap: 12px;
+            grid-template-columns: 1.4fr 1fr auto;
+            gap: 14px;
+            align-items: center;
         }
 
-        .search-row input {
+        .search-grid input,
+        .search-grid select {
             border: 1px solid #dbe3ee;
-            border-radius: 14px;
-            padding: 12px 14px;
+            border-radius: 16px;
+            padding: 15px 16px;
+            font-size: 1rem;
             outline: none;
+            background: #fff;
         }
 
-        .search-row input:focus {
+        .search-grid input:focus,
+        .search-grid select:focus {
             border-color: #93c5fd;
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
         }
 
-        .search-row button {
+        .search-grid button {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
+            color: #fff;
             border: none;
-            border-radius: 14px;
-            padding: 12px 20px;
+            border-radius: 16px;
+            padding: 15px 26px;
+            font-size: 1rem;
             font-weight: 700;
-            min-width: 110px;
+            min-width: 120px;
         }
 
-        .search-row button:hover {
+        .search-grid button:hover {
             opacity: 0.96;
         }
 
@@ -89,39 +92,41 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-bottom: 18px;
+            margin-bottom: 20px;
             flex-wrap: wrap;
             gap: 10px;
         }
 
         .results-header h2 {
             margin: 0;
-            font-size: 1.35rem;
+            font-size: 1.7rem;
             font-weight: 800;
             color: #0f172a;
         }
 
         .results-count {
             color: #64748b;
-            font-weight: 600;
+            font-size: 1rem;
+            font-weight: 700;
         }
 
         .stores-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 18px;
+            gap: 22px;
         }
 
         .store-card {
             background: #fff;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
             border: 1px solid #e2e8f0;
-            border-radius: 22px;
-            padding: 20px;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
-            transition: transform 0.2s ease, box-shadow 0.2s ease;
+            padding: 24px;
             display: flex;
             flex-direction: column;
             justify-content: space-between;
+            min-height: 270px;
+            transition: transform 0.2s ease, box-shadow 0.2s ease;
         }
 
         .store-card:hover {
@@ -133,26 +138,26 @@
             display: inline-block;
             background: #e8f1ff;
             color: #1d4ed8;
-            padding: 6px 12px;
+            padding: 7px 14px;
             border-radius: 999px;
-            font-size: 0.82rem;
+            font-size: 0.9rem;
             font-weight: 700;
-            margin-bottom: 14px;
-            width: fit-content;
+            margin-bottom: 16px;
         }
 
         .store-title {
-            font-size: 1.2rem;
+            font-size: 1.35rem;
             font-weight: 800;
             color: #0f172a;
-            margin-bottom: 8px;
+            margin-bottom: 10px;
         }
 
         .store-description {
             color: #475569;
-            margin-bottom: 20px;
-            line-height: 1.6;
-            min-height: 52px;
+            line-height: 1.7;
+            font-size: 1rem;
+            margin-bottom: 22px;
+            min-height: 70px;
         }
 
         .store-footer {
@@ -165,48 +170,67 @@
 
         .view-btn {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
+            color: #fff;
             text-decoration: none;
-            padding: 11px 16px;
+            padding: 12px 18px;
             border-radius: 14px;
             font-weight: 700;
+            font-size: 1rem;
             display: inline-block;
         }
 
         .view-btn:hover {
-            color: white;
+            color: #fff;
             opacity: 0.96;
         }
 
         .empty-state {
             background: #fff;
-            border-radius: 22px;
-            padding: 34px 24px;
+            border-radius: 24px;
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            padding: 40px 24px;
             text-align: center;
-            box-shadow: 0 10px 30px rgba(0,0,0,0.05);
             color: #64748b;
         }
 
         .empty-state h3 {
-            color: #0f172a;
-            font-size: 1.4rem;
-            font-weight: 800;
             margin-bottom: 10px;
+            color: #0f172a;
+            font-size: 1.5rem;
+            font-weight: 800;
         }
 
         @media (max-width: 992px) {
             .stores-grid {
                 grid-template-columns: repeat(2, 1fr);
             }
+
+            .search-grid {
+                grid-template-columns: 1fr 1fr;
+            }
+
+            .search-grid button {
+                grid-column: span 2;
+            }
         }
 
         @media (max-width: 768px) {
-            .stores-grid {
+            .stores-grid,
+            .search-grid {
                 grid-template-columns: 1fr;
             }
 
-            .search-row {
-                grid-template-columns: 1fr;
+            .search-grid button {
+                grid-column: auto;
+                width: 100%;
+            }
+
+            .page-hero {
+                padding: 30px 22px;
+            }
+
+            .page-hero h1 {
+                font-size: 1.9rem;
             }
         }
     </style>
@@ -219,6 +243,10 @@
         <a href="{{ url_for('home') }}">בית</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
 
+        {% if session.get('user_id') and session.get('role') == 'customer' %}
+            <a href="{{ url_for('my_bookings') }}">התורים שלי</a>
+        {% endif %}
+
         {% if session.get('user_id') %}
             {% if session.get('role') == 'owner' %}
                 <a href="{{ url_for('work') }}">אזור בעל עסק</a>
@@ -226,24 +254,30 @@
             <a href="{{ url_for('logout') }}">התנתקות</a>
         {% else %}
             <a href="{{ url_for('login') }}">התחברות</a>
-            <a href="{{ url_for('signup', role='customer') }}">הרשמת לקוח</a>
-            <a href="{{ url_for('signup', role='owner') }}">הרשמת בעל עסק</a>
         {% endif %}
     </div>
 </nav>
 
 <div class="page-wrap">
-
     <div class="page-hero">
         <h1>מצא את העסק שמתאים לך</h1>
-        <p>חפש לפי שם או קטגוריה, צפה בפרטי העסק, בחר שירות וקבע תור בקלות.</p>
+        <p>חפש לפי שם או קטגוריה, וסנן לפי סוג העסק ליד שורת החיפוש.</p>
     </div>
 
     <div class="search-box">
         <form method="GET" action="{{ url_for('pick') }}">
-            <label>חפש לפי שם עסק או קטגוריה</label>
-            <div class="search-row">
-                <input type="text" name="search" value="{{ search }}" placeholder="למשל Barber, Nails, Car Wash">
+            <div class="search-grid">
+                <input type="text" name="search" value="{{ search }}" placeholder="חיפוש לפי שם עסק או קטגוריה">
+
+                <select name="category">
+                    <option value="">כל הקטגוריות</option>
+                    {% for category in categories %}
+                        <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>
+                            {{ category }}
+                        </option>
+                    {% endfor %}
+                </select>
+
                 <button type="submit">חפש</button>
             </div>
         </form>
@@ -265,15 +299,15 @@
                 </div>
 
                 <div class="store-footer">
-                    <a href="{{ url_for('store_details', store_id=store.id) }}" class="view-btn">לצפייה בעסק</a>
+                    <a class="view-btn" href="{{ url_for('store_details', store_id=store.id) }}">לצפייה בעסק</a>
                 </div>
             </div>
             {% endfor %}
         </div>
     {% else %}
         <div class="empty-state">
-            <h3>לא נמצאו עסקים</h3>
-            <p>נסה לחפש בשם אחר או בקטגוריה אחרת.</p>
+            <h3>לא נמצאו עסקים מתאימים</h3>
+            <p>נסה לחפש בשם אחר או לבחור קטגוריה אחרת.</p>
         </div>
     {% endif %}
 </div>

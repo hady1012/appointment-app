@@ -6,122 +6,188 @@
     <title>אזור בעל עסק</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
-    <style>
-        :root {
-            --primary: #0f172a;
-            --secondary: #334155;
-            --accent: #2563eb;
-            --success: #16a34a;
-            --danger: #dc2626;
-            --bg-soft: #f8fafc;
-            --card-border: #e2e8f0;
-            --text-soft: #64748b;
-            --shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
-            --radius-xl: 22px;
-            --radius-lg: 16px;
-            --radius-md: 12px;
-        }
 
+    <style>
         body {
+            font-family: Arial, sans-serif;
             background: linear-gradient(to bottom, #f8fbff, #f5f7fb);
+            margin: 0;
+            padding: 0;
         }
 
         .dashboard-wrap {
-            max-width: 1150px;
-            margin: 34px auto 48px;
-            padding: 0 14px;
+            max-width: 1300px;
+            margin: 40px auto 60px;
+            padding: 0 24px;
         }
 
         .dashboard-hero {
             background: linear-gradient(135deg, #0f172a, #1e3a8a);
             color: #fff;
             border-radius: 28px;
-            padding: 32px 28px;
+            padding: 40px 34px;
             box-shadow: 0 18px 45px rgba(15, 23, 42, 0.18);
-            margin-bottom: 26px;
+            margin-bottom: 28px;
         }
 
         .dashboard-hero h1 {
-            font-size: 2rem;
+            font-size: 2.3rem;
             font-weight: 800;
-            margin-bottom: 8px;
+            margin: 0 0 10px 0;
         }
 
         .dashboard-hero p {
             margin: 0;
-            color: rgba(255,255,255,0.88);
-            font-size: 1rem;
+            color: rgba(255,255,255,0.9);
+            font-size: 1.08rem;
+            line-height: 1.7;
         }
 
-        .stats-row {
+        .summary-grid {
             display: grid;
             grid-template-columns: repeat(3, 1fr);
-            gap: 16px;
-            margin-top: 20px;
+            gap: 18px;
+            margin-bottom: 28px;
         }
 
-        .stat-card {
-            background: rgba(255,255,255,0.12);
-            border: 1px solid rgba(255,255,255,0.14);
-            border-radius: 18px;
-            padding: 16px;
-            backdrop-filter: blur(5px);
+        .summary-card {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 22px;
+            padding: 22px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
         }
 
-        .stat-title {
-            font-size: 0.9rem;
-            color: rgba(255,255,255,0.8);
-            margin-bottom: 6px;
+        .summary-card strong {
+            display: block;
+            margin-bottom: 8px;
+            color: #475569;
+            font-size: 0.95rem;
         }
 
-        .stat-value {
-            font-size: 1.35rem;
+        .summary-card div,
+        .summary-card span,
+        .summary-card p {
+            font-size: 1.08rem;
             font-weight: 800;
+            color: #0f172a;
+            margin: 0;
         }
 
         .section-box {
             background: #fff;
-            border: 1px solid var(--card-border);
-            border-radius: var(--radius-xl);
-            padding: 24px;
-            margin-bottom: 22px;
-            box-shadow: var(--shadow);
+            border-radius: 24px;
+            padding: 28px;
+            margin-bottom: 26px;
+            box-shadow: 0 10px 30px rgba(15, 23, 42, 0.08);
+            border: 1px solid #e2e8f0;
         }
 
-        .section-title {
-            font-size: 1.35rem;
+        .section-box h2 {
+            font-size: 1.7rem;
             font-weight: 800;
-            margin-bottom: 6px;
-            color: var(--primary);
+            margin-bottom: 10px;
+            color: #0f172a;
         }
 
-        .section-subtitle {
-            color: var(--text-soft);
-            font-size: 0.95rem;
-            margin-bottom: 20px;
+        .section-note {
+            color: #64748b;
+            font-size: 1rem;
+            margin-bottom: 18px;
         }
 
-        .field-group {
+        .top-grid {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .service-grid {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 14px;
+        }
+
+        .day-grid {
+            display: grid;
+            grid-template-columns: 1.1fr 1fr 1fr;
+            gap: 14px;
+            align-items: end;
+        }
+
+        .calendar-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 22px;
+        }
+
+        .calendar-day {
+            border: 1px solid #e5e7eb;
+            border-radius: 18px;
+            padding: 18px 14px;
+            text-align: center;
+            text-decoration: none;
+            color: #111827;
+            background: #f8fafc;
+            font-weight: 700;
+            transition: 0.2s ease;
+        }
+
+        .calendar-day:hover {
+            transform: translateY(-2px);
+        }
+
+        .calendar-day.active {
+            outline: 3px solid #2563eb;
+        }
+
+        .calendar-day.available {
+            background: #dcfce7;
+            border-color: #86efac;
+            color: #166534;
+        }
+
+        .calendar-day.busy {
+            background: #fee2e2;
+            border-color: #fca5a5;
+            color: #991b1b;
+        }
+
+        .service-box,
+        .day-box,
+        .rating-row {
+            border: 1px solid #e5e7eb;
+            border-radius: 20px;
+            padding: 20px;
+            background: #f8fafc;
             margin-bottom: 16px;
         }
 
-        .field-label {
+        .day-box strong,
+        .rating-row strong {
+            font-size: 1.08rem;
+            color: #0f172a;
+        }
+
+        label {
             display: block;
             font-weight: 700;
             margin-bottom: 8px;
-            color: var(--secondary);
+            color: #334155;
+            font-size: 1rem;
         }
 
-        input[type="text"],
-        input[type="number"],
-        input[type="time"],
+        input[type='text'],
+        input[type='number'],
+        input[type='time'],
         select {
             width: 100%;
             border: 1px solid #dbe3ee;
             border-radius: 14px;
-            padding: 12px 14px;
+            padding: 13px 14px;
             background: #fff;
-            transition: 0.2s ease;
+            font-size: 1rem;
             outline: none;
         }
 
@@ -131,89 +197,34 @@
             box-shadow: 0 0 0 4px rgba(37, 99, 235, 0.10);
         }
 
-        .top-grid {
-            display: grid;
-            grid-template-columns: 1fr 1fr;
-            gap: 16px;
-        }
-
-        .service-box,
-        .day-box {
-            border: 1px solid #e5e7eb;
-            border-radius: 18px;
-            padding: 18px;
-            margin-bottom: 14px;
-            background: #f8fafc;
-        }
-
-        .service-header,
-        .day-header {
-            font-weight: 800;
-            margin-bottom: 14px;
-            color: var(--primary);
-            font-size: 1rem;
-        }
-
-        .service-grid {
-            display: grid;
-            grid-template-columns: 2fr 1fr 1fr;
-            gap: 12px;
-        }
-
-        .day-grid {
-            display: grid;
-            grid-template-columns: 1.1fr 1fr 1fr;
-            gap: 12px;
-            align-items: end;
-        }
-
-        .small-note {
-            color: var(--text-soft);
-            font-size: 0.92rem;
-            margin-bottom: 18px;
-        }
-
         .toolbar-row {
             display: flex;
-            flex-wrap: wrap;
             gap: 12px;
-            align-items: center;
+            flex-wrap: wrap;
             margin-top: 10px;
         }
 
         .primary-btn,
         .secondary-btn,
         .danger-btn,
-        .add-service-btn,
-        .remove-service-btn {
+        .remove-service-btn,
+        .action-btn {
             border: none;
             border-radius: 14px;
-            padding: 12px 18px;
+            padding: 13px 20px;
             font-weight: 700;
             cursor: pointer;
-            transition: 0.2s ease;
+            font-size: 1rem;
         }
 
         .primary-btn {
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
-            color: white;
-            box-shadow: 0 10px 24px rgba(37, 99, 235, 0.22);
+            color: #fff;
         }
 
-        .primary-btn:hover {
-            transform: translateY(-1px);
-            opacity: 0.96;
-        }
-
-        .secondary-btn,
-        .add-service-btn {
+        .secondary-btn {
             background: #e8f1ff;
             color: #1d4ed8;
-        }
-
-        .secondary-btn:hover,
-        .add-service-btn:hover {
-            background: #dbeafe;
         }
 
         .danger-btn,
@@ -222,58 +233,39 @@
             color: #b91c1c;
         }
 
-        .danger-btn:hover,
-        .remove-service-btn:hover {
-            background: #fecaca;
+        .approve {
+            background: #16a34a;
+            color: #fff;
         }
 
-        .business-summary {
-            display: grid;
-            grid-template-columns: repeat(3, 1fr);
-            gap: 14px;
-            margin-bottom: 18px;
+        .decline {
+            background: #dc2626;
+            color: #fff;
         }
 
-        .summary-card {
-            border: 1px solid var(--card-border);
+        .appointments-table {
+            width: 100%;
+            border-collapse: collapse;
+            overflow: hidden;
             border-radius: 18px;
-            padding: 16px;
-            background: #fff;
         }
 
-        .summary-label {
-            font-size: 0.85rem;
-            color: var(--text-soft);
-            margin-bottom: 6px;
-        }
-
-        .summary-value {
-            font-size: 1rem;
-            font-weight: 800;
-            color: var(--primary);
-        }
-
-        .alert {
-            border-radius: 16px;
-            border: none;
-            box-shadow: var(--shadow);
-        }
-
-        .empty-state {
+        .appointments-table th,
+        .appointments-table td {
+            padding: 14px;
+            border: 1px solid #e5e7eb;
             text-align: center;
-            padding: 22px 12px 8px;
+            font-size: 1rem;
         }
 
-        .empty-state h2 {
-            font-size: 1.8rem;
-            margin-bottom: 10px;
-            color: var(--primary);
+        .appointments-table th {
+            background: #f1f5f9;
+            color: #0f172a;
             font-weight: 800;
         }
 
-        .empty-state p {
-            color: var(--text-soft);
-            margin-bottom: 0;
+        .appointments-table td {
+            background: #fff;
         }
 
         .danger-zone {
@@ -281,20 +273,41 @@
             background: #fff7f7;
         }
 
-        .danger-zone .section-title {
+        .danger-zone h2 {
             color: #b91c1c;
         }
 
         @media (max-width: 992px) {
-            .stats-row,
-            .business-summary,
-            .top-grid {
+            .summary-grid,
+            .top-grid,
+            .service-grid,
+            .day-grid,
+            .calendar-grid {
                 grid-template-columns: 1fr;
             }
+        }
 
-            .service-grid,
-            .day-grid {
-                grid-template-columns: 1fr;
+        @media (max-width: 768px) {
+            .dashboard-wrap {
+                padding: 0 16px;
+            }
+
+            .dashboard-hero {
+                padding: 30px 22px;
+            }
+
+            .dashboard-hero h1 {
+                font-size: 1.9rem;
+            }
+
+            .section-box {
+                padding: 20px;
+            }
+
+            .appointments-table {
+                display: block;
+                overflow-x: auto;
+                white-space: nowrap;
             }
         }
     </style>
@@ -305,7 +318,6 @@
     <div class="nav-logo">My Marketplace</div>
     <div class="nav-links">
         <a href="{{ url_for('home') }}">בית</a>
-        <a href="{{ url_for('work') }}">אזור בעל עסק</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
         <a href="{{ url_for('logout') }}">התנתקות</a>
     </div>
@@ -315,10 +327,100 @@
     {% with messages = get_flashed_messages() %}
         {% if messages %}
             {% for message in messages %}
-                <div class="alert alert-info text-center">{{ message }}</div>
+                <div class="section-box">{{ message }}</div>
             {% endfor %}
         {% endif %}
     {% endwith %}
+
+    <div class="dashboard-hero">
+        {% if store %}
+            <h1>ניהול העסק שלך</h1>
+            <p>כאן אפשר לעדכן את פרטי העסק, לנהל את הקטגוריה, לצפות בתורים ולנהל בקשות דירוג.</p>
+        {% else %}
+            <h1>הקמת העסק שלך</h1>
+            <p>מלא את פרטי העסק, בחר או הקלד קטגוריה, הוסף שירותים והגדר שעות עבודה.</p>
+        {% endif %}
+    </div>
+
+    {% if store %}
+    <div class="summary-grid">
+        <div class="summary-card">
+            <strong>שם העסק</strong>
+            <div>{{ store.name }}</div>
+        </div>
+        <div class="summary-card">
+            <strong>קטגוריה</strong>
+            <div>{{ store.category }}</div>
+        </div>
+        <div class="summary-card">
+            <strong>תיאור</strong>
+            <div>{{ store.description }}</div>
+        </div>
+    </div>
+
+    <div class="section-box">
+        <h2>תורים לפי יום</h2>
+        <div class="section-note">לחץ על יום כדי לראות את כל התורים של אותו יום.</div>
+
+        <div class="calendar-grid">
+            {% for day in calendar_days %}
+            <a class="calendar-day {{ day.status }} {% if selected_date == day.date %}active{% endif %}"
+               href="{{ url_for('work', selected_date=day.date) }}">
+                <strong>{{ day.day_label }}</strong><br>
+                {{ day.display }}
+            </a>
+            {% endfor %}
+        </div>
+
+        <h2 style="font-size:1.3rem; margin-top:22px;">התורים של {{ selected_date }}</h2>
+        <table class="appointments-table">
+            <tr>
+                <th>שם לקוח</th>
+                <th>טלפון</th>
+                <th>שירות</th>
+                <th>שעה</th>
+            </tr>
+            {% for a in day_appointments %}
+            <tr>
+                <td>{{ a.customer_name }}</td>
+                <td>{{ a.customer_phone }}</td>
+                <td>{{ a.service_name }}</td>
+                <td>{{ a.time }}</td>
+            </tr>
+            {% else %}
+            <tr>
+                <td colspan="4">אין תורים ביום הזה.</td>
+            </tr>
+            {% endfor %}
+        </table>
+    </div>
+
+    <div class="section-box">
+        <h2>בקשות דירוג מלקוחות</h2>
+        <div class="section-note">בשלב הזה רואים רק את שם הלקוח. הדירוג יוצג רק אחרי אישור.</div>
+
+        {% for item in pending_ratings %}
+        <div class="rating-row">
+            <strong>{{ item.customer_name }}</strong><br>
+            נשלח בתאריך {{ item.created_at }}<br><br>
+
+            <form method="POST"
+                  action="{{ url_for('owner_rating_action', rating_id=item.id, action='accept') }}"
+                  style="display:inline-block">
+                <button class="action-btn approve" type="submit">אשר והצג דירוג</button>
+            </form>
+
+            <form method="POST"
+                  action="{{ url_for('owner_rating_action', rating_id=item.id, action='decline') }}"
+                  style="display:inline-block">
+                <button class="action-btn decline" type="submit">דחה</button>
+            </form>
+        </div>
+        {% else %}
+        <p>אין בקשות דירוג ממתינות.</p>
+        {% endfor %}
+    </div>
+    {% endif %}
 
     {% set days = ['sunday','monday','tuesday','wednesday','thursday','friday','saturday'] %}
     {% set day_labels = {
@@ -331,315 +433,180 @@
         'saturday':'יום שבת'
     } %}
 
-    <div class="dashboard-hero">
-        {% if store %}
-            <h1>ניהול העסק שלך</h1>
-            <p>כאן אפשר לעדכן את פרטי העסק, השירותים, שעות הפתיחה ולנהל את הנוכחות שלך במערכת.</p>
-            <div class="stats-row">
-                <div class="stat-card">
-                    <div class="stat-title">שם העסק</div>
-                    <div class="stat-value">{{ store.name }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">קטגוריה</div>
-                    <div class="stat-value">{{ store.category }}</div>
-                </div>
-                <div class="stat-card">
-                    <div class="stat-title">מספר שירותים</div>
-                    <div class="stat-value">{{ services|length }}</div>
-                </div>
-            </div>
-        {% else %}
-            <h1>הקמת העסק שלך</h1>
-            <p>צור את העסק שלך, הוסף שירותים, הגדר שעות פתיחה והתחל לקבל תורים.</p>
-        {% endif %}
-    </div>
-
     {% if store %}
-        <div class="business-summary">
-            <div class="summary-card">
-                <div class="summary-label">שם העסק</div>
-                <div class="summary-value">{{ store.name }}</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-label">קטגוריה</div>
-                <div class="summary-value">{{ store.category }}</div>
-            </div>
-            <div class="summary-card">
-                <div class="summary-label">תיאור</div>
-                <div class="summary-value">{{ store.description }}</div>
-            </div>
-        </div>
-
-        <form action="{{ url_for('update_store', store_id=store.id) }}" method="POST" class="booking-form">
-            <div class="section-box">
-                <div class="section-title">פרטי העסק</div>
-                <div class="section-subtitle">ערוך את המידע הבסיסי של העסק שלך.</div>
-
-                <div class="top-grid">
-                    <div class="field-group">
-                        <label class="field-label">שם העסק</label>
-                        <input type="text" name="name" value="{{ store.name }}" required>
-                    </div>
-
-                    <div class="field-group">
-                        <label class="field-label">קטגוריה</label>
-                        <select name="category" required>
-                            <option value="Barber" {% if store.category == 'Barber' %}selected{% endif %}>Barber</option>
-                            <option value="Car Wash" {% if store.category == 'Car Wash' %}selected{% endif %}>Car Wash</option>
-                            <option value="Nails" {% if store.category == 'Nails' %}selected{% endif %}>Nails</option>
-                        </select>
-                    </div>
-                </div>
-
-                <div class="field-group">
-                    <label class="field-label">תיאור העסק</label>
-                    <input type="text" name="description" value="{{ store.description }}" required>
-                </div>
-            </div>
-
-            <div class="section-box">
-                <div class="section-title">שירותים</div>
-                <div class="section-subtitle">הגדר עד 6 שירותים עם מחיר ומשך זמן.</div>
-
-                <div id="services-container">
-                    {% for service in services %}
-                        <div class="service-box">
-                            <div class="service-header">שירות {{ loop.index }}</div>
-                            <div class="service-grid">
-                                <div class="field-group">
-                                    <label class="field-label">שם השירות</label>
-                                    <input type="text" name="service_name[]" value="{{ service.name }}" required>
-                                </div>
-                                <div class="field-group">
-                                    <label class="field-label">מחיר</label>
-                                    <input type="number" step="0.01" min="0" name="service_price[]" value="{{ service.price }}" required>
-                                </div>
-                                <div class="field-group">
-                                    <label class="field-label">משך זמן בדקות</label>
-                                    <input type="number" min="5" name="service_duration[]" value="{{ service.duration }}" required>
-                                </div>
-                            </div>
-                            {% if loop.index > 1 %}
-                                <button type="button" class="remove-service-btn">מחק שירות</button>
-                            {% endif %}
-                        </div>
-                    {% endfor %}
-                </div>
-
-                {% if services|length < 6 %}
-                    <div class="toolbar-row">
-                        <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
-                    </div>
-                {% endif %}
-            </div>
-
-            <div class="section-box">
-                <div class="section-title">שעות עבודה שבועיות</div>
-                <div class="section-subtitle">לקוחות יוכלו לקבוע תור רק בתוך השעות האלו.</div>
-
-                {% for day in days %}
-                    {% set day_data = working_hours.get(day, {'is_open': False, 'start_time': '09:00', 'end_time': '17:00'}) %}
-                    <div class="day-box">
-                        <div class="day-header">{{ day_labels[day] }}</div>
-                        <div class="day-grid">
-                            <div class="field-group">
-                                <label class="field-label">פתוח?</label>
-                                <select name="is_open_{{ day }}">
-                                    <option value="true" {% if day_data.is_open %}selected{% endif %}>כן</option>
-                                    <option value="false" {% if not day_data.is_open %}selected{% endif %}>לא</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">משעה</label>
-                                <input type="time" name="start_time_{{ day }}" value="{{ day_data.start_time }}">
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">עד שעה</label>
-                                <input type="time" name="end_time_{{ day }}" value="{{ day_data.end_time }}">
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
-            </div>
-
-            <div class="toolbar-row">
-                <button type="submit" class="primary-btn">שמור שינויים</button>
-            </div>
-        </form>
-
-        <div class="section-box danger-zone">
-            <div class="section-title">אזור מסוכן</div>
-            <div class="section-subtitle">מחיקת העסק תסיר גם את השירותים ושעות העבודה שלו.</div>
-
-            <form action="{{ url_for('delete_store', store_id=store.id) }}" method="POST" onsubmit="return confirm('האם אתה בטוח שברצונך למחוק את העסק?');">
-                <button type="submit" class="danger-btn">מחק את העסק</button>
-            </form>
-        </div>
-
+    <form action="{{ url_for('update_store', store_id=store.id) }}" method="POST">
     {% else %}
-        <div class="section-box empty-state">
-            <h2>עדיין לא יצרת עסק</h2>
-            <p>מלא את הפרטים הבאים כדי להקים את העסק שלך ולהתחיל לקבל תורים.</p>
-        </div>
+    <form action="{{ url_for('add_store') }}" method="POST">
+    {% endif %}
 
-        <form action="{{ url_for('add_store') }}" method="POST" class="booking-form">
-            <div class="section-box">
-                <div class="section-title">פרטי העסק</div>
-                <div class="section-subtitle">מלא את המידע הראשי של העסק שלך.</div>
+        <div class="section-box">
+            <h2>פרטי העסק</h2>
 
-                <div class="top-grid">
-                    <div class="field-group">
-                        <label class="field-label">שם העסק</label>
-                        <input type="text" name="name" required>
-                    </div>
-
-                    <div class="field-group">
-                        <label class="field-label">קטגוריה</label>
-                        <select name="category" required>
-                            <option value="">בחר קטגוריה</option>
-                            <option value="Barber">Barber</option>
-                            <option value="Car Wash">Car Wash</option>
-                            <option value="Nails">Nails</option>
-                        </select>
-                    </div>
+            <div class="top-grid">
+                <div>
+                    <label>שם העסק</label>
+                    <input type="text" name="name" value="{{ store.name if store else '' }}" required>
                 </div>
 
-                <div class="field-group">
-                    <label class="field-label">תיאור העסק</label>
-                    <input type="text" name="description" required>
+                <div>
+                    <label>קטגוריה</label>
+                    <input list="categories-list" name="category"
+                           value="{{ store.category if store else '' }}"
+                           placeholder="הקלד או בחר קטגוריה" required>
+                    <datalist id="categories-list">
+                        {% for category in categories %}
+                        <option value="{{ category }}">
+                        {% endfor %}
+                    </datalist>
                 </div>
             </div>
 
-            <div class="section-box">
-                <div class="section-title">שירותים</div>
-                <div class="section-subtitle">אפשר להגדיר עד 6 שירותים. לכל שירות יש שם, מחיר ומשך זמן.</div>
+            <div style="margin-top:14px;">
+                <label>תיאור העסק</label>
+                <input type="text" name="description" value="{{ store.description if store else '' }}" required>
+            </div>
+        </div>
 
-                <div id="services-container">
+        <div class="section-box">
+            <h2>שירותים</h2>
+
+            <div id="services-container">
+                {% if services %}
+                    {% for service in services %}
                     <div class="service-box">
-                        <div class="service-header">שירות 1</div>
                         <div class="service-grid">
-                            <div class="field-group">
-                                <label class="field-label">שם השירות</label>
+                            <div>
+                                <label>שם שירות</label>
+                                <input type="text" name="service_name[]" value="{{ service.name }}" required>
+                            </div>
+                            <div>
+                                <label>מחיר</label>
+                                <input type="number" step="0.01" min="0" name="service_price[]" value="{{ service.price }}" required>
+                            </div>
+                            <div>
+                                <label>משך בדקות</label>
+                                <input type="number" min="5" name="service_duration[]" value="{{ service.duration }}" required>
+                            </div>
+                        </div>
+
+                        {% if loop.index > 1 %}
+                        <button type="button" class="remove-service-btn" style="margin-top:14px;">מחק שירות</button>
+                        {% endif %}
+                    </div>
+                    {% endfor %}
+                {% else %}
+                    <div class="service-box">
+                        <div class="service-grid">
+                            <div>
+                                <label>שם שירות</label>
                                 <input type="text" name="service_name[]" required>
                             </div>
-                            <div class="field-group">
-                                <label class="field-label">מחיר</label>
+                            <div>
+                                <label>מחיר</label>
                                 <input type="number" step="0.01" min="0" name="service_price[]" required>
                             </div>
-                            <div class="field-group">
-                                <label class="field-label">משך זמן בדקות</label>
+                            <div>
+                                <label>משך בדקות</label>
                                 <input type="number" min="5" name="service_duration[]" required>
                             </div>
                         </div>
                     </div>
-                </div>
-
-                <div class="toolbar-row">
-                    <button type="button" class="add-service-btn" id="add-service-btn">+ הוסף שירות</button>
-                </div>
-            </div>
-
-            <div class="section-box">
-                <div class="section-title">שעות עבודה שבועיות</div>
-                <div class="section-subtitle">בחר באילו ימים העסק פתוח ובאיזה שעות.</div>
-
-                {% for day in days %}
-                    <div class="day-box">
-                        <div class="day-header">{{ day_labels[day] }}</div>
-                        <div class="day-grid">
-                            <div class="field-group">
-                                <label class="field-label">פתוח?</label>
-                                <select name="is_open_{{ day }}">
-                                    <option value="true" {% if day != 'saturday' %}selected{% endif %}>כן</option>
-                                    <option value="false" {% if day == 'saturday' %}selected{% endif %}>לא</option>
-                                </select>
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">משעה</label>
-                                <input type="time" name="start_time_{{ day }}" value="09:00">
-                            </div>
-                            <div class="field-group">
-                                <label class="field-label">עד שעה</label>
-                                <input type="time" name="end_time_{{ day }}" value="{% if day == 'friday' %}15:00{% elif day == 'saturday' %}16:00{% else %}17:00{% endif %}">
-                            </div>
-                        </div>
-                    </div>
-                {% endfor %}
+                {% endif %}
             </div>
 
             <div class="toolbar-row">
-                <button type="submit" class="primary-btn">שמור עסק</button>
+                <button type="button" class="secondary-btn" id="add-service-btn">+ הוסף שירות</button>
             </div>
+        </div>
+
+        <div class="section-box">
+            <h2>שעות עבודה שבועיות</h2>
+
+            {% for day in days %}
+                {% set day_data = working_hours.get(day, {'is_open': False, 'start_time': '09:00', 'end_time': '17:00'}) %}
+                <div class="day-box">
+                    <strong>{{ day_labels[day] }}</strong>
+
+                    <div class="day-grid" style="margin-top:14px;">
+                        <div>
+                            <label>פתוח?</label>
+                            <select name="is_open_{{ day }}">
+                                <option value="true" {% if day_data.is_open %}selected{% endif %}>כן</option>
+                                <option value="false" {% if not day_data.is_open %}selected{% endif %}>לא</option>
+                            </select>
+                        </div>
+
+                        <div>
+                            <label>משעה</label>
+                            <input type="time" name="start_time_{{ day }}" value="{{ day_data.start_time }}">
+                        </div>
+
+                        <div>
+                            <label>עד שעה</label>
+                            <input type="time" name="end_time_{{ day }}" value="{{ day_data.end_time }}">
+                        </div>
+                    </div>
+                </div>
+            {% endfor %}
+        </div>
+
+        <div class="toolbar-row">
+            <button class="primary-btn" type="submit">
+                {% if store %}שמור שינויים{% else %}שמור עסק{% endif %}
+            </button>
+        </div>
+    </form>
+
+    {% if store %}
+    <div class="section-box danger-zone">
+        <h2>אזור מסוכן</h2>
+        <form action="{{ url_for('delete_store', store_id=store.id) }}" method="POST"
+              onsubmit="return confirm('האם למחוק את העסק?');">
+            <button class="danger-btn" type="submit">מחק את העסק</button>
         </form>
+    </div>
     {% endif %}
 </div>
 
-<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-
 <script>
-    const servicesContainer = document.getElementById('services-container');
-    const addServiceBtn = document.getElementById('add-service-btn');
-    let serviceCount = document.querySelectorAll('.service-box').length || 1;
-    const maxServices = 6;
+const servicesContainer = document.getElementById('services-container');
+const addServiceBtn = document.getElementById('add-service-btn');
 
-    if (addServiceBtn) {
-        addServiceBtn.addEventListener('click', function () {
-            if (serviceCount >= maxServices) {
-                alert('אפשר להוסיף עד 6 שירותים בלבד');
-                return;
-            }
-
-            serviceCount++;
-
-            const serviceBox = document.createElement('div');
-            serviceBox.className = 'service-box';
-
-            serviceBox.innerHTML = `
-                <div class="service-header">שירות ${serviceCount}</div>
-                <div class="service-grid">
-                    <div class="field-group">
-                        <label class="field-label">שם השירות</label>
-                        <input type="text" name="service_name[]" required>
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">מחיר</label>
-                        <input type="number" step="0.01" min="0" name="service_price[]" required>
-                    </div>
-                    <div class="field-group">
-                        <label class="field-label">משך זמן בדקות</label>
-                        <input type="number" min="5" name="service_duration[]" required>
-                    </div>
+if (addServiceBtn) {
+    addServiceBtn.addEventListener('click', () => {
+        const box = document.createElement('div');
+        box.className = 'service-box';
+        box.innerHTML = `
+            <div class="service-grid">
+                <div>
+                    <label>שם שירות</label>
+                    <input type="text" name="service_name[]" required>
                 </div>
-                <button type="button" class="remove-service-btn">מחק שירות</button>
-            `;
-
-            servicesContainer.appendChild(serviceBox);
-
-            serviceBox.querySelector('.remove-service-btn').addEventListener('click', function () {
-                serviceBox.remove();
-                serviceCount--;
-                updateServiceTitles();
-            });
-        });
-    }
-
-    document.querySelectorAll('.remove-service-btn').forEach(btn => {
-        btn.addEventListener('click', function () {
-            btn.closest('.service-box').remove();
-            serviceCount--;
-            updateServiceTitles();
-        });
+                <div>
+                    <label>מחיר</label>
+                    <input type="number" step="0.01" min="0" name="service_price[]" required>
+                </div>
+                <div>
+                    <label>משך בדקות</label>
+                    <input type="number" min="5" name="service_duration[]" required>
+                </div>
+            </div>
+            <button type="button" class="remove-service-btn" style="margin-top:14px;">מחק שירות</button>
+        `;
+        servicesContainer.appendChild(box);
+        bindRemoveButtons();
     });
+}
 
-    function updateServiceTitles() {
-        const allServices = servicesContainer.querySelectorAll('.service-box');
-        allServices.forEach((box, index) => {
-            const header = box.querySelector('.service-header');
-            header.textContent = `שירות ${index + 1}`;
-        });
-    }
+function bindRemoveButtons() {
+    document.querySelectorAll('.remove-service-btn').forEach(btn => {
+        btn.onclick = () => btn.closest('.service-box').remove();
+    });
+}
+
+bindRemoveButtons();
 </script>
 
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 </body>
 </html>

@@ -6,15 +6,24 @@ from flask import Flask, render_template, request, redirect, url_for, session, f
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
-app.secret_key = "my_super_secret_key_123"
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", "my_super_secret_key_123")
+
+DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
+DAY_LABELS = {
+    'sunday': 'יום ראשון',
+    'monday': 'יום שני',
+    'tuesday': 'יום שלישי',
+    'wednesday': 'יום רביעי',
+    'thursday': 'יום חמישי',
+    'friday': 'יום שישי',
+    'saturday': 'יום שבת'
+}
 
 
-# ---------------- DATABASE CONNECTION ----------------
 def get_connection():
     return psycopg2.connect(os.environ.get("DATABASE_URL"))
 
 
-# ---------------- HELPERS ----------------
 def get_day_name_from_date(date_str):
     day_index = datetime.strptime(date_str, "%Y-%m-%d").weekday()
     mapping = {
@@ -36,7 +45,6 @@ def time_to_minutes(time_value):
         except ValueError:
             dt = datetime.strptime(time_value, "%H:%M:%S")
         return dt.hour * 60 + dt.minute
-
     return time_value.hour * 60 + time_value.minute
 
 
@@ -46,41 +54,91 @@ def minutes_to_time_string(minutes):
     return f"{hours:02d}:{mins:02d}"
 
 
+def today_range():
+    min_date = date.today()
+    max_date = min_date + timedelta(days=7)
+    return min_date.isoformat(), max_date.isoformat()
+
+
+def normalize_category_name(raw_value):
+    return " ".join((raw_value or "").strip().split())
+
+
+def get_categories():
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT name FROM business_categories ORDER BY LOWER(name)")
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [r[0] for r in rows]
+
+
+def ensure_category_exists(category_name, owner_id=None, cursor=None):
+    category_name = normalize_category_name(category_name)
+    if not category_name:
+        return ""
+
+    internal_cursor = cursor
+    internal_conn = None
+    if internal_cursor is None:
+        internal_conn = get_connection()
+        internal_cursor = internal_conn.cursor()
+
+    internal_cursor.execute(
+        """
+        INSERT INTO business_categories (name, created_by_owner_id)
+        VALUES (%s, %s)
+        ON CONFLICT (name) DO NOTHING
+        """,
+        (category_name, owner_id)
+    )
+
+    if internal_conn:
+        internal_conn.commit()
+        internal_cursor.close()
+        internal_conn.close()
+
+    return category_name
+
+
 def generate_available_slots(store_id, service_id, appointment_date):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT duration_minutes
         FROM services
         WHERE id = %s AND store_id = %s
-    """, (service_id, store_id))
+        """,
+        (service_id, store_id)
+    )
     service_row = cursor.fetchone()
-
     if not service_row:
         cursor.close()
         conn.close()
         return []
 
     service_duration = int(service_row[0])
-
     day_name = get_day_name_from_date(appointment_date)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT is_open, start_time, end_time
         FROM working_hours
         WHERE store_id = %s AND day_of_week = %s
-    """, (store_id, day_name))
+        """,
+        (store_id, day_name)
+    )
     working_row = cursor.fetchone()
-
     if not working_row:
         cursor.close()
         conn.close()
         return []
 
     is_open, start_time, end_time = working_row
-
-    if not is_open:
+    if not is_open or not start_time or not end_time:
         cursor.close()
         conn.close()
         return []
@@ -88,24 +146,25 @@ def generate_available_slots(store_id, service_id, appointment_date):
     start_minutes = time_to_minutes(start_time)
     end_minutes = time_to_minutes(end_time)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT appointment_time, service_id
         FROM appointments
         WHERE store_id = %s AND appointment_date = %s
-    """, (store_id, appointment_date))
+        """,
+        (store_id, appointment_date)
+    )
     existing_rows = cursor.fetchall()
 
     busy_ranges = []
     for appointment_time, existing_service_id in existing_rows:
-        cursor.execute("""
-            SELECT duration_minutes
-            FROM services
-            WHERE id = %s
-        """, (existing_service_id,))
+        cursor.execute(
+            "SELECT duration_minutes FROM services WHERE id = %s",
+            (existing_service_id,)
+        )
         existing_service = cursor.fetchone()
         if not existing_service:
             continue
-
         existing_duration = int(existing_service[0])
         existing_start = time_to_minutes(appointment_time)
         existing_end = existing_start + existing_duration
@@ -113,20 +172,13 @@ def generate_available_slots(store_id, service_id, appointment_date):
 
     slots = []
     current = start_minutes
-
     while current + service_duration <= end_minutes:
         candidate_start = current
         candidate_end = current + service_duration
-
-        overlaps = False
-        for busy_start, busy_end in busy_ranges:
-            if not (candidate_end <= busy_start or candidate_start >= busy_end):
-                overlaps = True
-                break
-
+        overlaps = any(not (candidate_end <= busy_start or candidate_start >= busy_end)
+                       for busy_start, busy_end in busy_ranges)
         if not overlaps:
             slots.append(minutes_to_time_string(candidate_start))
-
         current += 15
 
     cursor.close()
@@ -134,17 +186,68 @@ def generate_available_slots(store_id, service_id, appointment_date):
     return slots
 
 
+def get_store_calendar_days(store_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute("SELECT MIN(duration_minutes) FROM services WHERE store_id = %s", (store_id,))
+    row = cursor.fetchone()
+    min_duration = int(row[0]) if row and row[0] else None
+    cursor.close()
+    conn.close()
+
+    days = []
+    for offset in range(8):
+        d = date.today() + timedelta(days=offset)
+        d_iso = d.isoformat()
+        day_name = get_day_name_from_date(d_iso)
+        if min_duration is None:
+            status = 'closed'
+        else:
+            # use smallest service duration as proxy to decide if at least one slot exists
+            conn = get_connection()
+            cursor = conn.cursor()
+            cursor.execute(
+                """
+                SELECT id
+                FROM services
+                WHERE store_id = %s
+                ORDER BY duration_minutes ASC, id ASC
+                LIMIT 1
+                """,
+                (store_id,)
+            )
+            service_row = cursor.fetchone()
+            cursor.close()
+            conn.close()
+            if service_row:
+                slots = generate_available_slots(store_id, service_row[0], d_iso)
+                status = 'available' if slots else 'busy'
+            else:
+                status = 'closed'
+
+        days.append({
+            'date': d_iso,
+            'day_name': day_name,
+            'day_label': DAY_LABELS[day_name],
+            'display': d.strftime('%d/%m'),
+            'status': status
+        })
+    return days
+
+
 def get_owner_store_full(owner_id):
     conn = get_connection()
     cursor = conn.cursor()
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, name, category, description
         FROM stores
         WHERE owner_id = %s
-    """, (owner_id,))
+        """,
+        (owner_id,)
+    )
     store_row = cursor.fetchone()
-
     if not store_row:
         cursor.close()
         conn.close()
@@ -157,56 +260,141 @@ def get_owner_store_full(owner_id):
         "description": store_row[3]
     }
 
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, name, price, duration_minutes
         FROM services
         WHERE store_id = %s
         ORDER BY id
-    """, (store["id"],))
-    services_rows = cursor.fetchall()
+        """,
+        (store["id"],)
+    )
+    services = [
+        {"id": s[0], "name": s[1], "price": float(s[2]), "duration": s[3]}
+        for s in cursor.fetchall()
+    ]
 
-    services = []
-    for s in services_rows:
-        services.append({
-            "id": s[0],
-            "name": s[1],
-            "price": float(s[2]),
-            "duration": s[3]
-        })
-
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT day_of_week, is_open, start_time, end_time
         FROM working_hours
         WHERE store_id = %s
         ORDER BY id
-    """, (store["id"],))
-    working_rows = cursor.fetchall()
-
-    working_hours = {}
-    for row in working_rows:
-        working_hours[row[0]] = {
+        """,
+        (store["id"],)
+    )
+    working_hours = {
+        row[0]: {
             "is_open": row[1],
             "start_time": str(row[2])[:5] if row[2] else "",
             "end_time": str(row[3])[:5] if row[3] else ""
         }
+        for row in cursor.fetchall()
+    }
 
     cursor.close()
     conn.close()
+    return {"store": store, "services": services, "working_hours": working_hours}
 
+
+def get_owner_day_appointments(store_id, selected_date):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time, s.name
+        FROM appointments a
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE a.store_id = %s AND a.appointment_date = %s
+        ORDER BY a.appointment_time
+        """,
+        (store_id, selected_date)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {
+            "id": r[0],
+            "customer_name": r[1],
+            "customer_phone": r[2],
+            "date": str(r[3]),
+            "time": str(r[4])[:5],
+            "service_name": r[5] or ""
+        }
+        for r in rows
+    ]
+
+
+def get_store_ratings_summary(store_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0), COUNT(*)
+        FROM ratings
+        WHERE store_id = %s AND status = 'accepted'
+        """,
+        (store_id,)
+    )
+    avg_rating, total = cursor.fetchone()
+    cursor.execute(
+        """
+        SELECT customer_name, rating, created_at
+        FROM ratings
+        WHERE store_id = %s AND status = 'accepted'
+        ORDER BY created_at DESC
+        LIMIT 10
+        """,
+        (store_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
     return {
-        "store": store,
-        "services": services,
-        "working_hours": working_hours
+        'average': float(avg_rating or 0),
+        'count': total or 0,
+        'items': [
+            {
+                'customer_name': r[0],
+                'rating': r[1],
+                'created_at': r[2].strftime('%d/%m/%Y') if r[2] else ''
+            }
+            for r in rows
+        ]
     }
 
 
-# ---------------- HOME ----------------
+def get_pending_owner_rating_requests(store_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT id, customer_name, created_at
+        FROM ratings
+        WHERE store_id = %s AND status = 'pending'
+        ORDER BY created_at DESC
+        """,
+        (store_id,)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return [
+        {
+            'id': r[0],
+            'customer_name': r[1],
+            'created_at': r[2].strftime('%d/%m/%Y %H:%M') if r[2] else ''
+        }
+        for r in rows
+    ]
+
+
 @app.route('/')
 def home():
     return render_template('index.html')
 
 
-# ---------------- SIGNUP ----------------
 @app.route('/signup/<role>', methods=['GET', 'POST'])
 def signup(role):
     if role not in ['customer', 'owner']:
@@ -216,37 +404,34 @@ def signup(role):
         full_name = request.form['full_name'].strip()
         email = request.form['email'].strip()
         password = request.form['password'].strip()
-
         password_hash = generate_password_hash(password)
 
         conn = get_connection()
         cursor = conn.cursor()
-
         cursor.execute("SELECT id FROM users WHERE email = %s", (email,))
         existing_user = cursor.fetchone()
-
         if existing_user:
             cursor.close()
             conn.close()
             flash("Email already exists")
             return redirect(url_for('signup', role=role))
 
-        cursor.execute("""
+        cursor.execute(
+            """
             INSERT INTO users (full_name, email, password_hash, role)
             VALUES (%s, %s, %s, %s)
-        """, (full_name, email, password_hash, role))
-
+            """,
+            (full_name, email, password_hash, role)
+        )
         conn.commit()
         cursor.close()
         conn.close()
-
         flash("Account created successfully. Please login.")
         return redirect(url_for('login'))
 
     return render_template('signup.html', role=role)
 
 
-# ---------------- LOGIN ----------------
 @app.route('/login', methods=['GET', 'POST'])
 def login():
     if request.method == 'POST':
@@ -255,14 +440,15 @@ def login():
 
         conn = get_connection()
         cursor = conn.cursor()
-
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT id, full_name, email, password_hash, role
             FROM users
             WHERE email = %s
-        """, (email,))
+            """,
+            (email,)
+        )
         user = cursor.fetchone()
-
         cursor.close()
         conn.close()
 
@@ -271,10 +457,7 @@ def login():
             session['full_name'] = user[1]
             session['email'] = user[2]
             session['role'] = user[4]
-
-            if user[4] == 'owner':
-                return redirect(url_for('work'))
-            return redirect(url_for('pick'))
+            return redirect(url_for('work' if user[4] == 'owner' else 'pick'))
 
         flash("Invalid email or password")
         return redirect(url_for('login'))
@@ -282,14 +465,12 @@ def login():
     return render_template('login.html')
 
 
-# ---------------- LOGOUT ----------------
 @app.route('/logout')
 def logout():
     session.clear()
     return redirect(url_for('home'))
 
 
-# ---------------- OWNER DASHBOARD ----------------
 @app.route('/work')
 def work():
     if 'user_id' not in session or session.get('role') != 'owner':
@@ -297,115 +478,129 @@ def work():
 
     owner_id = session['user_id']
     data = get_owner_store_full(owner_id)
+    selected_date = request.args.get('selected_date') or date.today().isoformat()
+
+    if not data:
+        return render_template(
+            'work_updated.html',
+            store=None,
+            services=[],
+            working_hours={},
+            categories=get_categories(),
+            calendar_days=[],
+            selected_date=selected_date,
+            day_appointments=[],
+            pending_ratings=[]
+        )
 
     return render_template(
-        'work.html',
-        store=data["store"] if data else None,
-        services=data["services"] if data else [],
-        working_hours=data["working_hours"] if data else {}
+        'work_updated.html',
+        store=data['store'],
+        services=data['services'],
+        working_hours=data['working_hours'],
+        categories=get_categories(),
+        calendar_days=get_store_calendar_days(data['store']['id']),
+        selected_date=selected_date,
+        day_appointments=get_owner_day_appointments(data['store']['id'], selected_date),
+        pending_ratings=get_pending_owner_rating_requests(data['store']['id'])
     )
 
 
-# ---------------- ADD STORE ----------------
 @app.route('/add-store', methods=['POST'])
 def add_store():
     if 'user_id' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
 
     owner_id = session['user_id']
-
     conn = get_connection()
     cursor = conn.cursor()
-
     cursor.execute("SELECT id FROM stores WHERE owner_id = %s", (owner_id,))
-    existing_store = cursor.fetchone()
-
-    if existing_store:
+    if cursor.fetchone():
         cursor.close()
         conn.close()
         flash("כל בעל עסק יכול להגדיר עסק אחד בלבד.")
         return redirect(url_for('work'))
 
     name = request.form['name'].strip()
-    category = request.form['category'].strip()
+    category = normalize_category_name(request.form['category'])
     description = request.form['description'].strip()
+    if not category:
+        cursor.close()
+        conn.close()
+        flash("יש להזין קטגוריה.")
+        return redirect(url_for('work'))
+
+    ensure_category_exists(category, owner_id, cursor)
+    cursor.execute(
+        """
+        INSERT INTO stores (name, category, description, owner_id)
+        VALUES (%s, %s, %s, %s)
+        RETURNING id
+        """,
+        (name, category, description, owner_id)
+    )
+    store_id = cursor.fetchone()[0]
 
     service_names = request.form.getlist('service_name[]')
     service_prices = request.form.getlist('service_price[]')
     service_durations = request.form.getlist('service_duration[]')
-
-    cursor.execute("""
-        INSERT INTO stores (name, category, description, owner_id)
-        VALUES (%s, %s, %s, %s)
-        RETURNING id
-    """, (name, category, description, owner_id))
-
-    store_id = cursor.fetchone()[0]
-
     for i in range(len(service_names)):
-        service_name = service_names[i].strip()
-        service_price = service_prices[i].strip()
-        service_duration = service_durations[i].strip()
-
-        if service_name and service_price and service_duration:
-            cursor.execute("""
+        if service_names[i].strip() and service_prices[i].strip() and service_durations[i].strip():
+            cursor.execute(
+                """
                 INSERT INTO services (store_id, name, price, duration_minutes)
                 VALUES (%s, %s, %s, %s)
-            """, (store_id, service_name, service_price, service_duration))
+                """,
+                (store_id, service_names[i].strip(), service_prices[i].strip(), service_durations[i].strip())
+            )
 
-    days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-
-    for day in days:
+    for day in DAYS:
         is_open = request.form.get(f'is_open_{day}') == 'true'
-        start_time = request.form.get(f'start_time_{day}')
-        end_time = request.form.get(f'end_time_{day}')
-
-        cursor.execute("""
+        start_time = request.form.get(f'start_time_{day}') or None
+        end_time = request.form.get(f'end_time_{day}') or None
+        cursor.execute(
+            """
             INSERT INTO working_hours (store_id, day_of_week, is_open, start_time, end_time)
             VALUES (%s, %s, %s, %s, %s)
-        """, (store_id, day, is_open, start_time, end_time))
+            """,
+            (store_id, day, is_open, start_time, end_time)
+        )
 
     conn.commit()
     cursor.close()
     conn.close()
-
     flash("העסק נוצר בהצלחה.")
     return redirect(url_for('work'))
 
 
-# ---------------- UPDATE STORE ----------------
 @app.route('/update-store/<int:store_id>', methods=['POST'])
 def update_store(store_id):
     if 'user_id' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
 
     owner_id = session['user_id']
-
     conn = get_connection()
     cursor = conn.cursor()
-
-    cursor.execute("""
-        SELECT id
-        FROM stores
-        WHERE id = %s AND owner_id = %s
-    """, (store_id, owner_id))
-    owned_store = cursor.fetchone()
-
-    if not owned_store:
+    cursor.execute("SELECT id FROM stores WHERE id = %s AND owner_id = %s", (store_id, owner_id))
+    if not cursor.fetchone():
         cursor.close()
         conn.close()
         flash("אין לך הרשאה לערוך את העסק הזה.")
         return redirect(url_for('work'))
 
     name = request.form['name'].strip()
-    category = request.form['category'].strip()
+    category = normalize_category_name(request.form['category'])
     description = request.form['description'].strip()
+    ensure_category_exists(category, owner_id, cursor)
 
-    cursor.execute("""
+    cursor.execute(
+        """
         UPDATE stores
         SET name = %s, category = %s, description = %s
         WHERE id = %s AND owner_id = %s
-    """, (name, category, description, store_id, owner_id))
+        """,
+        (name, category, description, store_id, owner_id)
+    )
 
     cursor.execute("DELETE FROM services WHERE store_id = %s", (store_id,))
     cursor.execute("DELETE FROM working_hours WHERE store_id = %s", (store_id,))
@@ -413,113 +608,103 @@ def update_store(store_id):
     service_names = request.form.getlist('service_name[]')
     service_prices = request.form.getlist('service_price[]')
     service_durations = request.form.getlist('service_duration[]')
-
     for i in range(len(service_names)):
-        service_name = service_names[i].strip()
-        service_price = service_prices[i].strip()
-        service_duration = service_durations[i].strip()
-
-        if service_name and service_price and service_duration:
-            cursor.execute("""
+        if service_names[i].strip() and service_prices[i].strip() and service_durations[i].strip():
+            cursor.execute(
+                """
                 INSERT INTO services (store_id, name, price, duration_minutes)
                 VALUES (%s, %s, %s, %s)
-            """, (store_id, service_name, service_price, service_duration))
+                """,
+                (store_id, service_names[i].strip(), service_prices[i].strip(), service_durations[i].strip())
+            )
 
-    days = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
-
-    for day in days:
+    for day in DAYS:
         is_open = request.form.get(f'is_open_{day}') == 'true'
-        start_time = request.form.get(f'start_time_{day}')
-        end_time = request.form.get(f'end_time_{day}')
-
-        cursor.execute("""
+        start_time = request.form.get(f'start_time_{day}') or None
+        end_time = request.form.get(f'end_time_{day}') or None
+        cursor.execute(
+            """
             INSERT INTO working_hours (store_id, day_of_week, is_open, start_time, end_time)
             VALUES (%s, %s, %s, %s, %s)
-        """, (store_id, day, is_open, start_time, end_time))
+            """,
+            (store_id, day, is_open, start_time, end_time)
+        )
 
     conn.commit()
     cursor.close()
     conn.close()
-
     flash("העסק עודכן בהצלחה.")
     return redirect(url_for('work'))
 
 
-# ---------------- DELETE STORE ----------------
 @app.route('/delete-store/<int:store_id>', methods=['POST'])
 def delete_store(store_id):
     if 'user_id' not in session or session.get('role') != 'owner':
         return redirect(url_for('login'))
 
     owner_id = session['user_id']
-
     conn = get_connection()
     cursor = conn.cursor()
-
-    cursor.execute("""
-        DELETE FROM stores
-        WHERE id = %s AND owner_id = %s
-    """, (store_id, owner_id))
-
+    cursor.execute("DELETE FROM stores WHERE id = %s AND owner_id = %s", (store_id, owner_id))
     conn.commit()
     cursor.close()
     conn.close()
-
     flash("העסק נמחק.")
     return redirect(url_for('work'))
 
 
-# ---------------- PICK / LIST STORES ----------------
 @app.route('/pick')
 def pick():
     search = request.args.get('search', '').strip()
+    category = normalize_category_name(request.args.get('category', ''))
 
     conn = get_connection()
     cursor = conn.cursor()
+    params = []
+    conditions = []
 
     if search:
-        cursor.execute("""
-            SELECT id, name, category, description
-            FROM stores
-            WHERE name ILIKE %s OR category ILIKE %s
-            ORDER BY id DESC
-        """, (f'%{search}%', f'%{search}%'))
-    else:
-        cursor.execute("""
-            SELECT id, name, category, description
-            FROM stores
-            ORDER BY id DESC
-        """)
+        conditions.append("(name ILIKE %s OR category ILIKE %s)")
+        params.extend([f'%{search}%', f'%{search}%'])
+    if category:
+        conditions.append("category = %s")
+        params.append(category)
 
-    rows = cursor.fetchall()
+    query = "SELECT id, name, category, description FROM stores"
+    if conditions:
+        query += " WHERE " + " AND ".join(conditions)
+    query += " ORDER BY id DESC"
+
+    cursor.execute(query, tuple(params))
+    stores = [
+        {"id": row[0], "name": row[1], "category": row[2], "description": row[3]}
+        for row in cursor.fetchall()
+    ]
     cursor.close()
     conn.close()
 
-    stores = []
-    for row in rows:
-        stores.append({
-            "id": row[0],
-            "name": row[1],
-            "category": row[2],
-            "description": row[3]
-        })
-
-    return render_template('pick.html', stores=stores, search=search)
+    return render_template(
+        'pick_updated.html',
+        stores=stores,
+        search=search,
+        selected_category=category,
+        categories=get_categories()
+    )
 
 
-# ---------------- STORE DETAILS ----------------
 @app.route('/store/<int:store_id>')
 def store_details(store_id):
     conn = get_connection()
     cursor = conn.cursor()
-
-    cursor.execute("""
+    cursor.execute(
+        """
         SELECT id, name, category, description, owner_id
         FROM stores
         WHERE id = %s
-    """, (store_id,))
+        """,
+        (store_id,)
+    )
     row = cursor.fetchone()
-
     if not row:
         cursor.close()
         conn.close()
@@ -533,78 +718,88 @@ def store_details(store_id):
         "owner_id": row[4]
     }
 
-    cursor.execute("""
-        SELECT id, name, price, duration_minutes
-        FROM services
+    cursor.execute(
+        "SELECT id, name, price, duration_minutes FROM services WHERE store_id = %s ORDER BY id",
+        (store_id,)
+    )
+    services = [
+        {"id": s[0], "name": s[1], "price": float(s[2]), "duration": s[3]}
+        for s in cursor.fetchall()
+    ]
+
+    cursor.execute(
+        """
+        SELECT day_of_week, is_open, start_time, end_time
+        FROM working_hours
         WHERE store_id = %s
         ORDER BY id
-    """, (store_id,))
-    services_rows = cursor.fetchall()
-
-    services = []
-    for s in services_rows:
-        services.append({
-            "id": s[0],
-            "name": s[1],
-            "price": float(s[2]),
-            "duration": s[3]
-        })
+        """,
+        (store_id,)
+    )
+    working_hours_rows = cursor.fetchall()
+    working_hours = [
+        {
+            'day_of_week': row[0],
+            'day_label': DAY_LABELS.get(row[0], row[0]),
+            'is_open': row[1],
+            'start_time': str(row[2])[:5] if row[2] else '',
+            'end_time': str(row[3])[:5] if row[3] else ''
+        }
+        for row in working_hours_rows
+    ]
 
     appointments = []
     is_owner_view = False
-
     if 'user_id' in session and session.get('role') == 'owner' and session['user_id'] == store['owner_id']:
         is_owner_view = True
-
-        cursor.execute("""
+        cursor.execute(
+            """
             SELECT a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time, s.name
             FROM appointments a
             LEFT JOIN services s ON a.service_id = s.id
             WHERE a.store_id = %s
             ORDER BY a.appointment_date, a.appointment_time
-        """, (store_id,))
-        appointment_rows = cursor.fetchall()
-
-        for a in appointment_rows:
-            appointments.append({
-                "customer_name": a[0],
-                "customer_phone": a[1],
-                "date": str(a[2]),
-                "time": str(a[3])[:5],
-                "service_name": a[4] if a[4] else ""
-            })
+            """,
+            (store_id,)
+        )
+        appointments = [
+            {
+                'customer_name': a[0],
+                'customer_phone': a[1],
+                'date': str(a[2]),
+                'time': str(a[3])[:5],
+                'service_name': a[4] or ''
+            }
+            for a in cursor.fetchall()
+        ]
 
     cursor.close()
     conn.close()
 
-    min_date = date.today().isoformat()
-    max_date = (date.today() + timedelta(days=7)).isoformat()
-
+    min_date, max_date = today_range()
     return render_template(
-        'store_details.html',
+        'store_details_updated.html',
         store=store,
         services=services,
         appointments=appointments,
         is_owner_view=is_owner_view,
         min_date=min_date,
-        max_date=max_date
+        max_date=max_date,
+        working_hours=working_hours,
+        calendar_days=get_store_calendar_days(store_id),
+        ratings_summary=get_store_ratings_summary(store_id)
     )
 
 
-# ---------------- AVAILABLE SLOTS ----------------
 @app.route('/available-slots/<int:store_id>')
 def available_slots(store_id):
     service_id = request.args.get('service_id')
     appointment_date = request.args.get('appointment_date')
-
     if not service_id or not appointment_date:
         return jsonify({"slots": []})
-
-    slots = generate_available_slots(store_id, service_id, appointment_date)
-    return jsonify({"slots": slots})
+    return jsonify({"slots": generate_available_slots(store_id, service_id, appointment_date)})
 
 
-# ---------------- BOOK APPOINTMENT ----------------
 @app.route('/book/<int:store_id>', methods=['POST'])
 def book(store_id):
     if 'user_id' not in session or session.get('role') != 'customer':
@@ -617,44 +812,161 @@ def book(store_id):
     service_id = request.form['service_id']
     customer_id = session['user_id']
 
-    valid_slots = generate_available_slots(store_id, service_id, appointment_date)
+    min_date, max_date = today_range()
+    if not (min_date <= appointment_date <= max_date):
+        flash("אפשר לקבוע תור רק מהיום ועד 7 ימים קדימה.")
+        return redirect(url_for('store_details', store_id=store_id))
 
+    valid_slots = generate_available_slots(store_id, service_id, appointment_date)
     if appointment_time not in valid_slots:
         flash("בחר שעה תקינה מתוך השעות הזמינות בלבד.")
         return redirect(url_for('store_details', store_id=store_id))
 
     conn = get_connection()
     cursor = conn.cursor()
-
-    cursor.execute("""
+    cursor.execute(
+        """
         INSERT INTO appointments (
-            store_id,
-            service_id,
-            customer_id,
-            customer_name,
-            customer_phone,
-            appointment_date,
-            appointment_time
+            store_id, service_id, customer_id, customer_name,
+            customer_phone, appointment_date, appointment_time
         )
         VALUES (%s, %s, %s, %s, %s, %s, %s)
-    """, (
-        store_id,
-        service_id,
-        customer_id,
-        customer_name,
-        customer_phone,
-        appointment_date,
-        appointment_time
-    ))
-
+        """,
+        (store_id, service_id, customer_id, customer_name, customer_phone, appointment_date, appointment_time)
+    )
     conn.commit()
     cursor.close()
     conn.close()
-
     flash("Appointment booked successfully.")
     return redirect(url_for('store_details', store_id=store_id))
 
 
-# ---------------- RUN APP ----------------
+@app.route('/request-rating/<int:appointment_id>', methods=['POST'])
+def request_rating(appointment_id):
+    if 'user_id' not in session or session.get('role') != 'customer':
+        return redirect(url_for('login'))
+
+    rating = int(request.form['rating'])
+    if rating < 1 or rating > 5:
+        flash("הדירוג חייב להיות בין 1 ל-5.")
+        return redirect(request.referrer or url_for('pick'))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT a.id, a.store_id, a.customer_id, a.customer_name,
+               a.appointment_date, a.appointment_time, s.duration_minutes
+        FROM appointments a
+        LEFT JOIN services s ON a.service_id = s.id
+        WHERE a.id = %s
+        """,
+        (appointment_id,)
+    )
+    row = cursor.fetchone()
+    if not row:
+        cursor.close()
+        conn.close()
+        flash("התור לא נמצא.")
+        return redirect(request.referrer or url_for('pick'))
+
+    if row[2] != session['user_id']:
+        cursor.close()
+        conn.close()
+        flash("אין לך הרשאה לשלוח דירוג על התור הזה.")
+        return redirect(request.referrer or url_for('pick'))
+
+    appointment_dt = datetime.combine(row[4], row[5])
+    if datetime.now() < appointment_dt:
+        cursor.close()
+        conn.close()
+        flash("אפשר לדרג רק אחרי שהתור הסתיים.")
+        return redirect(request.referrer or url_for('pick'))
+
+    cursor.execute(
+        """
+        INSERT INTO ratings (appointment_id, store_id, customer_id, customer_name, rating, status)
+        VALUES (%s, %s, %s, %s, %s, 'pending')
+        ON CONFLICT (appointment_id)
+        DO UPDATE SET rating = EXCLUDED.rating, status = 'pending', customer_name = EXCLUDED.customer_name
+        """,
+        (row[0], row[1], session['user_id'], session.get('full_name'), rating)
+    )
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash("בקשת הדירוג נשלחה לבעל העסק לאישור.")
+    return redirect(request.referrer or url_for('store_details', store_id=row[1]))
+
+
+@app.route('/owner/rating/<int:rating_id>/<action>', methods=['POST'])
+def owner_rating_action(rating_id, action):
+    if 'user_id' not in session or session.get('role') != 'owner':
+        return redirect(url_for('login'))
+    if action not in ['accept', 'decline']:
+        return redirect(url_for('work'))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT r.id
+        FROM ratings r
+        JOIN stores s ON s.id = r.store_id
+        WHERE r.id = %s AND s.owner_id = %s
+        """,
+        (rating_id, session['user_id'])
+    )
+    if not cursor.fetchone():
+        cursor.close()
+        conn.close()
+        flash("הדירוג לא נמצא או שאין הרשאה.")
+        return redirect(url_for('work'))
+
+    new_status = 'accepted' if action == 'accept' else 'declined'
+    cursor.execute("UPDATE ratings SET status = %s WHERE id = %s", (new_status, rating_id))
+    conn.commit()
+    cursor.close()
+    conn.close()
+    flash("הבקשה עודכנה.")
+    return redirect(url_for('work'))
+
+
+@app.route('/my-bookings')
+def my_bookings():
+    if 'user_id' not in session or session.get('role') != 'customer':
+        return redirect(url_for('login'))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    cursor.execute(
+        """
+        SELECT a.id, st.name, sv.name, a.appointment_date, a.appointment_time,
+               COALESCE(r.status, 'not_sent')
+        FROM appointments a
+        JOIN stores st ON st.id = a.store_id
+        LEFT JOIN services sv ON sv.id = a.service_id
+        LEFT JOIN ratings r ON r.appointment_id = a.id
+        WHERE a.customer_id = %s
+        ORDER BY a.appointment_date DESC, a.appointment_time DESC
+        """,
+        (session['user_id'],)
+    )
+    rows = cursor.fetchall()
+    cursor.close()
+    conn.close()
+    return render_template('my_bookings_updated.html', bookings=[
+        {
+            'appointment_id': r[0],
+            'store_name': r[1],
+            'service_name': r[2] or '',
+            'date': str(r[3]),
+            'time': str(r[4])[:5],
+            'rating_status': r[5]
+        }
+        for r in rows
+    ])
+
+
 if __name__ == '__main__':
     app.run(debug=True)
