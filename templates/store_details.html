@@ -387,7 +387,7 @@
     <div class="section-box">
         <div class="section-title">דירוגים מאושרים</div>
         <div class="ratings-list">
-            {% for item in ratings_summary.items %}
+            {% for item in ratings_summary["items"] %}
             <div class="rating-card">
                 <strong>{{ item.customer_name }}</strong> • {{ item.created_at }}<br>
                 <span class="stars">{{ '★' * item.rating }}{{ '☆' * (5 - item.rating) }}</span>
