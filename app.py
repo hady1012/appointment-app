@@ -992,7 +992,79 @@ def request_rating(appointment_id):
     flash("בקשת הדירוג נשלחה לבעל העסק לאישור.")
     return redirect(request.referrer or url_for("store_details", store_id=store_id_for_redirect))
 
+@app.route("/add-rating-from-pick", methods=["POST"])
+def add_rating_from_pick():
+    if "user_id" not in session or session.get("role") != "customer":
+        return redirect(url_for("login"))
 
+    try:
+        store_id = int(request.form["store_id"])
+        rating = int(request.form["rating"])
+    except (KeyError, ValueError):
+        flash("דירוג לא תקין.")
+        return redirect(url_for("pick"))
+
+    comment = request.form.get("comment", "").strip()
+
+    if rating < 1 or rating > 5:
+        flash("הדירוג חייב להיות בין 1 ל-5.")
+        return redirect(url_for("pick"))
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    redirect_store_id = store_id
+
+    try:
+        cursor.execute(
+            """
+            SELECT a.id, a.appointment_date, a.appointment_time
+            FROM appointments a
+            WHERE a.customer_id = %s AND a.store_id = %s
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC
+            LIMIT 1
+            """,
+            (session["user_id"], store_id),
+        )
+        appointment = cursor.fetchone()
+
+        if not appointment:
+            flash("אפשר לדרג רק אם היה לך תור בעסק הזה.")
+            return redirect(url_for("pick"))
+
+        appointment_dt = datetime.combine(appointment[1], appointment[2])
+        if datetime.now() < appointment_dt:
+            flash("אפשר לדרג רק אחרי שהתור הסתיים.")
+            return redirect(url_for("pick"))
+
+        cursor.execute(
+            """
+            INSERT INTO ratings (
+                appointment_id, store_id, customer_id, customer_name, rating, comment, status
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, 'pending')
+            ON CONFLICT (appointment_id)
+            DO UPDATE SET
+                rating = EXCLUDED.rating,
+                comment = EXCLUDED.comment,
+                status = 'pending',
+                customer_name = EXCLUDED.customer_name
+            """,
+            (
+                appointment[0],
+                store_id,
+                session["user_id"],
+                session.get("full_name"),
+                rating,
+                comment,
+            ),
+        )
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+    flash("בקשת הדירוג נשלחה לבעל העסק לאישור.")
+    return redirect(url_for("store_details", store_id=redirect_store_id))
 @app.route("/owner/rating/<int:rating_id>/<action>", methods=["POST"])
 def owner_rating_action(rating_id, action):
     if "user_id" not in session or session.get("role") != "owner":
