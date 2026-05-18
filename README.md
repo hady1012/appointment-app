@@ -271,6 +271,7 @@ Recommended production setup:
 - Keep `FLASK_SECRET_KEY` private in Render environment variables.
 - Use `RESEND_API_KEY` on Render Free because SMTP ports are blocked there.
 - Keep email API keys and SMTP passwords private in Render environment variables.
+- Direct Resend API calls include a `User-Agent` header, which Resend requires to avoid 403 error code 1010.
 - On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
 
 ### Restart Or Redeploy On Render
