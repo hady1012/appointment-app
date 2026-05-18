@@ -270,6 +270,21 @@ Recommended production setup:
 - Use an app password or SMTP token, not your normal email login password.
 - On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
 
+### Restart Or Redeploy On Render
+
+Use this after pushing new code or changing environment variables:
+
+1. Open the Render service, for example `appointment-app-2`.
+2. Click `Manual Deploy`.
+3. Choose `Deploy latest commit`.
+
+If the app still uses old files or behaves strangely:
+
+1. Click `Manual Deploy`.
+2. Choose `Clear build cache & deploy`.
+
+Render auto-deploys from GitHub, but a manual deploy is the fastest way to force the latest code and environment variables to run.
+
 ### Email Notifications
 
 When SMTP variables are configured, the app sends:
@@ -291,9 +306,12 @@ Use the same value in the URL that you set for `REMINDER_SECRET`.
 - Passwords are hashed with Werkzeug.
 - SQL queries use parameters instead of string interpolation.
 - Booking slots are validated on the backend before insert.
+- Emails, phone numbers, names, business details, services, prices, and durations are validated on the backend.
+- Browser forms also include validation hints for faster user feedback.
 - Rating requests are checked against appointment ownership and time.
 - Owner-only actions are protected by session role checks.
 - Secrets belong in environment variables, not in Git.
+- Full ownership proof would require email verification links and SMS verification codes.
 
 ## Future Improvements
 
