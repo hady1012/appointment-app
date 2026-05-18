@@ -1,9 +1,12 @@
 import os
+import json
 import re
 import smtplib
 import ssl
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
+from urllib import request as urlrequest
+from urllib.error import HTTPError, URLError
 from zoneinfo import ZoneInfo
 
 import psycopg2
@@ -141,12 +144,58 @@ def validate_service_inputs(service_names, service_prices, service_durations):
 
 
 def email_configured():
-    required_keys = ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM"]
-    return all(os.environ.get(key) for key in required_keys)
+    resend_ready = bool(os.environ.get("RESEND_API_KEY") and os.environ.get("MAIL_FROM"))
+    smtp_ready = all(os.environ.get(key) for key in ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM"])
+    return resend_ready or smtp_ready
+
+
+def send_resend_email(to_email, subject, body):
+    api_key = os.environ.get("RESEND_API_KEY")
+    mail_from = os.environ.get("MAIL_FROM")
+    sender_name = os.environ.get("MAIL_FROM_NAME", "Appointment Booking")
+
+    if not api_key or not mail_from:
+        return False
+
+    payload = json.dumps(
+        {
+            "from": f"{sender_name} <{mail_from}>",
+            "to": [to_email],
+            "subject": subject,
+            "text": body,
+        }
+    ).encode("utf-8")
+
+    request = urlrequest.Request(
+        "https://api.resend.com/emails",
+        data=payload,
+        headers={
+            "Authorization": f"Bearer {api_key}",
+            "Content-Type": "application/json",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlrequest.urlopen(request, timeout=12) as response:
+            return 200 <= response.status < 300
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        app.logger.warning("Resend email failed: %s %s", exc.code, error_body)
+        return False
+    except URLError as exc:
+        app.logger.warning("Resend email failed: %s", exc.reason)
+        return False
 
 
 def send_email(to_email, subject, body):
     if not to_email or not email_configured():
+        return False
+
+    if os.environ.get("RESEND_API_KEY"):
+        return send_resend_email(to_email, subject, body)
+
+    if not all(os.environ.get(key) for key in ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM"]):
         return False
 
     smtp_host = os.environ["SMTP_HOST"]

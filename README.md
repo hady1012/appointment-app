@@ -252,13 +252,16 @@ Environment variables:
 DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
 APP_TIMEZONE=Asia/Jerusalem
+RESEND_API_KEY=your_resend_api_key
+MAIL_FROM=onboarding@resend.dev
+MAIL_FROM_NAME=Appointment Booking
+REMINDER_SECRET=make_a_long_random_secret
+
+# Optional SMTP fallback for paid hosts that allow SMTP traffic:
 SMTP_HOST=smtp.example.com
 SMTP_PORT=587
 SMTP_USERNAME=your_smtp_username
 SMTP_PASSWORD=your_smtp_password
-MAIL_FROM=your_sender_email@example.com
-MAIL_FROM_NAME=Appointment Booking
-REMINDER_SECRET=make_a_long_random_secret
 ```
 
 Recommended production setup:
@@ -266,8 +269,8 @@ Recommended production setup:
 - Use Render auto-deploy from the `main` branch.
 - Use Neon PostgreSQL with a pooled connection string when possible.
 - Keep `FLASK_SECRET_KEY` private in Render environment variables.
-- Keep SMTP passwords private in Render environment variables.
-- Use an app password or SMTP token, not your normal email login password.
+- Use `RESEND_API_KEY` on Render Free because SMTP ports are blocked there.
+- Keep email API keys and SMTP passwords private in Render environment variables.
 - On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
 
 ### Restart Or Redeploy On Render
@@ -287,7 +290,9 @@ Render auto-deploys from GitHub, but a manual deploy is the fastest way to force
 
 ### Email Notifications
 
-When SMTP variables are configured, the app sends:
+When `RESEND_API_KEY` is configured, the app sends email through Resend over HTTPS. SMTP remains available as a fallback for paid hosts that allow SMTP traffic.
+
+The app sends:
 
 - A confirmation email to the customer after booking.
 - A notification email to the business owner after a customer books.
