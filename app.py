@@ -1,4 +1,5 @@
 import os
+import re
 import smtplib
 import ssl
 from datetime import date, timedelta, datetime
@@ -34,6 +35,109 @@ def get_connection():
 
 def now_local():
     return datetime.now(APP_TIMEZONE).replace(tzinfo=None)
+
+
+EMAIL_PATTERN = re.compile(r"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$", re.IGNORECASE)
+TEXT_PATTERN = re.compile(r"^[\w\s\u0590-\u05FF.'\"()&+,-]+$", re.UNICODE)
+PERSON_NAME_PATTERN = re.compile(r"^[A-Za-z\u0590-\u05FF\s.'-]+$", re.UNICODE)
+
+
+def normalize_email(email):
+    return (email or "").strip().lower()
+
+
+def is_valid_email(email):
+    email = normalize_email(email)
+    if not email or len(email) > 254 or not EMAIL_PATTERN.match(email):
+        return False
+
+    local_part, domain = email.rsplit("@", 1)
+    if not local_part or not domain or ".." in email:
+        return False
+
+    blocked_domains = {
+        "example.com",
+        "test.com",
+        "fake.com",
+        "mailinator.com",
+        "tempmail.com",
+        "10minutemail.com",
+    }
+    return domain not in blocked_domains
+
+
+def normalize_phone(phone):
+    phone = (phone or "").strip()
+    if phone.startswith("+"):
+        return "+" + re.sub(r"\D", "", phone[1:])
+    return re.sub(r"\D", "", phone)
+
+
+def is_valid_phone(phone):
+    normalized = normalize_phone(phone)
+    digits = normalized[1:] if normalized.startswith("+") else normalized
+
+    if not digits or len(digits) < 9 or len(digits) > 15:
+        return False
+
+    if len(set(digits)) <= 2:
+        return False
+
+    return (
+        normalized.startswith("+9725")
+        or normalized.startswith("+972")
+        or (normalized.startswith("05") and len(normalized) == 10)
+        or (normalized.startswith("0") and len(normalized) in [9, 10])
+    )
+
+
+def clean_text(value, min_len=2, max_len=255):
+    value = " ".join((value or "").strip().split())
+    if len(value) < min_len or len(value) > max_len:
+        return None
+    if not TEXT_PATTERN.match(value):
+        return None
+    return value
+
+
+def clean_person_name(value):
+    value = " ".join((value or "").strip().split())
+    if len(value) < 3 or len(value) > 80:
+        return None
+    if not PERSON_NAME_PATTERN.match(value):
+        return None
+    return value
+
+
+def validate_service_inputs(service_names, service_prices, service_durations):
+    valid_services = []
+
+    for name, price, duration in zip(service_names, service_prices, service_durations):
+        clean_name = clean_text(name, min_len=2, max_len=80)
+        if not clean_name and not price.strip() and not duration.strip():
+            continue
+
+        if not clean_name:
+            return None, "יש להזין שם שירות תקין."
+
+        try:
+            price_value = float(price)
+            duration_value = int(duration)
+        except ValueError:
+            return None, "מחיר או משך שירות אינם תקינים."
+
+        if price_value < 0 or price_value > 10000:
+            return None, "מחיר השירות אינו תקין."
+
+        if duration_value < 5 or duration_value > 480:
+            return None, "משך השירות חייב להיות בין 5 ל-480 דקות."
+
+        valid_services.append((clean_name, price_value, duration_value))
+
+    if not valid_services:
+        return None, "יש להוסיף לפחות שירות אחד תקין."
+
+    return valid_services, None
 
 
 def email_configured():
@@ -523,9 +627,22 @@ def signup(role):
         return "Invalid role", 400
 
     if request.method == "POST":
-        full_name = request.form["full_name"].strip()
-        email = request.form["email"].strip()
+        full_name = clean_person_name(request.form["full_name"])
+        email = normalize_email(request.form["email"])
         password = request.form["password"].strip()
+
+        if not full_name:
+            flash("יש להזין שם מלא אמיתי ותקין.")
+            return redirect(url_for("signup", role=role))
+
+        if not is_valid_email(email):
+            flash("יש להזין כתובת אימייל אמיתית ותקינה.")
+            return redirect(url_for("signup", role=role))
+
+        if len(password) < 8:
+            flash("הסיסמה חייבת להכיל לפחות 8 תווים.")
+            return redirect(url_for("signup", role=role))
+
         password_hash = generate_password_hash(password)
 
         conn = get_connection()
@@ -560,8 +677,12 @@ def signup(role):
 @app.route("/login", methods=["GET", "POST"])
 def login():
     if request.method == "POST":
-        email = request.form["email"].strip()
+        email = normalize_email(request.form["email"])
         password = request.form["password"].strip()
+
+        if not is_valid_email(email):
+            flash("יש להזין כתובת אימייל תקינה.")
+            return redirect(url_for("login"))
 
         conn = get_connection()
         cursor = conn.cursor()
@@ -664,12 +785,20 @@ def add_store():
             flash("כל בעל עסק יכול להגדיר עסק אחד בלבד.")
             return redirect(url_for("work"))
 
-        name = request.form["name"].strip()
-        category = normalize_category_name(request.form["category"])
-        description = request.form["description"].strip()
+        name = clean_text(request.form["name"], min_len=2, max_len=120)
+        category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
+        description = clean_text(request.form["description"], min_len=10, max_len=500)
+
+        if not name:
+            flash("יש להזין שם עסק תקין.")
+            return redirect(url_for("work"))
 
         if not category:
             flash("יש להזין קטגוריה.")
+            return redirect(url_for("work"))
+
+        if not description:
+            flash("יש להזין תיאור עסק אמיתי של לפחות 10 תווים.")
             return redirect(url_for("work"))
 
         ensure_category_exists(category, owner_id, cursor)
@@ -687,16 +816,21 @@ def add_store():
         service_names = request.form.getlist("service_name[]")
         service_prices = request.form.getlist("service_price[]")
         service_durations = request.form.getlist("service_duration[]")
+        valid_services, service_error = validate_service_inputs(service_names, service_prices, service_durations)
 
-        for i in range(len(service_names)):
-            if service_names[i].strip() and service_prices[i].strip() and service_durations[i].strip():
-                cursor.execute(
-                    """
-                    INSERT INTO services (store_id, name, price, duration_minutes)
-                    VALUES (%s, %s, %s, %s)
-                    """,
-                    (store_id, service_names[i].strip(), service_prices[i].strip(), service_durations[i].strip()),
-                )
+        if service_error:
+            conn.rollback()
+            flash(service_error)
+            return redirect(url_for("work"))
+
+        for service_name, service_price, service_duration in valid_services:
+            cursor.execute(
+                """
+                INSERT INTO services (store_id, name, price, duration_minutes)
+                VALUES (%s, %s, %s, %s)
+                """,
+                (store_id, service_name, service_price, service_duration),
+            )
 
         for day in DAYS:
             is_open = request.form.get(f"is_open_{day}") == "true"
@@ -736,12 +870,20 @@ def update_store(store_id):
             flash("אין לך הרשאה לערוך את העסק הזה.")
             return redirect(url_for("work"))
 
-        name = request.form["name"].strip()
-        category = normalize_category_name(request.form["category"])
-        description = request.form["description"].strip()
+        name = clean_text(request.form["name"], min_len=2, max_len=120)
+        category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
+        description = clean_text(request.form["description"], min_len=10, max_len=500)
+
+        if not name:
+            flash("יש להזין שם עסק תקין.")
+            return redirect(url_for("work"))
 
         if not category:
             flash("יש להזין קטגוריה.")
+            return redirect(url_for("work"))
+
+        if not description:
+            flash("יש להזין תיאור עסק אמיתי של לפחות 10 תווים.")
             return redirect(url_for("work"))
 
         ensure_category_exists(category, owner_id, cursor)
@@ -983,11 +1125,15 @@ def book(store_id):
         return redirect(url_for("login"))
 
     customer_name = session.get("full_name")
-    customer_phone = request.form["customer_phone"].strip()
+    customer_phone = normalize_phone(request.form["customer_phone"])
     appointment_date = request.form["appointment_date"]
     appointment_time = request.form["appointment_time"]
     service_id = request.form["service_id"]
     customer_id = session["user_id"]
+
+    if not is_valid_phone(customer_phone):
+        flash("יש להזין מספר טלפון אמיתי ותקין.")
+        return redirect(url_for("store_details", store_id=store_id))
 
     min_date, max_date = today_range()
     if not (min_date <= appointment_date <= max_date):

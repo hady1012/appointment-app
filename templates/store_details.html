@@ -481,7 +481,7 @@
             </select>
 
             <label>טלפון</label>
-            <input type="text" name="customer_phone" required>
+            <input type="tel" name="customer_phone" inputmode="tel" autocomplete="tel" pattern="(\+972|0)[0-9\-\s]{8,13}" title="הזן מספר טלפון ישראלי תקין" required>
 
             <label>תאריך</label>
             <input type="date" id="appointment_date" name="appointment_date"
