@@ -144,9 +144,51 @@ def validate_service_inputs(service_names, service_prices, service_durations):
 
 
 def email_configured():
+    brevo_ready = bool(os.environ.get("BREVO_API_KEY") and os.environ.get("BREVO_SENDER_EMAIL"))
     resend_ready = bool(os.environ.get("RESEND_API_KEY") and os.environ.get("MAIL_FROM"))
     smtp_ready = all(os.environ.get(key) for key in ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM"])
-    return resend_ready or smtp_ready
+    return brevo_ready or resend_ready or smtp_ready
+
+
+def send_brevo_email(to_email, subject, body):
+    api_key = os.environ.get("BREVO_API_KEY")
+    sender_email = os.environ.get("BREVO_SENDER_EMAIL")
+    sender_name = os.environ.get("BREVO_SENDER_NAME", os.environ.get("MAIL_FROM_NAME", "Appointment Booking"))
+
+    if not api_key or not sender_email:
+        return False
+
+    payload = json.dumps(
+        {
+            "sender": {"name": sender_name, "email": sender_email},
+            "to": [{"email": to_email}],
+            "subject": subject,
+            "textContent": body,
+        }
+    ).encode("utf-8")
+
+    request = urlrequest.Request(
+        "https://api.brevo.com/v3/smtp/email",
+        data=payload,
+        headers={
+            "api-key": api_key,
+            "Content-Type": "application/json",
+            "Accept": "application/json",
+            "User-Agent": "appointment-booking-render/1.0",
+        },
+        method="POST",
+    )
+
+    try:
+        with urlrequest.urlopen(request, timeout=12) as response:
+            return 200 <= response.status < 300
+    except HTTPError as exc:
+        error_body = exc.read().decode("utf-8", errors="ignore")
+        app.logger.warning("Brevo email failed: %s %s", exc.code, error_body)
+        return False
+    except URLError as exc:
+        app.logger.warning("Brevo email failed: %s", exc.reason)
+        return False
 
 
 def send_resend_email(to_email, subject, body):
@@ -192,6 +234,9 @@ def send_resend_email(to_email, subject, body):
 def send_email(to_email, subject, body):
     if not to_email or not email_configured():
         return False
+
+    if os.environ.get("BREVO_API_KEY"):
+        return send_brevo_email(to_email, subject, body)
 
     if os.environ.get("RESEND_API_KEY"):
         return send_resend_email(to_email, subject, body)

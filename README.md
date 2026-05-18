@@ -252,6 +252,9 @@ Environment variables:
 DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
 APP_TIMEZONE=Asia/Jerusalem
+BREVO_API_KEY=your_brevo_api_key
+BREVO_SENDER_EMAIL=your_verified_sender_email@example.com
+BREVO_SENDER_NAME=Appointment Booking
 RESEND_API_KEY=your_resend_api_key
 MAIL_FROM=onboarding@resend.dev
 MAIL_FROM_NAME=Appointment Booking
@@ -269,6 +272,7 @@ Recommended production setup:
 - Use Render auto-deploy from the `main` branch.
 - Use Neon PostgreSQL with a pooled connection string when possible.
 - Keep `FLASK_SECRET_KEY` private in Render environment variables.
+- Use `BREVO_API_KEY` on Render Free if you want to send to normal customers without Resend test-mode limits.
 - Use `RESEND_API_KEY` on Render Free because SMTP ports are blocked there.
 - Keep email API keys and SMTP passwords private in Render environment variables.
 - Direct Resend API calls include a `User-Agent` header, which Resend requires to avoid 403 error code 1010.
@@ -291,7 +295,7 @@ Render auto-deploys from GitHub, but a manual deploy is the fastest way to force
 
 ### Email Notifications
 
-When `RESEND_API_KEY` is configured, the app sends email through Resend over HTTPS. SMTP remains available as a fallback for paid hosts that allow SMTP traffic.
+When `BREVO_API_KEY` is configured, the app sends email through Brevo over HTTPS. If Brevo is not configured, the app tries Resend, then SMTP as a fallback for paid hosts that allow SMTP traffic.
 
 The app sends:
 
