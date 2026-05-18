@@ -1,217 +1,153 @@
-# 📅 Appointment Booking Web App
+# Appointment Booking Web App
 
-A full-stack web application that helps customers discover businesses and book appointments easily, while allowing business owners to manage their stores, services, working hours, appointments, and customer rating requests.
+A full-stack Flask web app for booking appointments with local businesses. Customers can discover businesses, choose a service, pick an available time, and request ratings after appointments. Business owners can manage their store, services, working hours, bookings, and rating approvals.
 
----
+## Live Demo
 
-## 🚀 Live Demo
+Production URL:
 
-🌍 `https://appointment-app-2-1k3v.onrender.com/`
+https://appointment-app-2-1k3v.onrender.com/
 
----
+If the site works on mobile data but not on home Wi-Fi, the deployment is fine and the issue is usually local DNS. Restart the router, run `ipconfig /flushdns` on Windows, or switch DNS to `1.1.1.1` / `8.8.8.8`.
 
-## ✨ Features
+## Main Features
 
-### 👤 Customer Features
+### Customer
 
-- Browse all available businesses
-- Search by business name
+- Browse all businesses
+- Search instantly by business name or category
 - Filter businesses by category
-- View full business details
-- View services, prices, and durations
-- Book appointments using only available time slots
-- View working days and working hours of each business
-- View personal bookings
-- Send a rating request only after the appointment ends
-- Add:
-  - ⭐ star rating
-  - 💬 optional comment
+- View business details, services, prices, and working hours
+- Book only real available time slots
+- See personal bookings
+- Request a rating after an appointment ends
 
----
+### Business Owner
 
-### 🏪 Business Owner Features
-
-- Register and log in as a business owner
-- Create one business profile
-- Add and manage multiple services
+- Register and log in as an owner
+- Create and manage one business profile
+- Add and update services
 - Set weekly working hours
-- Update business information safely
-- Type a new business category or reuse an existing one
 - View appointments by selected day
-- View pending customer rating requests
-- See pending rating details before approval:
-  - customer name
-  - request date
-  - rating stars
-  - comment
-- Accept or decline rating requests before they appear publicly
+- Review pending customer rating requests
+- Approve or decline ratings before they appear publicly
 
----
+### Booking System
 
-### 📆 Smart Booking System
+- Generates slots from business working hours
+- Uses service duration when checking availability
+- Prevents double booking and overlapping appointments
+- Validates the selected slot again on the backend
+- Limits bookings from today up to 7 days ahead
+- Shows day availability with clear visual states
 
-- Generates available slots dynamically based on:
-  - business working hours
-  - service duration
-  - existing appointments
-- Prevents:
-  - double booking
-  - overlapping appointments
-  - invalid manual time selection
-- Limits booking range from today up to 7 days ahead
-- Marks days visually by availability:
-  - green = available
-  - red = full / no available slot
+### Recent UX And Performance Improvements
 
----
+- Responsive layout for phones, tablets, and desktops
+- Premium visual styling across the main pages
+- Live business filtering while typing
+- Faster slot loading on the booking page
+- Automatic first service/day selection on booking pages
+- Loading states for login, signup, search, and booking
+- Reduced database connection overhead for availability checks
 
-### ⭐ Rating System
+## Tech Stack
 
-- Customers can request a rating only after the appointment time has passed
-- Rating values are from 1 to 5
-- Customers can add an optional text comment
-- Rating request is first saved as `pending`
-- Business owner sees the full pending request before approval
-- Owner can:
-  - accept the rating
-  - decline the rating
-- Only accepted ratings appear on the public business page
-- Rating is limited to one review per appointment using `appointment_id`
+- Backend: Flask, Python
+- Database: PostgreSQL
+- Frontend: HTML, CSS, Bootstrap, vanilla JavaScript
+- Deployment: Render
+- Database hosting: Neon or any PostgreSQL provider
+- Server: Gunicorn
+- Version control: Git + GitHub
 
----
+## Project Structure
 
-## 🏗️ Tech Stack
+```text
+appointment-booking/
+  app.py
+  requirements.txt
+  README.md
+  static/
+    css/
+      bootstrap.min.css
+    js/
+      bootstrap.min.js
+    style.css
+  templates/
+    appointments.html
+    index.html
+    login.html
+    pick.html
+    signup.html
+    store_details.html
+    work.html
+```
 
-- **Backend:** Flask (Python)
-- **Database:** PostgreSQL
-- **Frontend:** HTML, CSS, Bootstrap
-- **Deployment:** Render
-- **Server:** Gunicorn
-- **Version Control:** Git + GitHub
+## Local Setup
 
----
-
-## 📁 Project Structure
+1. Clone the repository:
 
 ```bash
-appointment-booking/
-│
-├── app.py
-├── requirements.txt
-├── README.md
-├── .gitignore
-│
-├── static/
-│   ├── css/
-│   ├── js/
-│   └── style.css
-│
-└── templates/
-    ├── index.html
-    ├── login.html
-    ├── signup.html
-    ├── pick.html
-    ├── store_details.html
-    ├── work.html
-    └── appointments.html
-✅ Main Implemented Features
-1. Dynamic Business Categories
-Business owners can type any category they want
-If the category is new, it is saved into the database
-Future business owners can reuse the same category
-Implemented using:
-business_categories table
-backend helper ensure_category_exists()
-<input list="categories-list"> in work.html
-2. Category Filter Near Search Bar
-Added category filter beside the search field on the businesses page
-Users can search by text and filter by category at the same time
-Implemented in:
-pick.html
-/pick route in app.py
-3. Rating Flow with Owner Approval
-Customers can request a rating after the service ends
-Each request includes:
-star rating
-optional comment
-The rating is saved with status pending
-The business owner sees:
-customer name
-request date
-rating stars
-comment
-The owner can approve or decline the request
-Only approved ratings are shown publicly
-Implemented using:
-ratings table
-/request-rating/<appointment_id>
-/add-rating-from-pick
-/owner/rating/<rating_id>/<action>
-rating sections in store_details.html, work.html, and appointments.html
-4. Working Days and Hours on Business Page
-Added a section on the business page that shows all weekly working days and hours
-Implemented in:
-store_details.html
-working_hours queries in app.py
-5. Owner Day Calendar
-Added day-based appointment view for the business owner
-The owner can click a day and see all appointments for that specific date
-Implemented in:
-work.html
-helper functions:
-get_store_calendar_days()
-get_owner_day_appointments()
-6. User Calendar with Red/Green Availability
-Added visual booking day cards for the next 8 days
-Green means at least one appointment slot is available
-Red means the day is full or unavailable
-Implemented in:
-store_details.html
-helper get_store_calendar_days()
-7. Safe Owner Update Flow
-Fixed the owner dashboard update process so owners can update:
-business name
-category
-description
-working hours
-The update no longer crashes when appointments already exist
-This prevents errors caused by deleting services that are already linked to appointments
-⚙️ Local Setup
-1. Clone the repository
 git clone https://github.com/hady1012/appointment-app.git
 cd appointment-app
-2. Create virtual environment
+```
+
+2. Create and activate a virtual environment:
+
+```bash
 python -m venv .venv
-3. Activate the environment
+```
 
-Windows
+Windows:
 
+```bash
 .venv\Scripts\activate
+```
 
-Mac / Linux
+macOS / Linux:
 
+```bash
 source .venv/bin/activate
-4. Install dependencies
+```
+
+3. Install dependencies:
+
+```bash
 pip install -r requirements.txt
-5. Configure environment variables
+```
 
-Create a .env file or set environment variables manually.
+4. Set environment variables:
 
-DATABASE_URL=your_database_url
+```bash
+DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
+```
 
 Example:
 
+```bash
 DATABASE_URL=postgresql://user:password@host/database?sslmode=require
 FLASK_SECRET_KEY=my_super_secret_key_123
-6. Run the application
+```
+
+5. Run the app:
+
+```bash
 python app.py
+```
 
-Open in browser:
+Open:
 
+```text
 http://127.0.0.1:5000
-🧠 Database Schema
-Main tables
+```
+
+## Database Schema
+
+Main tables:
+
+```sql
 CREATE TABLE users (
     id SERIAL PRIMARY KEY,
     full_name VARCHAR(255),
@@ -256,7 +192,7 @@ CREATE TABLE appointments (
     appointment_date DATE,
     appointment_time TIME
 );
-Additional tables
+
 CREATE TABLE IF NOT EXISTS business_categories (
     id SERIAL PRIMARY KEY,
     name VARCHAR(255) UNIQUE NOT NULL,
@@ -275,7 +211,11 @@ CREATE TABLE IF NOT EXISTS ratings (
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined')),
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
-Helpful indexes
+```
+
+Helpful indexes:
+
+```sql
 CREATE INDEX IF NOT EXISTS idx_ratings_store_status
 ON ratings(store_id, status);
 
@@ -284,57 +224,60 @@ ON appointments(customer_id, appointment_date);
 
 CREATE INDEX IF NOT EXISTS idx_appointments_store_date
 ON appointments(store_id, appointment_date);
-🌍 Deployment on Render
-Build Command
+
+CREATE INDEX IF NOT EXISTS idx_users_email
+ON users(email);
+```
+
+## Deployment On Render
+
+Build command:
+
+```bash
 pip install -r requirements.txt
-Start Command
+```
+
+Start command:
+
+```bash
 gunicorn app:app
-Environment Variables
-DATABASE_URL=your_database_url
+```
+
+Environment variables:
+
+```bash
+DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
-🔐 Security
-Passwords are hashed using Werkzeug
-Sensitive configuration is stored in environment variables
-.env should be excluded using .gitignore
-SQL injection is reduced using parameterized queries
-Booking logic is validated on the backend
-Rating requests are verified by user ownership and appointment time
-Business owner actions are protected by role checks
-🎯 Future Improvements
-Cancel appointment
-Reschedule appointment
-Email or SMS notifications
-Business analytics dashboard
-Appointment reminders
-Customer profile page
-Mobile application version
-Payment integration
-Admin dashboard
-Public average rating on business cards
-Rating breakdown by stars
-👨‍💻 Author
+```
+
+Recommended production setup:
+
+- Use Render auto-deploy from the `main` branch.
+- Use Neon PostgreSQL with a pooled connection string when possible.
+- Keep `FLASK_SECRET_KEY` private in Render environment variables.
+- On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
+
+## Security Notes
+
+- Passwords are hashed with Werkzeug.
+- SQL queries use parameters instead of string interpolation.
+- Booking slots are validated on the backend before insert.
+- Rating requests are checked against appointment ownership and time.
+- Owner-only actions are protected by session role checks.
+- Secrets belong in environment variables, not in Git.
+
+## Future Improvements
+
+- Cancel and reschedule appointments
+- Email or SMS reminders
+- Business analytics dashboard
+- Customer profile page
+- Admin dashboard
+- Payment integration
+- Public rating breakdown by stars
+
+## Author
 
 Hady Amasha
+
 Software Engineering Student
-
-⭐ Support
-
-If you like this project:
-
-Star it on GitHub
-Use it as a base for your own project
-Improve and expand it
-💡 Project Level
-
-This project demonstrates:
-
-Full-stack web development
-Real-world booking logic
-Database design
-Dynamic appointment scheduling
-Backend validation
-Role-based user flows
-Clean UI / UX structure
-Business-owner approval workflow
-Safe store update handling
-Review moderation flow
