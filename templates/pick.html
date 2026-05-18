@@ -403,11 +403,11 @@
     </div>
 
     <div class="search-box">
-        <form method="GET" action="{{ url_for('pick') }}">
+        <form method="GET" action="{{ url_for('pick') }}" id="businessSearchForm">
             <div class="search-grid">
-                <input type="text" name="search" value="{{ search }}" placeholder="חיפוש לפי שם עסק או קטגוריה">
+                <input type="text" name="search" id="businessSearchInput" value="{{ search }}" placeholder="חיפוש לפי שם עסק או קטגוריה" autocomplete="off">
 
-                <select name="category">
+                <select name="category" id="businessCategorySelect">
                     <option value="">כל הקטגוריות</option>
                     {% for category in categories %}
                         <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>
@@ -416,7 +416,7 @@
                     {% endfor %}
                 </select>
 
-                <button type="submit">חפש</button>
+                <button type="submit" id="businessSearchBtn">חפש</button>
             </div>
         </form>
     </div>
@@ -429,7 +429,7 @@
     {% if stores %}
         <div class="stores-grid">
             {% for store in stores %}
-            <div class="store-card">
+            <div class="store-card" data-store-name="{{ store.name|lower }}" data-store-category="{{ store.category|lower }}">
                 <div>
                     <div class="store-badge">{{ store.category }}</div>
                     <div class="store-title">{{ store.name }}</div>
@@ -487,6 +487,42 @@
 </div>
 
 <script>
+const businessSearchForm = document.getElementById('businessSearchForm');
+const businessSearchInput = document.getElementById('businessSearchInput');
+const businessCategorySelect = document.getElementById('businessCategorySelect');
+const businessSearchBtn = document.getElementById('businessSearchBtn');
+const storeCards = Array.from(document.querySelectorAll('.store-card'));
+const resultsCount = document.querySelector('.results-count');
+
+function filterStoresInstantly() {
+    const searchValue = (businessSearchInput?.value || '').trim().toLowerCase();
+    const categoryValue = (businessCategorySelect?.value || '').trim().toLowerCase();
+    let visibleCount = 0;
+
+    storeCards.forEach(card => {
+        const name = card.dataset.storeName || '';
+        const category = card.dataset.storeCategory || '';
+        const matchesSearch = !searchValue || name.includes(searchValue) || category.includes(searchValue);
+        const matchesCategory = !categoryValue || category === categoryValue;
+        const shouldShow = matchesSearch && matchesCategory;
+        card.hidden = !shouldShow;
+        if (shouldShow) visibleCount += 1;
+    });
+
+    if (resultsCount) {
+        resultsCount.textContent = `${visibleCount} תוצאות`;
+    }
+}
+
+businessSearchInput?.addEventListener('input', filterStoresInstantly);
+businessCategorySelect?.addEventListener('change', filterStoresInstantly);
+businessSearchForm?.addEventListener('submit', () => {
+    if (businessSearchBtn) {
+        businessSearchBtn.disabled = true;
+        businessSearchBtn.textContent = 'מחפש...';
+    }
+});
+
 function openRatingModal(storeId, storeName) {
     document.getElementById('modalStoreId').value = storeId;
     document.getElementById('ratingValue').value = '';

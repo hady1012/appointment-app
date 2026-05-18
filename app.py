@@ -24,7 +24,7 @@ def get_connection():
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise RuntimeError("DATABASE_URL is not set")
-    return psycopg2.connect(database_url)
+    return psycopg2.connect(database_url, connect_timeout=5)
 
 
 def get_day_name_from_date(date_str):
@@ -67,18 +67,24 @@ def normalize_category_name(raw_value):
     return " ".join((raw_value or "").strip().split())
 
 
-def get_categories():
-    conn = get_connection()
-    cursor = conn.cursor()
+def get_categories(cursor=None):
+    internal_conn = None
+    internal_cursor = cursor
+
     try:
-        cursor.execute("SELECT name FROM business_categories ORDER BY LOWER(name)")
-        rows = cursor.fetchall()
+        if internal_cursor is None:
+            internal_conn = get_connection()
+            internal_cursor = internal_conn.cursor()
+
+        internal_cursor.execute("SELECT name FROM business_categories ORDER BY LOWER(name)")
+        rows = internal_cursor.fetchall()
         return [r[0] for r in rows]
     except Exception:
         return []
     finally:
-        cursor.close()
-        conn.close()
+        if internal_conn:
+            internal_cursor.close()
+            internal_conn.close()
 
 
 def ensure_category_exists(category_name, owner_id=None, cursor=None):
@@ -113,14 +119,18 @@ def ensure_category_exists(category_name, owner_id=None, cursor=None):
             internal_conn.close()
 
 
-def generate_available_slots(store_id, service_id, appointment_date):
-    conn = get_connection()
-    cursor = conn.cursor()
+def generate_available_slots(store_id, service_id, appointment_date, cursor=None):
+    internal_conn = None
+    internal_cursor = cursor
 
     try:
+        if internal_cursor is None:
+            internal_conn = get_connection()
+            internal_cursor = internal_conn.cursor()
+
         day_name = get_day_name_from_date(appointment_date)
 
-        cursor.execute(
+        internal_cursor.execute(
             """
             SELECT s.duration_minutes, wh.is_open, wh.start_time, wh.end_time
             FROM services s
@@ -132,7 +142,7 @@ def generate_available_slots(store_id, service_id, appointment_date):
             """,
             (service_id, store_id, day_name),
         )
-        row = cursor.fetchone()
+        row = internal_cursor.fetchone()
         if not row:
             return []
 
@@ -145,7 +155,7 @@ def generate_available_slots(store_id, service_id, appointment_date):
         start_minutes = time_to_minutes(start_time)
         end_minutes = time_to_minutes(end_time)
 
-        cursor.execute(
+        internal_cursor.execute(
             """
             SELECT a.appointment_time, s.duration_minutes
             FROM appointments a
@@ -154,7 +164,7 @@ def generate_available_slots(store_id, service_id, appointment_date):
             """,
             (store_id, appointment_date),
         )
-        existing_rows = cursor.fetchall()
+        existing_rows = internal_cursor.fetchall()
 
         busy_ranges = []
         for appointment_time, existing_duration in existing_rows:
@@ -181,8 +191,9 @@ def generate_available_slots(store_id, service_id, appointment_date):
 
         return slots
     finally:
-        cursor.close()
-        conn.close()
+        if internal_conn:
+            internal_cursor.close()
+            internal_conn.close()
 
 
 def get_store_calendar_days(store_id):
@@ -201,36 +212,35 @@ def get_store_calendar_days(store_id):
             (store_id,),
         )
         service_row = cursor.fetchone()
+        days = []
+        for offset in range(8):
+            d = date.today() + timedelta(days=offset)
+            d_iso = d.isoformat()
+            day_name = get_day_name_from_date(d_iso)
+
+            if not service_row:
+                status = "closed"
+            else:
+                try:
+                    slots = generate_available_slots(store_id, service_row[0], d_iso, cursor=cursor)
+                    status = "available" if slots else "busy"
+                except Exception:
+                    status = "busy"
+
+            days.append(
+                {
+                    "date": d_iso,
+                    "day_name": day_name,
+                    "day_label": DAY_LABELS[day_name],
+                    "display": d.strftime("%d/%m"),
+                    "status": status,
+                }
+            )
+
+        return days
     finally:
         cursor.close()
         conn.close()
-
-    days = []
-    for offset in range(8):
-        d = date.today() + timedelta(days=offset)
-        d_iso = d.isoformat()
-        day_name = get_day_name_from_date(d_iso)
-
-        if not service_row:
-            status = "closed"
-        else:
-            try:
-                slots = generate_available_slots(store_id, service_row[0], d_iso)
-                status = "available" if slots else "busy"
-            except Exception:
-                status = "busy"
-
-        days.append(
-            {
-                "date": d_iso,
-                "day_name": day_name,
-                "day_label": DAY_LABELS[day_name],
-                "display": d.strftime("%d/%m"),
-                "status": status,
-            }
-        )
-
-    return days
 
 
 def get_owner_store_full(owner_id):
@@ -428,7 +438,7 @@ def signup(role):
             existing_user = cursor.fetchone()
 
             if existing_user:
-                flash("Email already exists")
+                flash("האימייל כבר קיים במערכת.")
                 return redirect(url_for("signup", role=role))
 
             cursor.execute(
@@ -443,7 +453,7 @@ def signup(role):
             cursor.close()
             conn.close()
 
-        flash("Account created successfully. Please login.")
+        flash("החשבון נוצר בהצלחה. אפשר להתחבר עכשיו.")
         return redirect(url_for("login"))
 
     return render_template("signup.html", role=role)
@@ -479,7 +489,7 @@ def login():
             session["role"] = user[4]
             return redirect(url_for("work" if user[4] == "owner" else "pick"))
 
-        flash("Invalid email or password")
+        flash("האימייל או הסיסמה אינם נכונים.")
         return redirect(url_for("login"))
 
     return render_template("login.html")
@@ -726,6 +736,8 @@ def pick():
             {"id": row[0], "name": row[1], "category": row[2], "description": row[3]}
             for row in cursor.fetchall()
         ]
+
+        categories = get_categories(cursor)
     finally:
         cursor.close()
         conn.close()
@@ -735,7 +747,7 @@ def pick():
         stores=stores,
         search=search,
         selected_category=category,
-        categories=get_categories(),
+        categories=categories,
     )
 
 
@@ -908,7 +920,7 @@ def book(store_id):
         cursor.close()
         conn.close()
 
-    flash("Appointment booked successfully.")
+    flash("התור נקבע בהצלחה.")
     return redirect(url_for("store_details", store_id=store_id))
 
 

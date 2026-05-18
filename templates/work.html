@@ -391,24 +391,28 @@
 
         <h2 style="font-size:1.3rem; margin-top:22px;">התורים של {{ selected_date }}</h2>
         <table class="appointments-table">
-            <tr>
-                <th>שם לקוח</th>
-                <th>טלפון</th>
-                <th>שירות</th>
-                <th>שעה</th>
-            </tr>
-            {% for a in day_appointments %}
-            <tr>
-                <td>{{ a.customer_name }}</td>
-                <td>{{ a.customer_phone }}</td>
-                <td>{{ a.service_name }}</td>
-                <td>{{ a.time }}</td>
-            </tr>
-            {% else %}
-            <tr>
-                <td colspan="4">אין תורים ביום הזה.</td>
-            </tr>
-            {% endfor %}
+            <thead>
+                <tr>
+                    <th>שם לקוח</th>
+                    <th>טלפון</th>
+                    <th>שירות</th>
+                    <th>שעה</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in day_appointments %}
+                <tr>
+                    <td>{{ a.customer_name }}</td>
+                    <td>{{ a.customer_phone }}</td>
+                    <td>{{ a.service_name }}</td>
+                    <td>{{ a.time }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="4">אין תורים ביום הזה.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
     </div>
 

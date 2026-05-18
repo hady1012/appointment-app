@@ -74,23 +74,23 @@
             {% endif %}
         {% endwith %}
 
-        <form method="POST">
+        <form method="POST" id="signupForm">
             <div class="mb-3">
                 <label for="full_name" class="form-label">שם מלא</label>
-                <input type="text" class="form-control" id="full_name" name="full_name" required>
+                <input type="text" class="form-control" id="full_name" name="full_name" autocomplete="name" required>
             </div>
 
             <div class="mb-3">
                 <label for="email" class="form-label">אימייל</label>
-                <input type="email" class="form-control" id="email" name="email" required>
+                <input type="email" class="form-control" id="email" name="email" autocomplete="email" inputmode="email" required>
             </div>
 
             <div class="mb-3">
                 <label for="password" class="form-label">סיסמה</label>
-                <input type="password" class="form-control" id="password" name="password" required>
+                <input type="password" class="form-control" id="password" name="password" autocomplete="new-password" required>
             </div>
 
-            <button type="submit" class="btn btn-dark w-100">צור חשבון</button>
+            <button type="submit" class="btn btn-dark w-100" id="signupSubmitBtn">צור חשבון</button>
         </form>
 
         <div class="auth-links">
@@ -101,5 +101,16 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script>
+const signupForm = document.getElementById('signupForm');
+const signupSubmitBtn = document.getElementById('signupSubmitBtn');
+
+signupForm?.addEventListener('submit', () => {
+    if (signupSubmitBtn) {
+        signupSubmitBtn.disabled = true;
+        signupSubmitBtn.textContent = 'יוצר חשבון...';
+    }
+});
+</script>
 </body>
 </html>

@@ -491,8 +491,9 @@
             <select id="appointment_time" name="appointment_time" required>
                 <option value="">בחר קודם</option>
             </select>
+            <div class="slots-status" id="slotsStatus" aria-live="polite"></div>
 
-            <button type="submit">קבע תור</button>
+            <button type="submit" id="bookSubmitBtn">קבע תור</button>
         </form>
         {% endif %}
     </div>
@@ -545,22 +546,26 @@
 
         {% if appointments %}
         <table class="appointments-table">
-            <tr>
-                <th>שם</th>
-                <th>טלפון</th>
-                <th>שירות</th>
-                <th>תאריך</th>
-                <th>שעה</th>
-            </tr>
-            {% for a in appointments %}
-            <tr>
-                <td>{{ a.customer_name }}</td>
-                <td>{{ a.customer_phone }}</td>
-                <td>{{ a.service_name }}</td>
-                <td>{{ a.date }}</td>
-                <td>{{ a.time }}</td>
-            </tr>
-            {% endfor %}
+            <thead>
+                <tr>
+                    <th>שם</th>
+                    <th>טלפון</th>
+                    <th>שירות</th>
+                    <th>תאריך</th>
+                    <th>שעה</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in appointments %}
+                <tr>
+                    <td>{{ a.customer_name }}</td>
+                    <td>{{ a.customer_phone }}</td>
+                    <td>{{ a.service_name }}</td>
+                    <td>{{ a.date }}</td>
+                    <td>{{ a.time }}</td>
+                </tr>
+                {% endfor %}
+            </tbody>
         </table>
         {% else %}
         <p>אין תורים עדיין.</p>
@@ -600,26 +605,60 @@
 const serviceSelect = document.getElementById('service_id');
 const dateInput = document.getElementById('appointment_date');
 const timeSelect = document.getElementById('appointment_time');
+const bookingForm = document.querySelector('.booking-form');
+const slotsStatus = document.getElementById('slotsStatus');
+const bookSubmitBtn = document.getElementById('bookSubmitBtn');
+let slotsAbortController = null;
+
+function setSlotsStatus(message) {
+    if (slotsStatus) {
+        slotsStatus.textContent = message || '';
+    }
+}
 
 async function loadSlots() {
-    if (!serviceSelect || !dateInput || !serviceSelect.value || !dateInput.value) return;
+    if (!serviceSelect || !dateInput || !timeSelect || !serviceSelect.value || !dateInput.value) return;
 
-    const res = await fetch(`/available-slots/{{ store.id }}?service_id=${serviceSelect.value}&appointment_date=${dateInput.value}`);
-    const data = await res.json();
-
-    timeSelect.innerHTML = "";
-
-    if (!data.slots || data.slots.length === 0) {
-        timeSelect.innerHTML = '<option value="">אין שעות</option>';
-        return;
+    if (slotsAbortController) {
+        slotsAbortController.abort();
     }
 
-    data.slots.forEach(slot => {
-        const opt = document.createElement("option");
-        opt.value = slot;
-        opt.textContent = slot;
-        timeSelect.appendChild(opt);
-    });
+    slotsAbortController = new AbortController();
+    timeSelect.disabled = true;
+    timeSelect.innerHTML = '<option value="">טוען שעות...</option>';
+    setSlotsStatus('בודק שעות פנויות בזמן אמת...');
+
+    try {
+        const params = new URLSearchParams({
+            service_id: serviceSelect.value,
+            appointment_date: dateInput.value
+        });
+        const res = await fetch(`/available-slots/{{ store.id }}?${params.toString()}`, {
+            signal: slotsAbortController.signal
+        });
+        const data = await res.json();
+
+        timeSelect.innerHTML = "";
+
+        if (!data.slots || data.slots.length === 0) {
+            timeSelect.innerHTML = '<option value="">אין שעות פנויות</option>';
+            setSlotsStatus('אין שעות פנויות ביום הזה. אפשר לבחור יום אחר.');
+            return;
+        }
+
+        data.slots.forEach(slot => {
+            const opt = document.createElement("option");
+            opt.value = slot;
+            opt.textContent = slot;
+            timeSelect.appendChild(opt);
+        });
+        timeSelect.disabled = false;
+        setSlotsStatus(`${data.slots.length} שעות פנויות נטענו.`);
+    } catch (error) {
+        if (error.name === 'AbortError') return;
+        timeSelect.innerHTML = '<option value="">נסה שוב</option>';
+        setSlotsStatus('לא הצלחנו לטעון שעות כרגע. נסה שוב.');
+    }
 }
 
 serviceSelect?.addEventListener("change", loadSlots);
@@ -635,6 +674,24 @@ document.querySelectorAll('.calendar-day').forEach(card => {
             loadSlots();
         }
     });
+});
+
+if (serviceSelect && serviceSelect.options.length > 1 && !serviceSelect.value) {
+    serviceSelect.selectedIndex = 1;
+}
+
+const firstAvailableDay = document.querySelector('.calendar-day.available');
+if (firstAvailableDay && dateInput && !dateInput.value) {
+    firstAvailableDay.classList.add('selected');
+    dateInput.value = firstAvailableDay.dataset.date;
+    loadSlots();
+}
+
+bookingForm?.addEventListener('submit', () => {
+    if (bookSubmitBtn) {
+        bookSubmitBtn.disabled = true;
+        bookSubmitBtn.textContent = 'קובע תור...';
+    }
 });
 
 function openRatingModal() {
