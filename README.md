@@ -302,6 +302,7 @@ The app sends:
 - A confirmation email to the customer after booking.
 - A notification email to the business owner after a customer books.
 - A reminder email to the customer about 30 minutes before the appointment.
+- Customer emails include a short My Marketplace thank-you message.
 
 The reminder email needs a scheduled request. In Render, create a Cron Job that runs every 5 minutes and calls:
 

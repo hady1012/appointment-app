@@ -304,6 +304,8 @@ Phone: {appointment['customer_phone']}
 
 Open the business page:
 {appointment['store_url']}
+
+Thank you for trusting My Marketplace. We wish you the best time in our store.
 """
 
 
