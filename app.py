@@ -1,5 +1,9 @@
 import os
+import smtplib
+import ssl
 from datetime import date, timedelta, datetime
+from email.message import EmailMessage
+from zoneinfo import ZoneInfo
 
 import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
@@ -7,6 +11,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "x8sK29!akL#92jF@pQz")
+APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 
 DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 DAY_LABELS = {
@@ -25,6 +30,99 @@ def get_connection():
     if not database_url:
         raise RuntimeError("DATABASE_URL is not set")
     return psycopg2.connect(database_url, connect_timeout=5)
+
+
+def now_local():
+    return datetime.now(APP_TIMEZONE).replace(tzinfo=None)
+
+
+def email_configured():
+    required_keys = ["SMTP_HOST", "SMTP_USERNAME", "SMTP_PASSWORD", "MAIL_FROM"]
+    return all(os.environ.get(key) for key in required_keys)
+
+
+def send_email(to_email, subject, body):
+    if not to_email or not email_configured():
+        return False
+
+    smtp_host = os.environ["SMTP_HOST"]
+    smtp_port = int(os.environ.get("SMTP_PORT", "587"))
+    smtp_username = os.environ["SMTP_USERNAME"]
+    smtp_password = os.environ["SMTP_PASSWORD"]
+    mail_from = os.environ["MAIL_FROM"]
+    sender_name = os.environ.get("MAIL_FROM_NAME", "Appointment Booking")
+
+    message = EmailMessage()
+    message["From"] = f"{sender_name} <{mail_from}>"
+    message["To"] = to_email
+    message["Subject"] = subject
+    message.set_content(body)
+
+    context = ssl.create_default_context()
+    try:
+        if smtp_port == 465:
+            with smtplib.SMTP_SSL(smtp_host, smtp_port, context=context, timeout=12) as server:
+                server.login(smtp_username, smtp_password)
+                server.send_message(message)
+        else:
+            with smtplib.SMTP(smtp_host, smtp_port, timeout=12) as server:
+                server.starttls(context=context)
+                server.login(smtp_username, smtp_password)
+                server.send_message(message)
+        return True
+    except Exception as exc:
+        app.logger.warning("Email failed: %s", exc)
+        return False
+
+
+def ensure_email_schema(cursor):
+    cursor.execute(
+        """
+        ALTER TABLE appointments
+        ADD COLUMN IF NOT EXISTS reminder_sent_at TIMESTAMP
+        """
+    )
+
+
+def ensure_rating_schema(cursor):
+    cursor.execute(
+        """
+        ALTER TABLE ratings
+        ALTER COLUMN appointment_id DROP NOT NULL
+        """
+    )
+
+
+def build_appointment_email_body(appointment, intro):
+    return f"""{intro}
+
+Business: {appointment['store_name']}
+Service: {appointment['service_name']}
+Date: {appointment['date']}
+Time: {appointment['time']}
+Customer: {appointment['customer_name']}
+Phone: {appointment['customer_phone']}
+
+Open the business page:
+{appointment['store_url']}
+"""
+
+
+def send_booking_emails(appointment):
+    customer_subject = f"Appointment confirmed: {appointment['store_name']} on {appointment['date']} at {appointment['time']}"
+    customer_body = build_appointment_email_body(
+        appointment,
+        "Your appointment was booked successfully.",
+    )
+    owner_subject = f"New appointment at {appointment['store_name']}"
+    owner_body = build_appointment_email_body(
+        appointment,
+        "A customer booked an appointment in your store.",
+    )
+
+    customer_sent = send_email(appointment.get("customer_email"), customer_subject, customer_body)
+    owner_sent = send_email(appointment.get("owner_email"), owner_subject, owner_body)
+    return customer_sent, owner_sent
 
 
 def get_day_name_from_date(date_str):
@@ -903,8 +1001,10 @@ def book(store_id):
 
     conn = get_connection()
     cursor = conn.cursor()
+    appointment_email = None
 
     try:
+        ensure_email_schema(cursor)
         cursor.execute(
             """
             INSERT INTO appointments (
@@ -912,16 +1012,122 @@ def book(store_id):
                 customer_phone, appointment_date, appointment_time
             )
             VALUES (%s, %s, %s, %s, %s, %s, %s)
+            RETURNING id
             """,
             (store_id, service_id, customer_id, customer_name, customer_phone, appointment_date, appointment_time),
         )
+        appointment_id = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time,
+                   cu.email, st.name, sv.name, ou.email
+            FROM appointments a
+            JOIN users cu ON cu.id = a.customer_id
+            JOIN stores st ON st.id = a.store_id
+            JOIN users ou ON ou.id = st.owner_id
+            LEFT JOIN services sv ON sv.id = a.service_id
+            WHERE a.id = %s
+            """,
+            (appointment_id,),
+        )
+        row = cursor.fetchone()
+        appointment_email = {
+            "id": row[0],
+            "customer_name": row[1],
+            "customer_phone": row[2],
+            "date": str(row[3]),
+            "time": str(row[4])[:5],
+            "customer_email": row[5],
+            "store_name": row[6],
+            "service_name": row[7] or "",
+            "owner_email": row[8],
+            "store_url": url_for("store_details", store_id=store_id, _external=True),
+        }
         conn.commit()
     finally:
         cursor.close()
         conn.close()
 
-    flash("התור נקבע בהצלחה.")
+    if appointment_email:
+        customer_sent, owner_sent = send_booking_emails(appointment_email)
+        if customer_sent or owner_sent:
+            flash("התור נקבע בהצלחה. שלחנו עדכון במייל.")
+        else:
+            flash("התור נקבע בהצלחה.")
+    else:
+        flash("התור נקבע בהצלחה.")
+
     return redirect(url_for("store_details", store_id=store_id))
+
+
+@app.route("/tasks/send-reminders", methods=["GET", "POST"])
+def send_reminders():
+    reminder_secret = os.environ.get("REMINDER_SECRET")
+    provided_secret = request.headers.get("X-Reminder-Secret") or request.args.get("secret")
+
+    if not reminder_secret or provided_secret != reminder_secret:
+        return jsonify({"error": "unauthorized"}), 401
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    sent_count = 0
+
+    try:
+        ensure_email_schema(cursor)
+        window_start = now_local() + timedelta(minutes=25)
+        window_end = now_local() + timedelta(minutes=35)
+
+        cursor.execute(
+            """
+            SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time,
+                   cu.email, st.name, sv.name, ou.email, st.id
+            FROM appointments a
+            JOIN users cu ON cu.id = a.customer_id
+            JOIN stores st ON st.id = a.store_id
+            JOIN users ou ON ou.id = st.owner_id
+            LEFT JOIN services sv ON sv.id = a.service_id
+            WHERE a.reminder_sent_at IS NULL
+              AND (a.appointment_date + a.appointment_time)
+                  BETWEEN %s AND %s
+            ORDER BY a.appointment_date, a.appointment_time
+            LIMIT 50
+            """,
+            (window_start, window_end),
+        )
+        rows = cursor.fetchall()
+
+        for row in rows:
+            appointment = {
+                "id": row[0],
+                "customer_name": row[1],
+                "customer_phone": row[2],
+                "date": str(row[3]),
+                "time": str(row[4])[:5],
+                "customer_email": row[5],
+                "store_name": row[6],
+                "service_name": row[7] or "",
+                "owner_email": row[8],
+                "store_url": url_for("store_details", store_id=row[9], _external=True),
+            }
+            subject = f"Reminder: appointment at {appointment['time']} today"
+            body = build_appointment_email_body(
+                appointment,
+                "Reminder: your appointment starts in about 30 minutes.",
+            )
+            if send_email(appointment["customer_email"], subject, body):
+                sent_count += 1
+                cursor.execute(
+                    "UPDATE appointments SET reminder_sent_at = %s WHERE id = %s",
+                    (now_local(), appointment["id"]),
+                )
+
+        conn.commit()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return jsonify({"sent": sent_count})
 
 
 @app.route("/request-rating/<int:appointment_id>", methods=["POST"])
@@ -1018,45 +1224,15 @@ def add_rating_from_pick():
     redirect_store_id = store_id
 
     try:
-        cursor.execute(
-            """
-            SELECT a.id, a.appointment_date, a.appointment_time
-            FROM appointments a
-            WHERE a.customer_id = %s
-              AND a.store_id = %s
-              AND (
-                    a.appointment_date < CURRENT_DATE
-                    OR (
-                        a.appointment_date = CURRENT_DATE
-                        AND a.appointment_time <= CURRENT_TIME
-                    )
-              )
-            ORDER BY a.appointment_date DESC, a.appointment_time DESC
-            LIMIT 1
-            """,
-            (session["user_id"], store_id),
-        )
-        appointment = cursor.fetchone()
-
-        if not appointment:
-            flash("אפשר לדרג רק אם היה לך תור שהסתיים בעסק הזה.")
-            return redirect(url_for("store_details", store_id=store_id))
-
+        ensure_rating_schema(cursor)
         cursor.execute(
             """
             INSERT INTO ratings (
                 appointment_id, store_id, customer_id, customer_name, rating, comment, status
             )
-            VALUES (%s, %s, %s, %s, %s, %s, 'pending')
-            ON CONFLICT (appointment_id)
-            DO UPDATE SET
-                rating = EXCLUDED.rating,
-                comment = EXCLUDED.comment,
-                status = 'pending',
-                customer_name = EXCLUDED.customer_name
+            VALUES (NULL, %s, %s, %s, %s, %s, 'pending')
             """,
             (
-                appointment[0],
                 store_id,
                 session["user_id"],
                 session.get("full_name"),

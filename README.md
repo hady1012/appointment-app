@@ -50,6 +50,8 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 - Automatic first service/day selection on booking pages
 - Loading states for login, signup, search, and booking
 - Reduced database connection overhead for availability checks
+- Email notification support for appointment confirmations and reminders
+- Store ratings can be submitted any time and approved by the owner
 
 ## Tech Stack
 
@@ -190,7 +192,8 @@ CREATE TABLE appointments (
     customer_name VARCHAR(255),
     customer_phone VARCHAR(50),
     appointment_date DATE,
-    appointment_time TIME
+    appointment_time TIME,
+    reminder_sent_at TIMESTAMP
 );
 
 CREATE TABLE IF NOT EXISTS business_categories (
@@ -202,7 +205,7 @@ CREATE TABLE IF NOT EXISTS business_categories (
 
 CREATE TABLE IF NOT EXISTS ratings (
     id SERIAL PRIMARY KEY,
-    appointment_id INT UNIQUE NOT NULL REFERENCES appointments(id) ON DELETE CASCADE,
+    appointment_id INT UNIQUE REFERENCES appointments(id) ON DELETE CASCADE,
     store_id INT NOT NULL REFERENCES stores(id) ON DELETE CASCADE,
     customer_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
     customer_name VARCHAR(255) NOT NULL,
@@ -248,6 +251,14 @@ Environment variables:
 ```bash
 DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
+APP_TIMEZONE=Asia/Jerusalem
+SMTP_HOST=smtp.example.com
+SMTP_PORT=587
+SMTP_USERNAME=your_smtp_username
+SMTP_PASSWORD=your_smtp_password
+MAIL_FROM=your_sender_email@example.com
+MAIL_FROM_NAME=Appointment Booking
+REMINDER_SECRET=make_a_long_random_secret
 ```
 
 Recommended production setup:
@@ -255,7 +266,25 @@ Recommended production setup:
 - Use Render auto-deploy from the `main` branch.
 - Use Neon PostgreSQL with a pooled connection string when possible.
 - Keep `FLASK_SECRET_KEY` private in Render environment variables.
+- Keep SMTP passwords private in Render environment variables.
+- Use an app password or SMTP token, not your normal email login password.
 - On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
+
+### Email Notifications
+
+When SMTP variables are configured, the app sends:
+
+- A confirmation email to the customer after booking.
+- A notification email to the business owner after a customer books.
+- A reminder email to the customer about 30 minutes before the appointment.
+
+The reminder email needs a scheduled request. In Render, create a Cron Job that runs every 5 minutes and calls:
+
+```bash
+curl -X POST "https://appointment-app-2-1k3v.onrender.com/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"
+```
+
+Use the same value in the URL that you set for `REMINDER_SECRET`.
 
 ## Security Notes
 
