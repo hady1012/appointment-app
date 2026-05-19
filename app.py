@@ -132,6 +132,19 @@ def clean_optional_text(value, max_len=500):
     return value
 
 
+def clean_optional_coordinate(value, min_value, max_value):
+    value = (value or "").strip()
+    if not value:
+        return None
+    try:
+        coordinate = float(value)
+    except ValueError:
+        return None
+    if coordinate < min_value or coordinate > max_value:
+        return None
+    return coordinate
+
+
 def is_valid_image_url(value):
     value = (value or "").strip()
     if not value or len(value) > 900000:
@@ -416,6 +429,18 @@ def ensure_store_optional_schema(cursor):
             """
             ALTER TABLE stores
             ADD COLUMN IF NOT EXISTS image_urls TEXT
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE stores
+            ADD COLUMN IF NOT EXISTS location_lat DOUBLE PRECISION
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE stores
+            ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION
             """
         )
         cursor.connection.commit()
@@ -879,7 +904,7 @@ def get_owner_store_full(owner_id):
         ensure_store_optional_schema(cursor)
         cursor.execute(
             """
-            SELECT id, name, category, description, location, image_urls
+            SELECT id, name, category, description, location, image_urls, location_lat, location_lng
             FROM stores
             WHERE owner_id = %s
             """,
@@ -896,6 +921,8 @@ def get_owner_store_full(owner_id):
             "description": store_row[3],
             "location": store_row[4] or "",
             "image_urls": parse_json_list(store_row[5]),
+            "location_lat": store_row[6],
+            "location_lng": store_row[7],
         }
 
         cursor.execute(
@@ -1420,6 +1447,8 @@ def add_store():
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
         location = clean_optional_text(request.form.get("location"), max_len=255)
+        location_lat = clean_optional_coordinate(request.form.get("location_lat"), -90, 90)
+        location_lng = clean_optional_coordinate(request.form.get("location_lng"), -180, 180)
         try:
             image_urls = build_store_image_list([], request.files.getlist("image_file[]"))
         except ValueError as exc:
@@ -1442,15 +1471,19 @@ def add_store():
             flash("Please enter a valid store location, or leave it empty.")
             return redirect(url_for("work"))
 
+        if (request.form.get("location_lat") and location_lat is None) or (request.form.get("location_lng") and location_lng is None):
+            flash("Please choose a valid map location, or clear it.")
+            return redirect(url_for("work"))
+
         ensure_category_exists(category, owner_id, cursor)
 
         cursor.execute(
             """
-            INSERT INTO stores (name, category, description, location, image_urls, owner_id)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO stores (name, category, description, location, image_urls, location_lat, location_lng, owner_id)
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, category, description, location, json.dumps(image_urls), owner_id),
+            (name, category, description, location, json.dumps(image_urls), location_lat, location_lng, owner_id),
         )
         store_id = cursor.fetchone()[0]
 
@@ -1516,6 +1549,8 @@ def update_store(store_id):
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
         location = clean_optional_text(request.form.get("location"), max_len=255)
+        location_lat = clean_optional_coordinate(request.form.get("location_lat"), -90, 90)
+        location_lng = clean_optional_coordinate(request.form.get("location_lng"), -180, 180)
         try:
             image_urls = build_store_image_list(
                 request.form.getlist("existing_image_url[]"),
@@ -1543,13 +1578,18 @@ def update_store(store_id):
             flash("Please enter a valid store location, or leave it empty.")
             return redirect(url_for("work"))
 
+        if (request.form.get("location_lat") and location_lat is None) or (request.form.get("location_lng") and location_lng is None):
+            flash("Please choose a valid map location, or clear it.")
+            return redirect(url_for("work"))
+
         cursor.execute(
             """
             UPDATE stores
-            SET name = %s, category = %s, description = %s, location = %s, image_urls = %s
+            SET name = %s, category = %s, description = %s, location = %s,
+                image_urls = %s, location_lat = %s, location_lng = %s
             WHERE id = %s AND owner_id = %s
             """,
-            (name, category, description, location, json.dumps(image_urls), store_id, owner_id),
+            (name, category, description, location, json.dumps(image_urls), location_lat, location_lng, store_id, owner_id),
         )
 
         # update ONLY working hours
@@ -1622,7 +1662,7 @@ def pick():
             conditions.append("category = %s")
             params.append(category)
 
-        query = "SELECT id, name, category, description, location, image_urls FROM stores"
+        query = "SELECT id, name, category, description, location, image_urls, location_lat, location_lng FROM stores"
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY id DESC"
@@ -1636,6 +1676,8 @@ def pick():
                 "description": row[3],
                 "location": row[4] or "",
                 "image_urls": parse_json_list(row[5]),
+                "location_lat": row[6],
+                "location_lng": row[7],
             }
             for row in cursor.fetchall()
         ]
@@ -1813,7 +1855,7 @@ def store_details(store_id):
         ensure_store_optional_schema(cursor)
         cursor.execute(
             """
-            SELECT id, name, category, description, owner_id, location, image_urls
+            SELECT id, name, category, description, owner_id, location, image_urls, location_lat, location_lng
             FROM stores
             WHERE id = %s
             """,
@@ -1832,6 +1874,8 @@ def store_details(store_id):
             "owner_id": row[4],
             "location": row[5] or "",
             "image_urls": parse_json_list(row[6]),
+            "location_lat": row[7],
+            "location_lng": row[8],
         }
 
         cursor.execute(

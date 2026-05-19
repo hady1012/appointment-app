@@ -486,8 +486,13 @@
         {% if store.location %}
         <div class="store-location">{{ store.location }}</div>
         <div class="map-actions">
+            {% if store.location_lat is not none and store.location_lng is not none %}
+            <a class="map-btn" href="https://www.google.com/maps/search/?api=1&query={{ store.location_lat }},{{ store.location_lng }}" target="_blank" rel="noopener">Google Maps</a>
+            <a class="map-btn" href="https://waze.com/ul?ll={{ store.location_lat }},{{ store.location_lng }}&navigate=yes" target="_blank" rel="noopener">Waze</a>
+            {% else %}
             <a class="map-btn" href="https://www.google.com/maps/search/?api=1&query={{ store.location|urlencode }}" target="_blank" rel="noopener">Google Maps</a>
             <a class="map-btn" href="https://waze.com/ul?q={{ store.location|urlencode }}&navigate=yes" target="_blank" rel="noopener">Waze</a>
+            {% endif %}
         </div>
         {% endif %}
         <p>{{ store.category }} • {{ store.description }}</p>
@@ -499,7 +504,7 @@
 
     {% if store.image_urls %}
     <div class="section-box">
-        <div class="section-title">Store pictures</div>
+        <div class="section-title">תמונות העסק</div>
         <div class="store-gallery">
             {% for image_url in store.image_urls[:5] %}
             <img src="{{ image_url }}" alt="{{ store.name }} picture {{ loop.index }}" loading="lazy">

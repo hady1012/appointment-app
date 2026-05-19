@@ -216,6 +216,19 @@
             line-height: 1.35;
         }
 
+        .location-tools {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin-top: 10px;
+        }
+
+        .location-status {
+            color: #64748b;
+            font-weight: 700;
+            margin-top: 8px;
+        }
+
         .day-grid {
             display: grid;
             grid-template-columns: 1.1fr 1fr 1fr;
@@ -699,12 +712,26 @@
             </div>
 
             <div style="margin-top:14px;">
-                <label>Store location (optional)</label>
-                <input type="text" name="location" value="{{ store.location if store else '' }}" maxlength="255" placeholder="Street, city, area, or exact place name">
+                <label>מיקום העסק (לא חובה)</label>
+                <input type="text" id="locationInput" name="location" value="{{ store.location if store else '' }}" maxlength="255" placeholder="רחוב, עיר או שם המקום">
+                <input type="hidden" id="locationLatInput" name="location_lat" value="{{ store.location_lat if store and store.location_lat is not none else '' }}">
+                <input type="hidden" id="locationLngInput" name="location_lng" value="{{ store.location_lng if store and store.location_lng is not none else '' }}">
+                <div class="location-tools">
+                    <button type="button" class="secondary-btn" id="useCurrentLocationBtn">בחר מיקום מהמכשיר</button>
+                    <a class="secondary-btn" id="previewMapBtn" href="#" target="_blank" rel="noopener">פתח במפה</a>
+                    <button type="button" class="secondary-btn" id="clearLocationBtn">נקה מיקום</button>
+                </div>
+                <div class="location-status" id="locationStatus">
+                    {% if store and store.location_lat is not none and store.location_lng is not none %}
+                    נשמר מיקום מדויק במפה.
+                    {% else %}
+                    אפשר לשמור כתובת בלבד, או לבחור מיקום מדויק מהמכשיר.
+                    {% endif %}
+                </div>
             </div>
 
             <div style="margin-top:14px;">
-                <label>Store pictures (optional, up to 5 photos)</label>
+                <label>תמונות העסק (לא חובה, עד 5 תמונות)</label>
                 <div class="image-url-grid">
                     {% for i in range(5) %}
                     {% set existing_image = store.image_urls[i] if store and store.image_urls|length > i else '' %}
@@ -712,7 +739,7 @@
                         <input type="hidden" name="existing_image_url[]" value="{{ existing_image if not existing_image.startswith('data:image/') else '' }}">
                         <input type="file" name="image_file[]" accept="image/png,image/jpeg,image/webp" class="photo-file-input">
                         <img src="{{ existing_image }}" alt="Store photo {{ i + 1 }} preview">
-                        <span>Choose photo<br>{{ i + 1 }}/5</span>
+                        <span>בחר תמונה<br>{{ i + 1 }}/5</span>
                     </label>
                     {% endfor %}
                 </div>
@@ -858,6 +885,81 @@ function bindRemoveButtons() {
 
 bindRemoveButtons();
 
+const locationInput = document.getElementById('locationInput');
+const locationLatInput = document.getElementById('locationLatInput');
+const locationLngInput = document.getElementById('locationLngInput');
+const useCurrentLocationBtn = document.getElementById('useCurrentLocationBtn');
+const previewMapBtn = document.getElementById('previewMapBtn');
+const clearLocationBtn = document.getElementById('clearLocationBtn');
+const locationStatus = document.getElementById('locationStatus');
+
+function updateMapPreviewLink() {
+    if (!previewMapBtn) {
+        return;
+    }
+
+    const lat = locationLatInput?.value;
+    const lng = locationLngInput?.value;
+    const text = locationInput?.value?.trim();
+
+    if (lat && lng) {
+        previewMapBtn.href = `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(`${lat},${lng}`)}`;
+        return;
+    }
+
+    previewMapBtn.href = text
+        ? `https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(text)}`
+        : '#';
+}
+
+locationInput?.addEventListener('input', () => {
+    if (locationLatInput) locationLatInput.value = '';
+    if (locationLngInput) locationLngInput.value = '';
+    if (locationStatus) locationStatus.textContent = 'הכתובת נשמרת כחיפוש במפה. למיקום מדויק לחץ על בחירת מיקום מהמכשיר.';
+    updateMapPreviewLink();
+});
+
+useCurrentLocationBtn?.addEventListener('click', () => {
+    if (!navigator.geolocation) {
+        if (locationStatus) locationStatus.textContent = 'הדפדפן לא תומך בבחירת מיקום.';
+        return;
+    }
+
+    useCurrentLocationBtn.disabled = true;
+    if (locationStatus) locationStatus.textContent = 'מבקש הרשאה למיקום...';
+
+    navigator.geolocation.getCurrentPosition(
+        position => {
+            const lat = position.coords.latitude.toFixed(6);
+            const lng = position.coords.longitude.toFixed(6);
+            locationLatInput.value = lat;
+            locationLngInput.value = lng;
+            if (!locationInput.value.trim()) {
+                locationInput.value = `${lat}, ${lng}`;
+            }
+            if (locationStatus) locationStatus.textContent = 'נשמר מיקום מדויק במפה.';
+            useCurrentLocationBtn.disabled = false;
+            updateMapPreviewLink();
+        },
+        () => {
+            if (locationStatus) locationStatus.textContent = 'לא ניתן לקבל מיקום. אפשר להקליד כתובת ולפתוח במפה.';
+            useCurrentLocationBtn.disabled = false;
+            updateMapPreviewLink();
+        },
+        { enableHighAccuracy: true, timeout: 12000, maximumAge: 60000 }
+    );
+});
+
+clearLocationBtn?.addEventListener('click', () => {
+    if (locationInput) locationInput.value = '';
+    if (locationLatInput) locationLatInput.value = '';
+    if (locationLngInput) locationLngInput.value = '';
+    if (locationStatus) locationStatus.textContent = 'המיקום נוקה.';
+    updateMapPreviewLink();
+});
+
+updateMapPreviewLink();
+
 function resizePhotoToDataUrl(file, maxSize = 1000, quality = 0.78) {
     return new Promise((resolve, reject) => {
         if (!file || !file.type.startsWith('image/')) {
@@ -920,7 +1022,7 @@ document.querySelectorAll('.photo-file-input').forEach(input => {
         } catch (error) {
             alert(error.message || 'Could not upload this photo.');
             input.value = '';
-            label.innerHTML = 'Choose photo';
+            label.innerHTML = 'בחר תמונה';
         }
     });
 });
