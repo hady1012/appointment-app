@@ -348,18 +348,24 @@ def ensure_store_optional_schema(cursor):
     if STORE_OPTIONAL_SCHEMA_READY:
         return
 
-    cursor.execute(
-        """
-        ALTER TABLE stores
-        ADD COLUMN IF NOT EXISTS location TEXT
-        """
-    )
-    cursor.execute(
-        """
-        ALTER TABLE stores
-        ADD COLUMN IF NOT EXISTS image_urls TEXT
-        """
-    )
+    try:
+        cursor.execute(
+            """
+            ALTER TABLE stores
+            ADD COLUMN IF NOT EXISTS location TEXT
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE stores
+            ADD COLUMN IF NOT EXISTS image_urls TEXT
+            """
+        )
+        cursor.connection.commit()
+    except Exception:
+        cursor.connection.rollback()
+        raise
+
     STORE_OPTIONAL_SCHEMA_READY = True
 
 
