@@ -611,6 +611,18 @@ const slotsStatus = document.getElementById('slotsStatus');
 const bookSubmitBtn = document.getElementById('bookSubmitBtn');
 let slotsAbortController = null;
 
+function localDateString(date = new Date()) {
+    const year = date.getFullYear();
+    const month = String(date.getMonth() + 1).padStart(2, '0');
+    const day = String(date.getDate()).padStart(2, '0');
+    return `${year}-${month}-${day}`;
+}
+
+function timeToMinutes(value) {
+    const [hours, minutes] = value.split(':').map(Number);
+    return (hours * 60) + minutes;
+}
+
 function setSlotsStatus(message) {
     if (slotsStatus) {
         slotsStatus.textContent = message || '';
@@ -619,6 +631,14 @@ function setSlotsStatus(message) {
 
 async function loadSlots() {
     if (!serviceSelect || !dateInput || !timeSelect || !serviceSelect.value || !dateInput.value) return;
+
+    const today = localDateString();
+    if (dateInput.value < today) {
+        timeSelect.disabled = true;
+        timeSelect.innerHTML = '<option value="">תאריך עבר</option>';
+        setSlotsStatus('אי אפשר לקבוע תור בתאריך שכבר עבר.');
+        return;
+    }
 
     if (slotsAbortController) {
         slotsAbortController.abort();
@@ -641,20 +661,26 @@ async function loadSlots() {
 
         timeSelect.innerHTML = "";
 
-        if (!data.slots || data.slots.length === 0) {
+        const now = new Date();
+        const currentMinutes = (now.getHours() * 60) + now.getMinutes();
+        const futureSlots = (data.slots || []).filter(slot => {
+            return dateInput.value !== today || timeToMinutes(slot) > currentMinutes;
+        });
+
+        if (futureSlots.length === 0) {
             timeSelect.innerHTML = '<option value="">אין שעות פנויות</option>';
             setSlotsStatus('אין שעות פנויות ביום הזה. אפשר לבחור יום אחר.');
             return;
         }
 
-        data.slots.forEach(slot => {
+        futureSlots.forEach(slot => {
             const opt = document.createElement("option");
             opt.value = slot;
             opt.textContent = slot;
             timeSelect.appendChild(opt);
         });
         timeSelect.disabled = false;
-        setSlotsStatus(`${data.slots.length} שעות פנויות נטענו.`);
+        setSlotsStatus(`${futureSlots.length} שעות פנויות נטענו.`);
     } catch (error) {
         if (error.name === 'AbortError') return;
         timeSelect.innerHTML = '<option value="">נסה שוב</option>';
@@ -665,7 +691,17 @@ async function loadSlots() {
 serviceSelect?.addEventListener("change", loadSlots);
 dateInput?.addEventListener("change", loadSlots);
 
+if (dateInput) {
+    dateInput.min = localDateString();
+}
+
 document.querySelectorAll('.calendar-day').forEach(card => {
+    if (card.dataset.date < localDateString()) {
+        card.dataset.status = 'busy';
+        card.classList.remove('available', 'selected');
+        card.classList.add('busy');
+    }
+
     card.addEventListener('click', () => {
         if (card.dataset.status !== 'available') {
             setSlotsStatus('אין שעות פנויות ביום הזה. בחר יום ירוק.');

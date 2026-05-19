@@ -1253,6 +1253,16 @@ def book(store_id):
         flash("אפשר לקבוע תור רק מהיום ועד 7 ימים קדימה.")
         return redirect(url_for("store_details", store_id=store_id))
 
+    try:
+        selected_dt = datetime.strptime(f"{appointment_date} {appointment_time}", "%Y-%m-%d %H:%M")
+    except ValueError:
+        flash("בחר תאריך ושעה תקינים.")
+        return redirect(url_for("store_details", store_id=store_id))
+
+    if selected_dt <= now_local():
+        flash("אי אפשר לקבוע תור בזמן שכבר עבר.")
+        return redirect(url_for("store_details", store_id=store_id))
+
     valid_slots = generate_available_slots(store_id, service_id, appointment_date)
     if appointment_time not in valid_slots:
         flash("בחר שעה תקינה מתוך השעות הזמינות בלבד.")
