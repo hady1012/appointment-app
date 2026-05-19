@@ -666,9 +666,9 @@
     } %}
 
     {% if store %}
-    <form action="{{ url_for('update_store', store_id=store.id) }}" method="POST">
+    <form action="{{ url_for('update_store', store_id=store.id) }}" method="POST" enctype="multipart/form-data">
     {% else %}
-    <form action="{{ url_for('add_store') }}" method="POST">
+    <form action="{{ url_for('add_store') }}" method="POST" enctype="multipart/form-data">
     {% endif %}
 
         <div class="section-box">
@@ -709,8 +709,8 @@
                     {% for i in range(5) %}
                     {% set existing_image = store.image_urls[i] if store and store.image_urls|length > i else '' %}
                     <label class="photo-upload-slot {% if existing_image %}has-image{% endif %}">
-                        <input type="hidden" name="image_url[]" value="{{ existing_image }}">
-                        <input type="file" accept="image/png,image/jpeg,image/webp" class="photo-file-input">
+                        <input type="hidden" name="existing_image_url[]" value="{{ existing_image if not existing_image.startswith('data:image/') else '' }}">
+                        <input type="file" name="image_file[]" accept="image/png,image/jpeg,image/webp" class="photo-file-input">
                         <img src="{{ existing_image }}" alt="Store photo {{ i + 1 }} preview">
                         <span>Choose photo<br>{{ i + 1 }}/5</span>
                     </label>
@@ -885,6 +885,14 @@ function resizePhotoToDataUrl(file, maxSize = 1000, quality = 0.78) {
     });
 }
 
+async function resizePhotoToFile(file, maxSize = 1000, quality = 0.78) {
+    const dataUrl = await resizePhotoToDataUrl(file, maxSize, quality);
+    const response = await fetch(dataUrl);
+    const blob = await response.blob();
+    const filename = file.name.replace(/\.[^.]+$/, '') + '.jpg';
+    return new File([blob], filename, { type: 'image/jpeg' });
+}
+
 document.querySelectorAll('.photo-file-input').forEach(input => {
     input.addEventListener('change', async () => {
         const file = input.files?.[0];
@@ -899,8 +907,14 @@ document.querySelectorAll('.photo-file-input').forEach(input => {
 
         try {
             label.textContent = 'Loading...';
-            const dataUrl = await resizePhotoToDataUrl(file);
-            hidden.value = dataUrl;
+            const resizedFile = await resizePhotoToFile(file);
+            if (window.DataTransfer) {
+                const transfer = new DataTransfer();
+                transfer.items.add(resizedFile);
+                input.files = transfer.files;
+            }
+            const dataUrl = URL.createObjectURL(resizedFile);
+            hidden.value = '';
             preview.src = dataUrl;
             slot.classList.add('has-image');
         } catch (error) {

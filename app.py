@@ -4,6 +4,7 @@ import re
 import secrets
 import smtplib
 import ssl
+import uuid
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
 from urllib.parse import urlparse
@@ -13,14 +14,19 @@ from zoneinfo import ZoneInfo
 
 import psycopg2
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
+from werkzeug.exceptions import RequestEntityTooLarge
+from werkzeug.utils import secure_filename
 from werkzeug.security import generate_password_hash, check_password_hash
 
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "x8sK29!akL#92jF@pQz")
+app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
+UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads", "store_photos")
+ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 
 DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 DAY_LABELS = {
@@ -147,6 +153,46 @@ def is_valid_image_url(value):
     path = parsed.path.lower()
     image_extensions = (".jpg", ".jpeg", ".png", ".webp", ".gif")
     return path.endswith(image_extensions) or any(host in parsed.netloc.lower() for host in ["images.unsplash.com", "res.cloudinary.com"])
+
+
+def allowed_image_file(filename):
+    return "." in filename and filename.rsplit(".", 1)[1].lower() in ALLOWED_IMAGE_EXTENSIONS
+
+
+def save_store_image(file_storage):
+    if not file_storage or not file_storage.filename:
+        return ""
+
+    filename = secure_filename(file_storage.filename)
+    if not allowed_image_file(filename):
+        raise ValueError("Please upload jpg, png, or webp photos only.")
+
+    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
+    extension = filename.rsplit(".", 1)[1].lower()
+    saved_name = f"{uuid.uuid4().hex}.{extension}"
+    file_storage.save(os.path.join(UPLOAD_FOLDER, saved_name))
+    return url_for("static", filename=f"uploads/store_photos/{saved_name}")
+
+
+def build_store_image_list(existing_urls, uploaded_files):
+    image_urls = []
+    uploaded_files = list(uploaded_files or [])
+    existing_urls = list(existing_urls or [])
+
+    for index in range(5):
+        uploaded_file = uploaded_files[index] if index < len(uploaded_files) else None
+        if uploaded_file and uploaded_file.filename:
+            image_urls.append(save_store_image(uploaded_file))
+            continue
+
+        existing_url = (existing_urls[index] if index < len(existing_urls) else "").strip()
+        if existing_url:
+            if existing_url.startswith("/static/uploads/store_photos/") or is_valid_image_url(existing_url):
+                image_urls.append(existing_url)
+            else:
+                raise ValueError("One of the saved photos is not valid. Please upload it again.")
+
+    return image_urls[:5]
 
 
 def validate_store_images(raw_urls):
@@ -528,6 +574,12 @@ def guard_owner_single_device_session():
         conn.close()
 
     return None
+
+
+@app.errorhandler(RequestEntityTooLarge)
+def handle_request_too_large(_error):
+    flash("The photos were too large. Please choose fewer or smaller photos and try again.")
+    return redirect(request.referrer or url_for("work"))
 
 
 def get_day_name_from_date(date_str):
@@ -1368,7 +1420,11 @@ def add_store():
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
         location = clean_optional_text(request.form.get("location"), max_len=255)
-        image_urls, image_error = validate_store_images(request.form.getlist("image_url[]"))
+        try:
+            image_urls = build_store_image_list([], request.files.getlist("image_file[]"))
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for("work"))
 
         if not name:
             flash("יש להזין שם עסק תקין.")
@@ -1384,10 +1440,6 @@ def add_store():
 
         if location is None:
             flash("Please enter a valid store location, or leave it empty.")
-            return redirect(url_for("work"))
-
-        if image_error:
-            flash(image_error)
             return redirect(url_for("work"))
 
         ensure_category_exists(category, owner_id, cursor)
@@ -1464,7 +1516,14 @@ def update_store(store_id):
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
         location = clean_optional_text(request.form.get("location"), max_len=255)
-        image_urls, image_error = validate_store_images(request.form.getlist("image_url[]"))
+        try:
+            image_urls = build_store_image_list(
+                request.form.getlist("existing_image_url[]"),
+                request.files.getlist("image_file[]"),
+            )
+        except ValueError as exc:
+            flash(str(exc))
+            return redirect(url_for("work"))
 
         if not name:
             flash("יש להזין שם עסק תקין.")
@@ -1482,10 +1541,6 @@ def update_store(store_id):
 
         if location is None:
             flash("Please enter a valid store location, or leave it empty.")
-            return redirect(url_for("work"))
-
-        if image_error:
-            flash(image_error)
             return redirect(url_for("work"))
 
         cursor.execute(

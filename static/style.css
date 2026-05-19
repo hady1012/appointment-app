@@ -1480,18 +1480,19 @@ textarea {
     .nav-logo {
         justify-content: center;
         width: 100%;
+        font-size: 1rem !important;
     }
 
     .nav-links {
         display: grid !important;
         grid-template-columns: repeat(2, minmax(0, 1fr));
         width: 100%;
-        gap: 8px !important;
+        gap: 6px !important;
     }
 
     .nav-links a {
         width: 100%;
-        min-height: 42px;
+        min-height: 36px;
         padding: 8px 10px !important;
         white-space: normal;
     }
@@ -1573,6 +1574,26 @@ textarea {
     .danger-btn,
     .remove-service-btn {
         width: 100% !important;
+    }
+
+    .day-box,
+    .service-box {
+        padding: 14px !important;
+        margin-bottom: 10px !important;
+    }
+
+    .image-url-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .photo-upload-slot {
+        min-height: 104px !important;
+        padding: 8px !important;
+    }
+
+    .photo-upload-slot img {
+        height: 88px !important;
     }
 
     .rating-modal {
@@ -1733,6 +1754,15 @@ textarea {
 [data-theme="dark"] .rating-comment,
 [data-theme="dark"] .rating-comment-box {
     color: #b6c7c1 !important;
+}
+
+[data-theme="dark"] .photo-upload-slot {
+    background: #0b1210 !important;
+    border-color: rgba(148, 163, 184, 0.34) !important;
+}
+
+[data-theme="dark"] .photo-upload-slot span {
+    color: #cbd5e1 !important;
 }
 
 [data-theme="dark"] .nav-links a {
