@@ -453,7 +453,8 @@
         <div class="calendar-grid" id="calendar-grid">
             {% for day in calendar_days %}
             <div class="calendar-day {{ 'available' if day.status == 'available' else 'busy' }}"
-                 data-date="{{ day.date }}">
+                 data-date="{{ day.date }}"
+                 data-status="{{ day.status }}">
                 <strong>{{ day.day_label }}</strong><br>
                 {{ day.display }}
             </div>
@@ -666,6 +667,11 @@ dateInput?.addEventListener("change", loadSlots);
 
 document.querySelectorAll('.calendar-day').forEach(card => {
     card.addEventListener('click', () => {
+        if (card.dataset.status !== 'available') {
+            setSlotsStatus('אין שעות פנויות ביום הזה. בחר יום ירוק.');
+            return;
+        }
+
         document.querySelectorAll('.calendar-day').forEach(c => c.classList.remove('selected'));
         card.classList.add('selected');
 

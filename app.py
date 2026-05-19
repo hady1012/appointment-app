@@ -357,7 +357,7 @@ def minutes_to_time_string(minutes):
 
 
 def today_range():
-    min_date = date.today()
+    min_date = now_local().date()
     max_date = min_date + timedelta(days=7)
     return min_date.isoformat(), max_date.isoformat()
 
@@ -427,6 +427,17 @@ def generate_available_slots(store_id, service_id, appointment_date, cursor=None
             internal_conn = get_connection()
             internal_cursor = internal_conn.cursor()
 
+        try:
+            requested_date = datetime.strptime(appointment_date, "%Y-%m-%d").date()
+        except ValueError:
+            return []
+
+        current_dt = now_local()
+        current_date = current_dt.date()
+
+        if requested_date < current_date:
+            return []
+
         day_name = get_day_name_from_date(appointment_date)
 
         internal_cursor.execute(
@@ -473,10 +484,15 @@ def generate_available_slots(store_id, service_id, appointment_date, cursor=None
 
         slots = []
         current = start_minutes
+        current_minutes = current_dt.hour * 60 + current_dt.minute
 
         while current + service_duration <= end_minutes:
             candidate_start = current
             candidate_end = current + service_duration
+
+            if requested_date == current_date and candidate_start <= current_minutes:
+                current += 15
+                continue
 
             overlaps = any(
                 not (candidate_end <= busy_start or candidate_start >= busy_end)
@@ -513,7 +529,7 @@ def get_store_calendar_days(store_id):
         service_row = cursor.fetchone()
         days = []
         for offset in range(8):
-            d = date.today() + timedelta(days=offset)
+            d = now_local().date() + timedelta(days=offset)
             d_iso = d.isoformat()
             day_name = get_day_name_from_date(d_iso)
 

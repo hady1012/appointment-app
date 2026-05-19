@@ -38,6 +38,7 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 - Uses service duration when checking availability
 - Prevents double booking and overlapping appointments
 - Validates the selected slot again on the backend
+- Hides past dates and past times, including earlier slots from the current day
 - Limits bookings from today up to 7 days ahead
 - Shows day availability with clear visual states
 
