@@ -19,6 +19,8 @@ app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "x8sK29!akL#92jF@pQz")
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
+OWNER_SESSION_SCHEMA_READY = False
+OWNER_SESSION_TIMEOUT = timedelta(hours=12)
 
 DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 DAY_LABELS = {
@@ -400,6 +402,32 @@ def ensure_password_reset_schema(cursor):
     )
 
 
+def ensure_owner_session_schema(cursor):
+    global OWNER_SESSION_SCHEMA_READY
+    if OWNER_SESSION_SCHEMA_READY:
+        return
+
+    try:
+        cursor.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS active_owner_session_token TEXT
+            """
+        )
+        cursor.execute(
+            """
+            ALTER TABLE users
+            ADD COLUMN IF NOT EXISTS active_owner_session_seen_at TIMESTAMP
+            """
+        )
+        cursor.connection.commit()
+    except Exception:
+        cursor.connection.rollback()
+        raise
+
+    OWNER_SESSION_SCHEMA_READY = True
+
+
 def build_appointment_email_body(appointment, intro):
     return f"""{intro}
 
@@ -445,6 +473,61 @@ Your verification code is: {reset_code}
 This code expires in 15 minutes. If you did not ask to reset your password, you can ignore this email.
 """
     return send_email(user_email, subject, body)
+
+
+@app.before_request
+def guard_owner_single_device_session():
+    if request.endpoint in {"static", "login", "logout"}:
+        return None
+
+    if session.get("role") != "owner" or not session.get("user_id") or not session.get("owner_session_token"):
+        return None
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        ensure_owner_session_schema(cursor)
+        cursor.execute(
+            """
+            SELECT active_owner_session_token
+            FROM users
+            WHERE id = %s
+            """,
+            (session["user_id"],),
+        )
+        row = cursor.fetchone()
+
+        if not row or row[0] != session.get("owner_session_token"):
+            session.clear()
+            flash("Oops, your business account was opened on another device. To use it here, log out there and log in again.")
+            return redirect(url_for("login"))
+
+        last_touch = session.get("owner_session_last_touch")
+        should_touch = True
+        if last_touch:
+            try:
+                should_touch = now_local() - datetime.fromisoformat(last_touch) > timedelta(minutes=5)
+            except ValueError:
+                should_touch = True
+
+        if should_touch:
+            current_time = now_local()
+            cursor.execute(
+                """
+                UPDATE users
+                SET active_owner_session_seen_at = %s
+                WHERE id = %s AND active_owner_session_token = %s
+                """,
+                (current_time, session["user_id"], session["owner_session_token"]),
+            )
+            conn.commit()
+            session["owner_session_last_touch"] = current_time.isoformat()
+    finally:
+        cursor.close()
+        conn.close()
+
+    return None
 
 
 def get_day_name_from_date(date_str):
@@ -982,9 +1065,11 @@ def login():
         cursor = conn.cursor()
 
         try:
+            ensure_owner_session_schema(cursor)
             cursor.execute(
                 """
-                SELECT id, full_name, email, password_hash, role
+                SELECT id, full_name, email, password_hash, role,
+                       active_owner_session_token, active_owner_session_seen_at
                 FROM users
                 WHERE email = %s
                 """,
@@ -996,10 +1081,42 @@ def login():
             conn.close()
 
         if user and check_password_hash(user[3], password):
+            owner_session_token = None
+            if user[4] == "owner":
+                active_token = user[5]
+                active_seen_at = user[6]
+                active_is_recent = active_seen_at and active_seen_at >= now_local() - OWNER_SESSION_TIMEOUT
+
+                if active_token and active_is_recent:
+                    flash("Oops, your business account is already open on another device. To open it here, log out from the other device first.")
+                    return redirect(url_for("login"))
+
+                owner_session_token = secrets.token_urlsafe(32)
+                conn = get_connection()
+                cursor = conn.cursor()
+                try:
+                    ensure_owner_session_schema(cursor)
+                    cursor.execute(
+                        """
+                        UPDATE users
+                        SET active_owner_session_token = %s,
+                            active_owner_session_seen_at = %s
+                        WHERE id = %s
+                        """,
+                        (owner_session_token, now_local(), user[0]),
+                    )
+                    conn.commit()
+                finally:
+                    cursor.close()
+                    conn.close()
+
             session["user_id"] = user[0]
             session["full_name"] = user[1]
             session["email"] = user[2]
             session["role"] = user[4]
+            if owner_session_token:
+                session["owner_session_token"] = owner_session_token
+                session["owner_session_last_touch"] = now_local().isoformat()
             return redirect(url_for("work" if user[4] == "owner" else "pick"))
 
         flash("האימייל או הסיסמה אינם נכונים.")
@@ -1151,6 +1268,25 @@ def reset_password():
 
 @app.route("/logout")
 def logout():
+    if session.get("role") == "owner" and session.get("user_id") and session.get("owner_session_token"):
+        conn = get_connection()
+        cursor = conn.cursor()
+        try:
+            ensure_owner_session_schema(cursor)
+            cursor.execute(
+                """
+                UPDATE users
+                SET active_owner_session_token = NULL,
+                    active_owner_session_seen_at = NULL
+                WHERE id = %s AND active_owner_session_token = %s
+                """,
+                (session["user_id"], session["owner_session_token"]),
+            )
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
     session.clear()
     return redirect(url_for("home"))
 
