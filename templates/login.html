@@ -76,6 +76,7 @@
         </form>
 
         <div class="auth-links">
+            <a href="{{ url_for('forgot_password') }}" class="btn btn-outline-dark btn-sm">שכחת סיסמה?</a>
             <p class="mt-3">אין לך חשבון?</p>
             <a href="/signup/customer" class="btn btn-outline-primary btn-sm">הרשמת לקוח</a>
             <a href="/signup/owner" class="btn btn-outline-success btn-sm">הרשמת בעל עסק</a>
@@ -84,6 +85,7 @@
 </div>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 <script>
 const loginForm = document.getElementById('loginForm');
 const loginSubmitBtn = document.getElementById('loginSubmitBtn');

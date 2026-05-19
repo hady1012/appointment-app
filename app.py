@@ -1,10 +1,12 @@
 import os
 import json
 import re
+import secrets
 import smtplib
 import ssl
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
+from urllib.parse import urlparse
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 from zoneinfo import ZoneInfo
@@ -110,6 +112,46 @@ def clean_person_name(value):
     if not PERSON_NAME_PATTERN.match(value):
         return None
     return value
+
+
+def clean_optional_text(value, max_len=500):
+    value = " ".join((value or "").strip().split())
+    if not value:
+        return ""
+    if len(value) > max_len or not TEXT_PATTERN.match(value):
+        return None
+    return value
+
+
+def is_valid_image_url(value):
+    value = (value or "").strip()
+    if not value or len(value) > 1000:
+        return False
+
+    parsed = urlparse(value)
+    if parsed.scheme not in {"http", "https"} or not parsed.netloc:
+        return False
+
+    path = parsed.path.lower()
+    image_extensions = (".jpg", ".jpeg", ".png", ".webp", ".gif")
+    return path.endswith(image_extensions) or any(host in parsed.netloc.lower() for host in ["images.unsplash.com", "res.cloudinary.com"])
+
+
+def validate_store_images(raw_urls):
+    cleaned = []
+    seen = set()
+
+    for raw_url in raw_urls[:5]:
+        image_url = (raw_url or "").strip()
+        if not image_url:
+            continue
+        if not is_valid_image_url(image_url):
+            return None, "Please enter valid image links. Use http/https links ending in jpg, png, webp, or gif."
+        if image_url not in seen:
+            cleaned.append(image_url)
+            seen.add(image_url)
+
+    return cleaned, None
 
 
 def validate_service_inputs(service_names, service_prices, service_durations):
@@ -292,6 +334,43 @@ def ensure_rating_schema(cursor):
     )
 
 
+def ensure_store_optional_schema(cursor):
+    cursor.execute(
+        """
+        ALTER TABLE stores
+        ADD COLUMN IF NOT EXISTS location TEXT
+        """
+    )
+    cursor.execute(
+        """
+        ALTER TABLE stores
+        ADD COLUMN IF NOT EXISTS image_urls TEXT
+        """
+    )
+
+
+def ensure_password_reset_schema(cursor):
+    cursor.execute(
+        """
+        CREATE TABLE IF NOT EXISTS password_reset_codes (
+            id SERIAL PRIMARY KEY,
+            user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+            code_hash TEXT NOT NULL,
+            expires_at TIMESTAMP NOT NULL,
+            used_at TIMESTAMP,
+            attempts INT NOT NULL DEFAULT 0,
+            created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+        """
+    )
+    cursor.execute(
+        """
+        CREATE INDEX IF NOT EXISTS idx_password_reset_codes_user_active
+        ON password_reset_codes(user_id, expires_at, used_at)
+        """
+    )
+
+
 def build_appointment_email_body(appointment, intro):
     return f"""{intro}
 
@@ -324,6 +403,19 @@ def send_booking_emails(appointment):
     customer_sent = send_email(appointment.get("customer_email"), customer_subject, customer_body)
     owner_sent = send_email(appointment.get("owner_email"), owner_subject, owner_body)
     return customer_sent, owner_sent
+
+
+def send_password_reset_email(user_email, full_name, reset_code):
+    subject = "Your My Marketplace password reset code"
+    body = f"""Hi {full_name},
+
+We received a request to reset your My Marketplace password.
+
+Your verification code is: {reset_code}
+
+This code expires in 15 minutes. If you did not ask to reset your password, you can ignore this email.
+"""
+    return send_email(user_email, subject, body)
 
 
 def get_day_name_from_date(date_str):
@@ -516,6 +608,7 @@ def get_store_calendar_days(store_id):
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         cursor.execute(
             """
             SELECT id
@@ -565,7 +658,7 @@ def get_owner_store_full(owner_id):
     try:
         cursor.execute(
             """
-            SELECT id, name, category, description
+            SELECT id, name, category, description, location, image_urls
             FROM stores
             WHERE owner_id = %s
             """,
@@ -580,6 +673,8 @@ def get_owner_store_full(owner_id):
             "name": store_row[1],
             "category": store_row[2],
             "description": store_row[3],
+            "location": store_row[4] or "",
+            "image_urls": json.loads(store_row[5] or "[]"),
         }
 
         cursor.execute(
@@ -827,6 +922,147 @@ def login():
     return render_template("login.html")
 
 
+@app.route("/forgot-password", methods=["GET", "POST"])
+def forgot_password():
+    if request.method == "POST":
+        email = normalize_email(request.form.get("email", ""))
+
+        if not is_valid_email(email):
+            flash("Please enter a valid email address.")
+            return redirect(url_for("forgot_password"))
+
+        conn = get_connection()
+        cursor = conn.cursor()
+        reset_sent = False
+
+        try:
+            ensure_password_reset_schema(cursor)
+            cursor.execute(
+                "SELECT id, full_name, email FROM users WHERE email = %s",
+                (email,),
+            )
+            user = cursor.fetchone()
+
+            if user:
+                reset_code = f"{secrets.randbelow(1000000):06d}"
+                cursor.execute(
+                    """
+                    UPDATE password_reset_codes
+                    SET used_at = %s
+                    WHERE user_id = %s AND used_at IS NULL
+                    """,
+                    (now_local(), user[0]),
+                )
+                cursor.execute(
+                    """
+                    INSERT INTO password_reset_codes (user_id, code_hash, expires_at)
+                    VALUES (%s, %s, %s)
+                    """,
+                    (user[0], generate_password_hash(reset_code), now_local() + timedelta(minutes=15)),
+                )
+                reset_sent = send_password_reset_email(user[2], user[1], reset_code)
+
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
+        if reset_sent:
+            flash("We sent a reset code to your email. Enter it below to choose a new password.")
+            return redirect(url_for("reset_password", email=email))
+
+        if not email_configured():
+            flash("Email is not configured yet, so password reset codes cannot be sent.")
+        else:
+            flash("If this email exists, a reset code was sent.")
+        return redirect(url_for("forgot_password"))
+
+    return render_template("forgot_password.html")
+
+
+@app.route("/reset-password", methods=["GET", "POST"])
+def reset_password():
+    email = normalize_email(request.args.get("email") or request.form.get("email", ""))
+
+    if request.method == "POST":
+        code = re.sub(r"\D", "", request.form.get("code", ""))
+        password = request.form.get("password", "").strip()
+        confirm_password = request.form.get("confirm_password", "").strip()
+
+        if not is_valid_email(email):
+            flash("Please enter a valid email address.")
+            return redirect(url_for("reset_password"))
+
+        if len(code) != 6:
+            flash("Please enter the 6 digit code from your email.")
+            return redirect(url_for("reset_password", email=email))
+
+        if len(password) < 8:
+            flash("Password must be at least 8 characters.")
+            return redirect(url_for("reset_password", email=email))
+
+        if password != confirm_password:
+            flash("The passwords do not match.")
+            return redirect(url_for("reset_password", email=email))
+
+        conn = get_connection()
+        cursor = conn.cursor()
+
+        try:
+            ensure_password_reset_schema(cursor)
+            cursor.execute(
+                "SELECT id FROM users WHERE email = %s",
+                (email,),
+            )
+            user = cursor.fetchone()
+
+            if not user:
+                flash("The reset code is not valid or has expired.")
+                return redirect(url_for("reset_password", email=email))
+
+            cursor.execute(
+                """
+                SELECT id, code_hash, attempts
+                FROM password_reset_codes
+                WHERE user_id = %s
+                  AND used_at IS NULL
+                  AND expires_at >= %s
+                ORDER BY created_at DESC
+                LIMIT 1
+                """,
+                (user[0], now_local()),
+            )
+            reset_row = cursor.fetchone()
+
+            if not reset_row or reset_row[2] >= 5 or not check_password_hash(reset_row[1], code):
+                if reset_row:
+                    cursor.execute(
+                        "UPDATE password_reset_codes SET attempts = attempts + 1 WHERE id = %s",
+                        (reset_row[0],),
+                    )
+                    conn.commit()
+                flash("The reset code is not valid or has expired.")
+                return redirect(url_for("reset_password", email=email))
+
+            cursor.execute(
+                "UPDATE users SET password_hash = %s WHERE id = %s",
+                (generate_password_hash(password), user[0]),
+            )
+            cursor.execute(
+                "UPDATE password_reset_codes SET used_at = %s WHERE id = %s",
+                (now_local(), reset_row[0]),
+            )
+            conn.commit()
+        finally:
+            cursor.close()
+            conn.close()
+
+        flash("Your password was updated. You can log in now.")
+        return redirect(url_for("login"))
+
+    return render_template("reset_password.html", email=email)
+
+
 @app.route("/logout")
 def logout():
     session.clear()
@@ -853,6 +1089,7 @@ def work():
             selected_date=selected_date,
             day_appointments=[],
             pending_ratings=[],
+            analytics=empty_owner_analytics(),
         )
 
     try:
@@ -870,6 +1107,11 @@ def work():
     except Exception:
         day_appointments = []
 
+    try:
+        analytics = get_owner_analytics(data["store"]["id"])
+    except Exception:
+        analytics = empty_owner_analytics()
+
     return render_template(
         "work.html",
         store=data["store"],
@@ -880,6 +1122,7 @@ def work():
         selected_date=selected_date,
         day_appointments=day_appointments,
         pending_ratings=pending_ratings,
+        analytics=analytics,
     )
 
 
@@ -893,6 +1136,7 @@ def add_store():
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         cursor.execute("SELECT id FROM stores WHERE owner_id = %s", (owner_id,))
         if cursor.fetchone():
             flash("כל בעל עסק יכול להגדיר עסק אחד בלבד.")
@@ -901,6 +1145,8 @@ def add_store():
         name = clean_text(request.form["name"], min_len=2, max_len=120)
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
+        location = clean_optional_text(request.form.get("location"), max_len=255)
+        image_urls, image_error = validate_store_images(request.form.getlist("image_url[]"))
 
         if not name:
             flash("יש להזין שם עסק תקין.")
@@ -914,15 +1160,23 @@ def add_store():
             flash("יש להזין תיאור עסק אמיתי של לפחות 10 תווים.")
             return redirect(url_for("work"))
 
+        if location is None:
+            flash("Please enter a valid store location, or leave it empty.")
+            return redirect(url_for("work"))
+
+        if image_error:
+            flash(image_error)
+            return redirect(url_for("work"))
+
         ensure_category_exists(category, owner_id, cursor)
 
         cursor.execute(
             """
-            INSERT INTO stores (name, category, description, owner_id)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO stores (name, category, description, location, image_urls, owner_id)
+            VALUES (%s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, category, description, owner_id),
+            (name, category, description, location, json.dumps(image_urls), owner_id),
         )
         store_id = cursor.fetchone()[0]
 
@@ -975,6 +1229,7 @@ def update_store(store_id):
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         cursor.execute(
             "SELECT id FROM stores WHERE id = %s AND owner_id = %s",
             (store_id, owner_id)
@@ -986,6 +1241,8 @@ def update_store(store_id):
         name = clean_text(request.form["name"], min_len=2, max_len=120)
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
         description = clean_text(request.form["description"], min_len=10, max_len=500)
+        location = clean_optional_text(request.form.get("location"), max_len=255)
+        image_urls, image_error = validate_store_images(request.form.getlist("image_url[]"))
 
         if not name:
             flash("יש להזין שם עסק תקין.")
@@ -1001,13 +1258,21 @@ def update_store(store_id):
 
         ensure_category_exists(category, owner_id, cursor)
 
+        if location is None:
+            flash("Please enter a valid store location, or leave it empty.")
+            return redirect(url_for("work"))
+
+        if image_error:
+            flash(image_error)
+            return redirect(url_for("work"))
+
         cursor.execute(
             """
             UPDATE stores
-            SET name = %s, category = %s, description = %s
+            SET name = %s, category = %s, description = %s, location = %s, image_urls = %s
             WHERE id = %s AND owner_id = %s
             """,
-            (name, category, description, store_id, owner_id),
+            (name, category, description, location, json.dumps(image_urls), store_id, owner_id),
         )
 
         # update ONLY working hours
@@ -1068,6 +1333,7 @@ def pick():
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         params = []
         conditions = []
 
@@ -1079,14 +1345,21 @@ def pick():
             conditions.append("category = %s")
             params.append(category)
 
-        query = "SELECT id, name, category, description FROM stores"
+        query = "SELECT id, name, category, description, location, image_urls FROM stores"
         if conditions:
             query += " WHERE " + " AND ".join(conditions)
         query += " ORDER BY id DESC"
 
         cursor.execute(query, tuple(params))
         stores = [
-            {"id": row[0], "name": row[1], "category": row[2], "description": row[3]}
+            {
+                "id": row[0],
+                "name": row[1],
+                "category": row[2],
+                "description": row[3],
+                "location": row[4] or "",
+                "image_urls": json.loads(row[5] or "[]"),
+            }
             for row in cursor.fetchall()
         ]
 
@@ -1104,15 +1377,166 @@ def pick():
     )
 
 
+def empty_owner_analytics():
+    return {
+        "month_label": now_local().strftime("%B %Y"),
+        "month_revenue": 0,
+        "month_appointments": 0,
+        "month_customers": 0,
+        "today_appointments": 0,
+        "upcoming_appointments": 0,
+        "all_time_appointments": 0,
+        "top_services": [],
+        "recent_appointments": [],
+        "daily_revenue": [],
+    }
+
+
+def get_owner_analytics(store_id):
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    current = now_local()
+    month_start = date(current.year, current.month, 1)
+    next_month = (month_start.replace(day=28) + timedelta(days=4)).replace(day=1)
+    today_start = current.date()
+    tomorrow = today_start + timedelta(days=1)
+
+    analytics = empty_owner_analytics()
+
+    try:
+        cursor.execute(
+            """
+            SELECT COUNT(*),
+                   COUNT(DISTINCT customer_id),
+                   COALESCE(SUM(COALESCE(s.price, 0)), 0)
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            WHERE a.store_id = %s
+              AND a.appointment_date >= %s
+              AND a.appointment_date < %s
+            """,
+            (store_id, month_start, next_month),
+        )
+        month_count, month_customers, month_revenue = cursor.fetchone()
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE store_id = %s
+              AND appointment_date >= %s
+              AND appointment_date < %s
+            """,
+            (store_id, today_start, tomorrow),
+        )
+        today_appointments = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            SELECT COUNT(*)
+            FROM appointments
+            WHERE store_id = %s
+              AND (appointment_date + appointment_time) >= %s
+            """,
+            (store_id, current),
+        )
+        upcoming_appointments = cursor.fetchone()[0]
+
+        cursor.execute("SELECT COUNT(*) FROM appointments WHERE store_id = %s", (store_id,))
+        all_time_appointments = cursor.fetchone()[0]
+
+        cursor.execute(
+            """
+            SELECT COALESCE(s.name, 'Unknown service'),
+                   COUNT(*) AS booking_count,
+                   COALESCE(SUM(COALESCE(s.price, 0)), 0) AS revenue
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            WHERE a.store_id = %s
+              AND a.appointment_date >= %s
+              AND a.appointment_date < %s
+            GROUP BY s.id, s.name
+            ORDER BY booking_count DESC, revenue DESC
+            LIMIT 5
+            """,
+            (store_id, month_start, next_month),
+        )
+        top_services = [
+            {"name": row[0], "bookings": row[1], "revenue": float(row[2] or 0)}
+            for row in cursor.fetchall()
+        ]
+
+        cursor.execute(
+            """
+            SELECT a.customer_name, a.customer_phone, a.appointment_date,
+                   a.appointment_time, COALESCE(s.name, ''), COALESCE(s.price, 0)
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            WHERE a.store_id = %s
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC
+            LIMIT 8
+            """,
+            (store_id,),
+        )
+        recent_appointments = [
+            {
+                "customer_name": row[0],
+                "customer_phone": row[1],
+                "date": str(row[2]),
+                "time": str(row[3])[:5],
+                "service_name": row[4],
+                "price": float(row[5] or 0),
+            }
+            for row in cursor.fetchall()
+        ]
+
+        cursor.execute(
+            """
+            SELECT a.appointment_date, COUNT(*), COALESCE(SUM(COALESCE(s.price, 0)), 0)
+            FROM appointments a
+            LEFT JOIN services s ON s.id = a.service_id
+            WHERE a.store_id = %s
+              AND a.appointment_date >= %s
+              AND a.appointment_date < %s
+            GROUP BY a.appointment_date
+            ORDER BY a.appointment_date
+            """,
+            (store_id, month_start, next_month),
+        )
+        daily_revenue = [
+            {"date": str(row[0]), "bookings": row[1], "revenue": float(row[2] or 0)}
+            for row in cursor.fetchall()
+        ]
+
+        analytics.update(
+            {
+                "month_revenue": float(month_revenue or 0),
+                "month_appointments": month_count or 0,
+                "month_customers": month_customers or 0,
+                "today_appointments": today_appointments or 0,
+                "upcoming_appointments": upcoming_appointments or 0,
+                "all_time_appointments": all_time_appointments or 0,
+                "top_services": top_services,
+                "recent_appointments": recent_appointments,
+                "daily_revenue": daily_revenue,
+            }
+        )
+        return analytics
+    finally:
+        cursor.close()
+        conn.close()
+
 @app.route("/store/<int:store_id>")
 def store_details(store_id):
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         cursor.execute(
             """
-            SELECT id, name, category, description, owner_id
+            SELECT id, name, category, description, owner_id, location, image_urls
             FROM stores
             WHERE id = %s
             """,
@@ -1129,6 +1553,8 @@ def store_details(store_id):
             "category": row[2],
             "description": row[3],
             "owner_id": row[4],
+            "location": row[5] or "",
+            "image_urls": json.loads(row[6] or "[]"),
         }
 
         cursor.execute(
@@ -1344,8 +1770,9 @@ def send_reminders():
 
     try:
         ensure_email_schema(cursor)
-        window_start = now_local() + timedelta(minutes=25)
-        window_end = now_local() + timedelta(minutes=35)
+        current_time = now_local()
+        window_start = current_time
+        window_end = current_time + timedelta(minutes=35)
 
         cursor.execute(
             """
@@ -1396,7 +1823,14 @@ def send_reminders():
         cursor.close()
         conn.close()
 
-    return jsonify({"sent": sent_count})
+    return jsonify(
+        {
+            "sent": sent_count,
+            "email_configured": email_configured(),
+            "window_start": window_start.isoformat(timespec="minutes"),
+            "window_end": window_end.isoformat(timespec="minutes"),
+        }
+    )
 
 
 @app.route("/request-rating/<int:appointment_id>", methods=["POST"])

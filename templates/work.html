@@ -50,6 +50,69 @@
             margin-bottom: 28px;
         }
 
+        .analytics-grid {
+            display: grid;
+            grid-template-columns: repeat(4, 1fr);
+            gap: 14px;
+            margin-bottom: 18px;
+        }
+
+        .analytics-card {
+            background: #f8fafc;
+            border: 1px solid #e2e8f0;
+            border-radius: 18px;
+            padding: 18px;
+        }
+
+        .analytics-card strong {
+            display: block;
+            color: #64748b;
+            font-size: 0.92rem;
+            margin-bottom: 8px;
+        }
+
+        .analytics-card span {
+            color: #0f172a;
+            font-size: 1.45rem;
+            font-weight: 850;
+        }
+
+        .analytics-two-col {
+            display: grid;
+            grid-template-columns: 1fr 1fr;
+            gap: 18px;
+        }
+
+        .analytics-panel {
+            margin: 22px 0;
+            padding: 22px 0 8px;
+            border-top: 1px solid #e5e7eb;
+            border-bottom: 1px solid #e5e7eb;
+        }
+
+        .mini-list {
+            display: grid;
+            gap: 10px;
+            margin-top: 12px;
+        }
+
+        .mini-row {
+            display: flex;
+            justify-content: space-between;
+            gap: 12px;
+            align-items: center;
+            padding: 12px;
+            border: 1px solid #e5e7eb;
+            border-radius: 14px;
+            background: #fff;
+        }
+
+        .mini-row small {
+            display: block;
+            color: #64748b;
+            margin-top: 3px;
+        }
+
         .summary-card {
             background: #fff;
             border: 1px solid #e2e8f0;
@@ -106,6 +169,12 @@
             display: grid;
             grid-template-columns: 2fr 1fr 1fr;
             gap: 14px;
+        }
+
+        .image-url-grid {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 12px;
         }
 
         .day-grid {
@@ -296,8 +365,11 @@
 
         @media (max-width: 992px) {
             .summary-grid,
+            .analytics-grid,
+            .analytics-two-col,
             .top-grid,
             .service-grid,
+            .image-url-grid,
             .day-grid,
             .calendar-grid {
                 grid-template-columns: 1fr;
@@ -378,6 +450,86 @@
     <div class="section-box">
         <h2>תורים לפי יום</h2>
         <div class="section-note">לחץ על יום כדי לראות את כל התורים של אותו יום.</div>
+
+        <div class="analytics-panel">
+            <h2>Business pulse</h2>
+            <div class="section-note">Live numbers for {{ analytics.month_label }}: bookings, money, customers, and the services people choose most.</div>
+
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <strong>Revenue this month</strong>
+                    <span>₪{{ "%.2f"|format(analytics.month_revenue) }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Bookings this month</strong>
+                    <span>{{ analytics.month_appointments }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Customers this month</strong>
+                    <span>{{ analytics.month_customers }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Appointments today</strong>
+                    <span>{{ analytics.today_appointments }}</span>
+                </div>
+            </div>
+
+            <div class="analytics-grid">
+                <div class="analytics-card">
+                    <strong>Upcoming appointments</strong>
+                    <span>{{ analytics.upcoming_appointments }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Total appointments</strong>
+                    <span>{{ analytics.all_time_appointments }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Best service</strong>
+                    <span>{{ analytics.top_services[0].name if analytics.top_services else 'None yet' }}</span>
+                </div>
+                <div class="analytics-card">
+                    <strong>Recent activity</strong>
+                    <span>{{ analytics.recent_appointments|length }}</span>
+                </div>
+            </div>
+
+            <div class="analytics-two-col">
+                <div>
+                    <h2 style="font-size:1.2rem;">Top services this month</h2>
+                    <div class="mini-list">
+                        {% for service in analytics.top_services %}
+                        <div class="mini-row">
+                            <div>
+                                <strong>{{ service.name }}</strong>
+                                <small>{{ service.bookings }} bookings</small>
+                            </div>
+                            <strong>₪{{ "%.2f"|format(service.revenue) }}</strong>
+                        </div>
+                        {% else %}
+                        <div class="mini-row">No services booked yet this month.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+
+                <div>
+                    <h2 style="font-size:1.2rem;">Latest customer picks</h2>
+                    <div class="mini-list">
+                        {% for appointment in analytics.recent_appointments %}
+                        <div class="mini-row">
+                            <div>
+                                <strong>{{ appointment.customer_name }}</strong>
+                                <small>{{ appointment.service_name }} - {{ appointment.date }} {{ appointment.time }}</small>
+                                <small>{{ appointment.customer_phone }}</small>
+                            </div>
+                            <strong>₪{{ "%.2f"|format(appointment.price) }}</strong>
+                        </div>
+                        {% else %}
+                        <div class="mini-row">No customer picks yet.</div>
+                        {% endfor %}
+                    </div>
+                </div>
+            </div>
+        </div>
 
         <div class="calendar-grid">
             {% for day in calendar_days %}
@@ -505,6 +657,24 @@
             <div style="margin-top:14px;">
                 <label>תיאור העסק</label>
                 <input type="text" name="description" value="{{ store.description if store else '' }}" minlength="10" maxlength="500" required>
+            </div>
+
+            <div style="margin-top:14px;">
+                <label>Store location (optional)</label>
+                <input type="text" name="location" value="{{ store.location if store else '' }}" maxlength="255" placeholder="Address, city, or area">
+            </div>
+
+            <div style="margin-top:14px;">
+                <label>Store pictures (optional, up to 5 image links)</label>
+                <div class="image-url-grid">
+                    {% for i in range(5) %}
+                    <input type="url"
+                           name="image_url[]"
+                           value="{{ store.image_urls[i] if store and store.image_urls|length > i else '' }}"
+                           maxlength="1000"
+                           placeholder="https://example.com/photo{{ i + 1 }}.jpg">
+                    {% endfor %}
+                </div>
             </div>
         </div>
 
@@ -649,5 +819,6 @@ bindRemoveButtons();
 </script>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
 </html>

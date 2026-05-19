@@ -18,6 +18,7 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 - Search instantly by business name or category
 - Filter businesses by category
 - View business details, services, prices, and working hours
+- See optional store pictures and location when the owner adds them
 - Book only real available time slots
 - See personal bookings
 - Request a rating after an appointment ends
@@ -26,9 +27,11 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 
 - Register and log in as an owner
 - Create and manage one business profile
+- Add an optional store location and up to 5 optional store picture links
 - Add and update services
 - Set weekly working hours
 - View appointments by selected day
+- See a business analytics pulse with monthly revenue, booking counts, customer counts, popular services, upcoming appointments, and recent customer choices
 - Review pending customer rating requests
 - Approve or decline ratings before they appear publicly
 
@@ -45,6 +48,7 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 ### Recent UX And Performance Improvements
 
 - Responsive layout for phones, tablets, and desktops
+- User-selectable dark mode saved in the browser
 - Premium visual styling across the main pages
 - Live business filtering while typing
 - Faster slot loading on the booking page
@@ -52,6 +56,7 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 - Loading states for login, signup, search, and booking
 - Reduced database connection overhead for availability checks
 - Email notification support for appointment confirmations and reminders
+- Password reset by email verification code
 - Store ratings can be submitted any time and approved by the owner
 
 ## Tech Stack
@@ -164,6 +169,8 @@ CREATE TABLE stores (
     name VARCHAR(255) NOT NULL,
     category VARCHAR(255) NOT NULL,
     description TEXT,
+    location TEXT,
+    image_urls TEXT,
     advantages TEXT,
     owner_id INT REFERENCES users(id)
 );
@@ -213,6 +220,16 @@ CREATE TABLE IF NOT EXISTS ratings (
     rating INT NOT NULL CHECK (rating BETWEEN 1 AND 5),
     comment TEXT,
     status VARCHAR(20) NOT NULL DEFAULT 'pending' CHECK (status IN ('pending','accepted','declined')),
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS password_reset_codes (
+    id SERIAL PRIMARY KEY,
+    user_id INT NOT NULL REFERENCES users(id) ON DELETE CASCADE,
+    code_hash TEXT NOT NULL,
+    expires_at TIMESTAMP NOT NULL,
+    used_at TIMESTAMP,
+    attempts INT NOT NULL DEFAULT 0,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 ```
@@ -303,9 +320,10 @@ The app sends:
 - A confirmation email to the customer after booking.
 - A notification email to the business owner after a customer books.
 - A reminder email to the customer about 30 minutes before the appointment.
+- A password reset code when a user forgets their password.
 - Customer emails include a short My Marketplace thank-you message.
 
-The reminder email needs a scheduled request. In Render, create a Cron Job that runs every 5 minutes and calls:
+The reminder email needs a scheduled request. The endpoint now checks appointments from the current time through the next 35 minutes, so it still works if the scheduler is a little late. In Render, create a Cron Job that runs every 5 minutes and calls:
 
 ```bash
 curl -X POST "https://appointment-app-2-1k3v.onrender.com/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"

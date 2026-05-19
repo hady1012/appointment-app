@@ -51,6 +51,32 @@
             border-radius: 14px;
         }
 
+        .store-location {
+            margin-top: 12px;
+            font-weight: 800;
+            color: rgba(255,255,255,0.94);
+        }
+
+        .store-gallery {
+            display: grid;
+            grid-template-columns: 2fr 1fr 1fr;
+            gap: 12px;
+        }
+
+        .store-gallery img {
+            width: 100%;
+            height: 180px;
+            object-fit: cover;
+            border-radius: 12px;
+            border: 1px solid #e5e7eb;
+            background: #f8fafc;
+        }
+
+        .store-gallery img:first-child {
+            height: 372px;
+            grid-row: span 2;
+        }
+
         .section-box {
             background: #fff;
             border-radius: 24px;
@@ -375,6 +401,16 @@
                 grid-template-columns: 1fr;
             }
 
+            .store-gallery {
+                grid-template-columns: 1fr;
+            }
+
+            .store-gallery img,
+            .store-gallery img:first-child {
+                height: 220px;
+                grid-row: auto;
+            }
+
             .section-box {
                 padding: 20px;
             }
@@ -422,12 +458,26 @@
 
     <div class="store-header">
         <h1>{{ store.name }}</h1>
+        {% if store.location %}
+        <div class="store-location">{{ store.location }}</div>
+        {% endif %}
         <p>{{ store.category }} • {{ store.description }}</p>
         <div class="summary-rating">
             דירוג ממוצע: {{ ratings_summary.average }} / 5
             ({{ ratings_summary.count }} דירוגים)
         </div>
     </div>
+
+    {% if store.image_urls %}
+    <div class="section-box">
+        <div class="section-title">Store pictures</div>
+        <div class="store-gallery">
+            {% for image_url in store.image_urls[:5] %}
+            <img src="{{ image_url }}" alt="{{ store.name }} picture {{ loop.index }}" loading="lazy">
+            {% endfor %}
+        </div>
+    </div>
+    {% endif %}
 
     <div class="section-box">
         <div class="section-title">השירותים</div>
@@ -767,5 +817,6 @@ document.getElementById('ratingModal').addEventListener('click', function (e) {
 </script>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
 </body>
 </html>

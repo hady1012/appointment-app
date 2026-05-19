@@ -1655,6 +1655,125 @@ textarea {
     }
 }
 
+/* User-selectable dark mode */
+.theme-toggle {
+    position: fixed;
+    left: 18px;
+    bottom: 18px;
+    z-index: 10000;
+    min-height: 42px !important;
+    border-radius: 8px !important;
+    padding: 10px 14px !important;
+    background: #111827 !important;
+    color: #fff !important;
+    border: 1px solid rgba(255,255,255,0.18) !important;
+    box-shadow: 0 14px 34px rgba(0,0,0,0.22) !important;
+}
+
+[data-theme="dark"] body {
+    background:
+        linear-gradient(125deg, rgba(20, 184, 166, 0.12), transparent 30rem),
+        linear-gradient(215deg, rgba(233, 101, 69, 0.08), transparent 26rem),
+        linear-gradient(180deg, #080d0c 0%, #101816 58%, #07110f 100%) !important;
+    color: #e5f0ec !important;
+}
+
+[data-theme="dark"] .navbar,
+[data-theme="dark"] .section-box,
+[data-theme="dark"] .summary-card,
+[data-theme="dark"] .analytics-card,
+[data-theme="dark"] .service-card,
+[data-theme="dark"] .service-box,
+[data-theme="dark"] .day-box,
+[data-theme="dark"] .hours-row,
+[data-theme="dark"] .rating-card,
+[data-theme="dark"] .rating-row,
+[data-theme="dark"] .store-card,
+[data-theme="dark"] .search-box,
+[data-theme="dark"] .auth-container,
+[data-theme="dark"] .empty-state,
+[data-theme="dark"] .rating-modal-card,
+[data-theme="dark"] .mini-row,
+[data-theme="dark"] .container {
+    background: rgba(17, 24, 22, 0.94) !important;
+    border-color: rgba(148, 163, 184, 0.24) !important;
+    color: #e5f0ec !important;
+    box-shadow: 0 16px 42px rgba(0,0,0,0.32) !important;
+}
+
+[data-theme="dark"] .nav-logo,
+[data-theme="dark"] .store-title,
+[data-theme="dark"] .section-title,
+[data-theme="dark"] .section-box h2,
+[data-theme="dark"] .auth-title,
+[data-theme="dark"] .summary-card div,
+[data-theme="dark"] .analytics-card span,
+[data-theme="dark"] .service-card strong,
+[data-theme="dark"] .day-box strong,
+[data-theme="dark"] .rating-row strong,
+[data-theme="dark"] .hours-row strong,
+[data-theme="dark"] label,
+[data-theme="dark"] .form-label,
+[data-theme="dark"] td {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] p,
+[data-theme="dark"] .section-note,
+[data-theme="dark"] .store-description,
+[data-theme="dark"] .store-location-line,
+[data-theme="dark"] .results-count,
+[data-theme="dark"] .mini-row small,
+[data-theme="dark"] .analytics-card strong,
+[data-theme="dark"] .rating-comment,
+[data-theme="dark"] .rating-comment-box {
+    color: #b6c7c1 !important;
+}
+
+[data-theme="dark"] .nav-links a {
+    color: #cbd5e1 !important;
+}
+
+[data-theme="dark"] .nav-links a:hover,
+[data-theme="dark"] .calendar-day,
+[data-theme="dark"] .store-badge,
+[data-theme="dark"] .role-badge,
+[data-theme="dark"] .status-chip,
+[data-theme="dark"] .summary-rating {
+    background: rgba(20, 184, 166, 0.16) !important;
+    color: #99f6e4 !important;
+}
+
+[data-theme="dark"] input,
+[data-theme="dark"] select,
+[data-theme="dark"] textarea,
+[data-theme="dark"] .form-control {
+    background: #0b1210 !important;
+    border-color: rgba(148, 163, 184, 0.3) !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] input::placeholder,
+[data-theme="dark"] textarea::placeholder {
+    color: #82938e !important;
+}
+
+[data-theme="dark"] table,
+[data-theme="dark"] .appointments-table {
+    border-color: rgba(148, 163, 184, 0.28) !important;
+}
+
+[data-theme="dark"] td {
+    background: rgba(17, 24, 22, 0.95) !important;
+    border-color: rgba(148, 163, 184, 0.22) !important;
+}
+
+[data-theme="dark"] .theme-toggle {
+    background: #f8fafc !important;
+    color: #111827 !important;
+    border-color: #e5e7eb !important;
+}
+
 /* Premium finish and fast interaction states */
 :root {
     --premium-bg: #f7faf8;
