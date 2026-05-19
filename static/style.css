@@ -1658,16 +1658,21 @@ textarea {
 /* User-selectable dark mode */
 .theme-toggle {
     position: fixed;
-    left: 18px;
-    bottom: 18px;
+    left: 14px;
+    bottom: 14px;
     z-index: 10000;
+    width: 42px !important;
+    height: 42px !important;
     min-height: 42px !important;
-    border-radius: 8px !important;
-    padding: 10px 14px !important;
-    background: #111827 !important;
-    color: #fff !important;
-    border: 1px solid rgba(255,255,255,0.18) !important;
-    box-shadow: 0 14px 34px rgba(0,0,0,0.22) !important;
+    border-radius: 999px !important;
+    padding: 0 !important;
+    background: rgba(255, 255, 255, 0.86) !important;
+    color: #111827 !important;
+    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important;
+    backdrop-filter: blur(18px);
+    font-size: 22px !important;
+    line-height: 1 !important;
 }
 
 [data-theme="dark"] body {
@@ -1787,9 +1792,9 @@ textarea {
 }
 
 [data-theme="dark"] .theme-toggle {
-    background: #f8fafc !important;
-    color: #111827 !important;
-    border-color: #e5e7eb !important;
+    background: rgba(15, 23, 42, 0.86) !important;
+    color: #f8fafc !important;
+    border-color: rgba(255,255,255,0.16) !important;
 }
 
 /* Premium finish and fast interaction states */

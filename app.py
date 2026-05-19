@@ -126,8 +126,17 @@ def clean_optional_text(value, max_len=500):
 
 def is_valid_image_url(value):
     value = (value or "").strip()
-    if not value or len(value) > 1000:
+    if not value or len(value) > 900000:
         return False
+
+    if value.startswith("data:image/"):
+        header, separator, payload = value.partition(",")
+        return (
+            separator == ","
+            and ";base64" in header
+            and any(header.startswith(f"data:image/{kind}") for kind in ["jpeg", "jpg", "png", "webp"])
+            and bool(payload)
+        )
 
     parsed = urlparse(value)
     if parsed.scheme not in {"http", "https"} or not parsed.netloc:
@@ -147,7 +156,7 @@ def validate_store_images(raw_urls):
         if not image_url:
             continue
         if not is_valid_image_url(image_url):
-            return None, "Please enter valid image links. Use http/https links ending in jpg, png, webp, or gif."
+            return None, "Please upload valid image files. Use jpg, png, or webp photos."
         if image_url not in seen:
             cleaned.append(image_url)
             seen.add(image_url)

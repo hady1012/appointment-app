@@ -9,7 +9,8 @@
         localStorage.setItem(storageKey, theme);
         const toggle = document.querySelector('[data-theme-toggle]');
         if (toggle) {
-            toggle.textContent = theme === 'dark' ? 'Light mode' : 'Dark mode';
+            toggle.textContent = theme === 'dark' ? '☀' : '☾';
+            toggle.title = theme === 'dark' ? 'Switch to light mode' : 'Switch to dark mode';
             toggle.setAttribute('aria-pressed', theme === 'dark' ? 'true' : 'false');
         }
     }
@@ -23,6 +24,7 @@
             toggle.className = 'theme-toggle';
             toggle.dataset.themeToggle = 'true';
             toggle.setAttribute('aria-label', 'Toggle dark mode');
+            toggle.setAttribute('title', 'Toggle dark mode');
             document.body.appendChild(toggle);
         }
 

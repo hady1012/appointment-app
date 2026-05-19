@@ -57,6 +57,31 @@
             color: rgba(255,255,255,0.94);
         }
 
+        .map-actions {
+            display: flex;
+            gap: 10px;
+            flex-wrap: wrap;
+            margin: 14px 0 2px;
+        }
+
+        .map-btn {
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            min-height: 38px;
+            padding: 9px 14px;
+            border-radius: 10px;
+            background: rgba(255,255,255,0.94);
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 850;
+        }
+
+        .map-btn:hover {
+            color: #0f172a;
+            background: #fff;
+        }
+
         .store-gallery {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr;
@@ -460,6 +485,10 @@
         <h1>{{ store.name }}</h1>
         {% if store.location %}
         <div class="store-location">{{ store.location }}</div>
+        <div class="map-actions">
+            <a class="map-btn" href="https://www.google.com/maps/search/?api=1&query={{ store.location|urlencode }}" target="_blank" rel="noopener">Google Maps</a>
+            <a class="map-btn" href="https://waze.com/ul?q={{ store.location|urlencode }}&navigate=yes" target="_blank" rel="noopener">Waze</a>
+        </div>
         {% endif %}
         <p>{{ store.category }} • {{ store.description }}</p>
         <div class="summary-rating">
