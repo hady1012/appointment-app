@@ -1735,13 +1735,31 @@ textarea {
 }
 
 [data-theme="dark"] .nav-links a:hover,
-[data-theme="dark"] .calendar-day,
 [data-theme="dark"] .store-badge,
 [data-theme="dark"] .role-badge,
 [data-theme="dark"] .status-chip,
 [data-theme="dark"] .summary-rating {
     background: rgba(20, 184, 166, 0.16) !important;
     color: #99f6e4 !important;
+}
+
+[data-theme="dark"] .calendar-day {
+    background: #17211f !important;
+    border-color: rgba(148, 163, 184, 0.28) !important;
+    color: #e5f0ec !important;
+}
+
+[data-theme="dark"] .calendar-day.available {
+    background: #123528 !important;
+    border-color: rgba(74, 222, 128, 0.42) !important;
+    color: #bbf7d0 !important;
+}
+
+[data-theme="dark"] .calendar-day.busy,
+[data-theme="dark"] .calendar-day.closed {
+    background: #361b18 !important;
+    border-color: rgba(248, 113, 113, 0.42) !important;
+    color: #fecaca !important;
 }
 
 [data-theme="dark"] input,

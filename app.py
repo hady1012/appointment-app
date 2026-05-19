@@ -18,6 +18,7 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "x8sK29!akL#92jF@pQz")
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
+STORE_OPTIONAL_SCHEMA_READY = False
 
 DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 DAY_LABELS = {
@@ -152,6 +153,14 @@ def validate_store_images(raw_urls):
             seen.add(image_url)
 
     return cleaned, None
+
+
+def parse_json_list(value):
+    try:
+        parsed = json.loads(value or "[]")
+    except (TypeError, json.JSONDecodeError):
+        return []
+    return parsed if isinstance(parsed, list) else []
 
 
 def validate_service_inputs(service_names, service_prices, service_durations):
@@ -335,6 +344,10 @@ def ensure_rating_schema(cursor):
 
 
 def ensure_store_optional_schema(cursor):
+    global STORE_OPTIONAL_SCHEMA_READY
+    if STORE_OPTIONAL_SCHEMA_READY:
+        return
+
     cursor.execute(
         """
         ALTER TABLE stores
@@ -347,6 +360,7 @@ def ensure_store_optional_schema(cursor):
         ADD COLUMN IF NOT EXISTS image_urls TEXT
         """
     )
+    STORE_OPTIONAL_SCHEMA_READY = True
 
 
 def ensure_password_reset_schema(cursor):
@@ -608,10 +622,9 @@ def get_store_calendar_days(store_id):
     cursor = conn.cursor()
 
     try:
-        ensure_store_optional_schema(cursor)
         cursor.execute(
             """
-            SELECT id
+            SELECT id, duration_minutes
             FROM services
             WHERE store_id = %s
             ORDER BY duration_minutes ASC, id ASC
@@ -620,20 +633,77 @@ def get_store_calendar_days(store_id):
             (store_id,),
         )
         service_row = cursor.fetchone()
+
+        start_date = now_local().date()
+        end_date = start_date + timedelta(days=8)
+        working_hours_by_day = {}
+        appointments_by_date = {}
+
+        if service_row:
+            cursor.execute(
+                """
+                SELECT day_of_week, is_open, start_time, end_time
+                FROM working_hours
+                WHERE store_id = %s
+                """,
+                (store_id,),
+            )
+            working_hours_by_day = {
+                row[0]: {"is_open": row[1], "start_time": row[2], "end_time": row[3]}
+                for row in cursor.fetchall()
+            }
+
+            cursor.execute(
+                """
+                SELECT a.appointment_date, a.appointment_time, s.duration_minutes
+                FROM appointments a
+                JOIN services s ON a.service_id = s.id
+                WHERE a.store_id = %s
+                  AND a.appointment_date >= %s
+                  AND a.appointment_date < %s
+                """,
+                (store_id, start_date, end_date),
+            )
+            for appointment_date, appointment_time, duration in cursor.fetchall():
+                appointments_by_date.setdefault(appointment_date, []).append((appointment_time, duration))
+
         days = []
         for offset in range(8):
-            d = now_local().date() + timedelta(days=offset)
+            d = start_date + timedelta(days=offset)
             d_iso = d.isoformat()
             day_name = get_day_name_from_date(d_iso)
 
             if not service_row:
                 status = "closed"
             else:
-                try:
-                    slots = generate_available_slots(store_id, service_row[0], d_iso, cursor=cursor)
-                    status = "available" if slots else "busy"
-                except Exception:
+                hours = working_hours_by_day.get(day_name)
+                if not hours or not hours["is_open"] or not hours["start_time"] or not hours["end_time"]:
                     status = "busy"
+                else:
+                    service_duration = int(service_row[1])
+                    start_minutes = time_to_minutes(hours["start_time"])
+                    end_minutes = time_to_minutes(hours["end_time"])
+                    current_dt = now_local()
+                    current_minutes = current_dt.hour * 60 + current_dt.minute
+                    busy_ranges = [
+                        (time_to_minutes(appointment_time), time_to_minutes(appointment_time) + int(duration))
+                        for appointment_time, duration in appointments_by_date.get(d, [])
+                    ]
+                    status = "busy"
+                    candidate = start_minutes
+                    while candidate + service_duration <= end_minutes:
+                        candidate_end = candidate + service_duration
+                        if d == start_date and candidate <= current_minutes:
+                            candidate += 15
+                            continue
+                        overlaps = any(
+                            not (candidate_end <= busy_start or candidate >= busy_end)
+                            for busy_start, busy_end in busy_ranges
+                        )
+                        if not overlaps:
+                            status = "available"
+                            break
+                        candidate += 15
 
             days.append(
                 {
@@ -656,6 +726,7 @@ def get_owner_store_full(owner_id):
     cursor = conn.cursor()
 
     try:
+        ensure_store_optional_schema(cursor)
         cursor.execute(
             """
             SELECT id, name, category, description, location, image_urls
@@ -674,7 +745,7 @@ def get_owner_store_full(owner_id):
             "category": store_row[2],
             "description": store_row[3],
             "location": store_row[4] or "",
-            "image_urls": json.loads(store_row[5] or "[]"),
+            "image_urls": parse_json_list(store_row[5]),
         }
 
         cursor.execute(
@@ -1358,7 +1429,7 @@ def pick():
                 "category": row[2],
                 "description": row[3],
                 "location": row[4] or "",
-                "image_urls": json.loads(row[5] or "[]"),
+                "image_urls": parse_json_list(row[5]),
             }
             for row in cursor.fetchall()
         ]
@@ -1554,7 +1625,7 @@ def store_details(store_id):
             "description": row[3],
             "owner_id": row[4],
             "location": row[5] or "",
-            "image_urls": json.loads(row[6] or "[]"),
+            "image_urls": parse_json_list(row[6]),
         }
 
         cursor.execute(
