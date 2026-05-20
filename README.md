@@ -1,14 +1,20 @@
-# Appointment Booking Web App
+# Golan Pick Appointment Booking Web App
 
-A full-stack Flask web app for booking appointments with local businesses. Customers can discover businesses, choose a service, pick an available time, and request ratings after appointments. Business owners can manage their store, services, working hours, bookings, and rating approvals.
+A full-stack Flask web app for booking appointments with local businesses. Customers can discover businesses, choose a service, pick an available time, and request ratings after appointments. Business owners can manage their store, services, working hours, booking reminders, bookings, and rating approvals.
 
 ## Live Demo
 
-Current demo URL:
+Production URL:
+
+https://golanpick.com/
+
+WWW URL:
+
+https://www.golanpick.com/
+
+Render fallback URL:
 
 https://appointment-app-2-1k3v.onrender.com/
-
-The app can run on any Python host that supports Flask, Gunicorn, and environment variables. A free host usually gives the app a provider subdomain, for example `your-app.examplehost.app`. A custom domain normally costs money because the domain name must be purchased separately.
 
 ## Main Features
 
@@ -27,9 +33,10 @@ The app can run on any Python host that supports Flask, Gunicorn, and environmen
 
 - Register and log in as an owner
 - Create and manage one business profile
-- Add an optional store location and up to 5 optional store picture links
+- Add an optional store location and up to 5 optional store photos
 - Add and update services
 - Set weekly working hours
+- Choose when customers receive appointment reminder emails
 - View appointments by selected day
 - See a business analytics pulse with monthly revenue, booking counts, customer counts, popular services, upcoming appointments, and recent customer choices
 - Review pending customer rating requests
@@ -58,6 +65,8 @@ The app can run on any Python host that supports Flask, Gunicorn, and environmen
 - Email notification support for appointment confirmations and reminders
 - Password reset by email verification code
 - Store ratings can be submitted any time and approved by the owner
+- Golan Pick branding with a Golan Heights hero image
+- Broken or missing store images fall back gracefully instead of showing broken image boxes
 
 ## Tech Stack
 
@@ -77,6 +86,7 @@ appointment-booking/
   requirements.txt
   README.md
   static/
+    golan-heights-hero.jpeg
     css/
       bootstrap.min.css
     js/
@@ -172,6 +182,9 @@ CREATE TABLE stores (
     location TEXT,
     image_urls TEXT,
     advantages TEXT,
+    location_lat DOUBLE PRECISION,
+    location_lng DOUBLE PRECISION,
+    reminder_minutes_before INT DEFAULT 30,
     owner_id INT REFERENCES users(id)
 );
 
@@ -269,7 +282,7 @@ gunicorn app:app
 The repository also includes a `Procfile`:
 
 ```text
-web: gunicorn app:app
+web: gunicorn --bind :$PORT app:app
 ```
 
 Environment variables:
@@ -304,11 +317,13 @@ Recommended setup:
 
 - Connect the GitHub repository to the chosen host and enable auto-deploy from the `main` branch.
 - Use Neon PostgreSQL with a pooled connection string when possible.
+- Keep GoDaddy DNS pointing `A @` to `216.24.57.1` and `CNAME www` to `appointment-app-2-1k3v.onrender.com`.
 - Keep `FLASK_SECRET_KEY` private in the host environment variables.
 - Use `BREVO_API_KEY` when you want to send to normal customers without Resend test-mode limits.
 - Keep email API keys and SMTP passwords private in environment variables.
 - Direct Resend API calls include a `User-Agent` header, which Resend requires to avoid 403 error code 1010.
 - Free hosting can sleep, throttle traffic, or require periodic redeploys depending on the provider. Paid hosting is usually needed for guaranteed always-on production service.
+- On Render, upgrade the web service from Free to Starter when you want the app to stay awake and respond without cold-start delay.
 
 ### Restart Or Redeploy
 
@@ -333,14 +348,14 @@ The app sends:
 
 - A confirmation email to the customer after booking.
 - A notification email to the business owner after a customer books.
-- A reminder email to the customer about 30 minutes before the appointment.
+- A reminder email to the customer at the business owner's selected time: 15 minutes, 30 minutes, 1 hour, 2 hours, or 1 day before the appointment.
 - A password reset code when a user forgets their password.
-- Customer emails include a short My Marketplace thank-you message.
+- Customer emails include a short Golan Pick thank-you message.
 
-The reminder email needs a scheduled request. The endpoint checks appointments from the current time through the next 35 minutes, so it still works if the scheduler is a little late. Use your host's scheduler, cron-job.org, GitHub Actions, or any external cron service to call this every 5 minutes:
+The reminder email needs a scheduled request. The endpoint checks due reminders from the current time through the next 10 minutes, so it still works if the scheduler is a little late. Use your host's scheduler, cron-job.org, GitHub Actions, or any external cron service to call this every 5 minutes:
 
 ```bash
-curl -X POST "https://YOUR_PUBLIC_APP_URL/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"
+curl -X POST "https://golanpick.com/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"
 ```
 
 Use the same value in the URL that you set for `REMINDER_SECRET`.
