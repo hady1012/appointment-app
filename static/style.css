@@ -2427,3 +2427,103 @@ textarea,
         width: 100% !important;
     }
 }
+
+/* Final mobile polish for live production screens */
+.booking-form,
+.booking-form *,
+.day-grid,
+.day-grid *,
+.danger-zone {
+    box-sizing: border-box !important;
+}
+
+.booking-form input,
+.booking-form select,
+.booking-form textarea,
+.day-grid input,
+.day-grid select {
+    width: 100% !important;
+    max-width: 100% !important;
+    min-width: 0 !important;
+}
+
+.booking-form input[type='date'],
+.booking-form input[type='time'],
+.booking-form select {
+    display: block !important;
+    inline-size: 100% !important;
+}
+
+.danger-zone {
+    margin-top: 32px !important;
+}
+
+[data-theme="dark"] .rating-modal-card,
+[data-theme="dark"] .rating-modal-card h3,
+[data-theme="dark"] .rating-modal-card p,
+[data-theme="dark"] .rating-modal-card label {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .rating-modal-card {
+    background: rgba(15, 23, 20, 0.98) !important;
+    border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+[data-theme="dark"] .rating-modal-card textarea,
+[data-theme="dark"] .rating-textarea {
+    background: #08110f !important;
+    color: #f8fafc !important;
+    border-color: rgba(203, 213, 225, 0.42) !important;
+}
+
+@media (max-width: 720px) {
+    .booking-form,
+    .section-box,
+    .day-box,
+    .danger-zone {
+        max-width: 100% !important;
+        overflow: hidden !important;
+    }
+
+    .booking-form {
+        gap: 12px !important;
+    }
+
+    .booking-form input,
+    .booking-form select,
+    .booking-form button {
+        margin-right: 0 !important;
+        margin-left: 0 !important;
+    }
+
+    .day-grid {
+        display: grid !important;
+        grid-template-columns: minmax(0, 1fr) !important;
+        gap: 13px !important;
+        align-items: stretch !important;
+    }
+
+    .day-grid > div,
+    .day-grid > div:first-child {
+        grid-column: auto !important;
+        min-width: 0 !important;
+    }
+
+    .day-grid label {
+        display: block !important;
+        margin-bottom: 7px !important;
+        text-align: right !important;
+    }
+
+    .day-grid input[type='time'],
+    .day-grid select {
+        height: 50px !important;
+        text-align: center !important;
+    }
+
+    .danger-zone {
+        margin-top: 36px !important;
+        padding: 18px !important;
+    }
+}
