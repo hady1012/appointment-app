@@ -374,26 +374,25 @@ p {
 }
 
 .site-credit {
-    margin: 34px auto 0;
-    padding: 16px 18px;
+    margin: 26px auto 0;
+    padding: 10px 14px;
     border-top: 1px solid rgba(95, 111, 105, 0.22);
     color: var(--premium-muted);
     text-align: center;
-    font-size: 0.95rem;
+    font-size: 0.78rem;
     font-weight: 800;
 }
 
-.site-credit span {
+.site-credit a {
     color: var(--premium-primary);
     font-weight: 900;
+    text-decoration: none;
 }
 
-.site-credit small {
-    display: block;
-    margin-top: 4px;
-    color: #7b8a84;
-    font-size: 0.82rem;
-    font-weight: 700;
+.site-credit a:hover,
+.site-credit a:focus-visible {
+    color: var(--premium-primary-2);
+    text-decoration: underline;
 }
 
 .hero-modern,

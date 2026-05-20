@@ -66,7 +66,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - Password reset by email verification code
 - Store ratings can be submitted any time and approved by the owner
 - Golan Pick branding with a Golan Heights hero image
-- Main-page footer credit: `Powered by Hady Amasha`
+- Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
 
 ## Tech Stack
@@ -385,6 +385,6 @@ Use the same value in the URL that you set for `REMINDER_SECRET`.
 
 ## Author
 
-Hady Amasha
+Hady Amasha - https://www.linkedin.com/in/hadyamashaswe
 
 Software Engineering Student
