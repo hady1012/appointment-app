@@ -62,13 +62,14 @@ https://appointment-app-2-1k3v.onrender.com/
 - Automatic first service/day selection on booking pages
 - Loading states for login, signup, search, and booking
 - Reduced database connection overhead for availability checks
+- Reuses PostgreSQL connections with a small app-side connection pool for faster login, signup, and owner save flows
 - Email notification support for appointment confirmations and reminders
 - Password reset by email verification code
 - Store ratings can be submitted any time and approved by the owner
 - Golan Pick branding with a Golan Heights hero image
 - Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
-- Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem
+- Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem, and edit forms keep existing photos without resending the full image payload
 
 ## Tech Stack
 
@@ -293,6 +294,7 @@ Environment variables:
 DATABASE_URL=your_postgres_connection_string
 FLASK_SECRET_KEY=your_secret_key
 APP_TIMEZONE=Asia/Jerusalem
+DATABASE_POOL_SIZE=5
 BREVO_API_KEY=your_brevo_api_key
 BREVO_SENDER_EMAIL=your_verified_sender_email@example.com
 BREVO_SENDER_NAME=Appointment Booking

@@ -736,7 +736,7 @@
                     {% for i in range(5) %}
                     {% set existing_image = store.image_urls[i] if store and store.image_urls|length > i else '' %}
                     <label class="photo-upload-slot {% if existing_image %}has-image{% endif %}">
-                        <input type="hidden" name="existing_image_url[]" value="{{ existing_image }}">
+                        <input type="hidden" name="existing_image_url[]" value="{% if existing_image %}__keep_image_{{ i }}__{% endif %}">
                         <input type="file" name="image_file[]" accept="image/png,image/jpeg,image/webp" class="photo-file-input">
                         <img {% if existing_image %}src="{{ existing_image }}"{% endif %} alt="Store photo {{ i + 1 }} preview" onerror="this.closest('.photo-upload-slot').classList.remove('has-image'); this.removeAttribute('src');">
                         <span>בחר תמונה<br>{{ i + 1 }}/5</span>

@@ -2353,6 +2353,68 @@ textarea,
 }
 
 @media (max-width: 720px) {
+    .page-wrap,
+    .dashboard-wrap,
+    .home-wrap,
+    .container {
+        width: 100% !important;
+        max-width: 100% !important;
+        padding-inline: 14px !important;
+    }
+
+    .section-box,
+    .booking-form,
+    .service-box,
+    .day-box,
+    .rating-row,
+    .rating-card,
+    .hours-row {
+        border-radius: 10px !important;
+    }
+
+    .section-box {
+        padding: 16px !important;
+        margin-bottom: 16px !important;
+    }
+
+    .section-box h2,
+    .section-title {
+        font-size: 1.35rem !important;
+    }
+
+    .booking-form label,
+    .day-grid label,
+    label {
+        font-size: 0.92rem !important;
+    }
+
+    .booking-form input,
+    .booking-form select,
+    .booking-form button,
+    input[type='text'],
+    input[type='number'],
+    input[type='time'],
+    input[type='tel'],
+    input[type='date'],
+    select {
+        min-height: 44px !important;
+        padding: 9px 11px !important;
+        border-radius: 8px !important;
+        font-size: 16px !important;
+        margin-bottom: 10px !important;
+    }
+
+    .booking-form button,
+    .primary-btn,
+    .secondary-btn {
+        min-height: 46px !important;
+    }
+
+    .calendar-day {
+        min-height: 62px !important;
+        padding: 10px 8px !important;
+    }
+
     .day-grid {
         grid-template-columns: 1fr 1fr !important;
     }

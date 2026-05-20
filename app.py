@@ -13,6 +13,7 @@ from urllib.error import HTTPError, URLError
 from zoneinfo import ZoneInfo
 
 import psycopg2
+from psycopg2 import pool
 from flask import Flask, render_template, request, redirect, url_for, session, flash, jsonify
 from werkzeug.exceptions import RequestEntityTooLarge
 from werkzeug.utils import secure_filename
@@ -26,6 +27,8 @@ STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+KEEP_IMAGE_PREFIX = "__keep_image_"
+DB_POOL = None
 REMINDER_OPTIONS = {
     15: "about 15 minutes",
     30: "about 30 minutes",
@@ -46,11 +49,40 @@ DAY_LABELS = {
 }
 
 
+class PooledConnection:
+    def __init__(self, connection, connection_pool):
+        self._connection = connection
+        self._pool = connection_pool
+        self._closed = False
+
+    def __getattr__(self, name):
+        return getattr(self._connection, name)
+
+    def close(self):
+        if not self._closed:
+            try:
+                self._connection.rollback()
+            except Exception:
+                pass
+            self._pool.putconn(self._connection)
+            self._closed = True
+
+
 def get_connection():
+    global DB_POOL
     database_url = os.environ.get("DATABASE_URL")
     if not database_url:
         raise RuntimeError("DATABASE_URL is not set")
-    return psycopg2.connect(database_url, connect_timeout=5)
+
+    if DB_POOL is None:
+        DB_POOL = pool.SimpleConnectionPool(
+            minconn=1,
+            maxconn=int(os.environ.get("DATABASE_POOL_SIZE", "5")),
+            dsn=database_url,
+            connect_timeout=5,
+        )
+
+    return PooledConnection(DB_POOL.getconn(), DB_POOL)
 
 
 def now_local():
@@ -208,10 +240,11 @@ def save_store_image(file_storage):
     return data_url
 
 
-def build_store_image_list(existing_urls, uploaded_files):
+def build_store_image_list(existing_urls, uploaded_files, stored_urls=None):
     image_urls = []
     uploaded_files = list(uploaded_files or [])
     existing_urls = list(existing_urls or [])
+    stored_urls = list(stored_urls or [])
 
     for index in range(5):
         uploaded_file = uploaded_files[index] if index < len(uploaded_files) else None
@@ -221,6 +254,12 @@ def build_store_image_list(existing_urls, uploaded_files):
 
         existing_url = (existing_urls[index] if index < len(existing_urls) else "").strip()
         if existing_url:
+            if existing_url.startswith(KEEP_IMAGE_PREFIX):
+                stored_image = stored_urls[index] if index < len(stored_urls) else ""
+                if stored_image:
+                    image_urls.append(stored_image)
+                continue
+
             if existing_url.startswith("/static/uploads/store_photos/") or is_valid_image_url(existing_url):
                 image_urls.append(existing_url)
             else:
@@ -1583,12 +1622,14 @@ def update_store(store_id):
     try:
         ensure_store_optional_schema(cursor)
         cursor.execute(
-            "SELECT id FROM stores WHERE id = %s AND owner_id = %s",
+            "SELECT image_urls FROM stores WHERE id = %s AND owner_id = %s",
             (store_id, owner_id)
         )
-        if not cursor.fetchone():
+        store_row = cursor.fetchone()
+        if not store_row:
             flash("אין לך הרשאה לערוך את העסק הזה.")
             return redirect(url_for("work"))
+        stored_image_urls = parse_json_list(store_row[0])
 
         name = clean_text(request.form["name"], min_len=2, max_len=120)
         category = clean_text(normalize_category_name(request.form["category"]), min_len=2, max_len=80)
@@ -1601,6 +1642,7 @@ def update_store(store_id):
             image_urls = build_store_image_list(
                 request.form.getlist("existing_image_url[]"),
                 request.files.getlist("image_file[]"),
+                stored_image_urls,
             )
         except ValueError as exc:
             flash(str(exc))
