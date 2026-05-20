@@ -34,5 +34,19 @@
             const nextTheme = document.documentElement.dataset.theme === 'dark' ? 'light' : 'dark';
             applyTheme(nextTheme);
         });
+
+        const navbar = document.querySelector('.navbar');
+        let lastScrollY = window.scrollY;
+
+        window.addEventListener('scroll', () => {
+            if (!navbar) {
+                return;
+            }
+
+            const currentScrollY = window.scrollY;
+            const scrollingDown = currentScrollY > lastScrollY && currentScrollY > 90;
+            navbar.classList.toggle('nav-hidden', scrollingDown);
+            lastScrollY = currentScrollY;
+        }, { passive: true });
     });
 })();

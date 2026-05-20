@@ -369,7 +369,7 @@ p {
 }
 
 .nav-logo::after {
-    content: "Powered by local businesses";
+    content: "Powered by Hady Amasha";
     display: block;
     color: var(--premium-muted);
     font-size: 0.68rem;
@@ -2227,5 +2227,129 @@ textarea,
 
     .appointments-table td:nth-child(6)::before {
         content: "פעולה";
+    }
+}
+/* Final dashboard and mobile behavior fixes */
+.navbar {
+    transition: transform 0.24s ease, opacity 0.24s ease !important;
+    will-change: transform;
+}
+
+.navbar.nav-hidden {
+    transform: translateY(calc(-100% - 18px)) !important;
+    opacity: 0 !important;
+    pointer-events: none !important;
+}
+
+.section-box {
+    display: flex;
+    flex-direction: column;
+}
+
+.section-box > .calendar-grid {
+    order: 1;
+}
+
+.section-box > .selected-day-title {
+    order: 2;
+}
+
+.section-box > .appointments-table {
+    order: 3;
+}
+
+.section-box > .analytics-panel {
+    order: 4;
+    margin-top: 24px;
+}
+
+.day-box {
+    padding: 16px !important;
+    border-radius: 12px !important;
+}
+
+.day-grid {
+    grid-template-columns: minmax(120px, 0.9fr) minmax(130px, 1fr) minmax(130px, 1fr) !important;
+    gap: 10px !important;
+    align-items: end !important;
+}
+
+.day-grid label {
+    margin-bottom: 5px !important;
+    font-size: 0.9rem !important;
+}
+
+.day-grid input,
+.day-grid select {
+    min-height: 42px !important;
+    padding: 9px 11px !important;
+    border-radius: 8px !important;
+}
+
+.danger-zone {
+    padding: 16px 18px !important;
+    border-style: solid !important;
+    border-color: rgba(220, 38, 38, 0.26) !important;
+    background: #fff5f5 !important;
+    box-shadow: none !important;
+}
+
+.danger-zone h2 {
+    font-size: 1.15rem !important;
+    margin-bottom: 10px !important;
+}
+
+.danger-zone .danger-btn {
+    width: auto !important;
+    min-height: 40px !important;
+    padding: 10px 16px !important;
+    border-radius: 8px !important;
+    background: #dc2626 !important;
+    border: 1px solid #b91c1c !important;
+    color: #fff !important;
+    box-shadow: 0 10px 20px rgba(220, 38, 38, 0.22) !important;
+}
+
+.danger-zone .danger-btn:hover {
+    background: #b91c1c !important;
+}
+
+[data-theme="dark"] .rating-row,
+[data-theme="dark"] .rating-card {
+    background: rgba(17, 24, 22, 0.98) !important;
+}
+
+[data-theme="dark"] .rating-row strong,
+[data-theme="dark"] .rating-card strong {
+    color: #ffffff !important;
+}
+
+[data-theme="dark"] .rating-comment-box,
+[data-theme="dark"] .rating-comment {
+    background: #0b1210 !important;
+    color: #e5f0ec !important;
+    border-color: rgba(148, 163, 184, 0.32) !important;
+}
+
+[data-theme="dark"] .danger-zone {
+    background: rgba(69, 10, 10, 0.34) !important;
+    border-color: rgba(248, 113, 113, 0.42) !important;
+}
+
+[data-theme="dark"] .danger-zone h2 {
+    color: #fecaca !important;
+}
+
+@media (max-width: 720px) {
+    .day-grid {
+        grid-template-columns: 1fr 1fr !important;
+    }
+
+    .day-grid > div:first-child {
+        grid-column: 1 / -1;
+    }
+
+    .danger-zone .danger-btn {
+        width: 100% !important;
     }
 }
