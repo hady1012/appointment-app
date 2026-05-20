@@ -33,7 +33,7 @@ https://appointment-app-2-1k3v.onrender.com/
 
 - Register and log in as an owner
 - Create and manage one business profile
-- Add an optional store location and up to 5 optional store photos
+- Add an optional store location and up to 5 optional store photos that persist through Render restarts and redeploys
 - Add and update services
 - Set weekly working hours
 - Choose when customers receive appointment reminder emails
@@ -68,6 +68,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - Golan Pick branding with a Golan Heights hero image
 - Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
+- Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem
 
 ## Tech Stack
 

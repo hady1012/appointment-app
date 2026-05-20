@@ -1,10 +1,10 @@
 import os
+import base64
 import json
 import re
 import secrets
 import smtplib
 import ssl
-import uuid
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
 from urllib.parse import urlparse
@@ -25,7 +25,6 @@ APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
-UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads", "store_photos")
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 REMINDER_OPTIONS = {
     15: "about 15 minutes",
@@ -195,11 +194,18 @@ def save_store_image(file_storage):
     if not allowed_image_file(filename):
         raise ValueError("Please upload jpg, png, or webp photos only.")
 
-    os.makedirs(UPLOAD_FOLDER, exist_ok=True)
     extension = filename.rsplit(".", 1)[1].lower()
-    saved_name = f"{uuid.uuid4().hex}.{extension}"
-    file_storage.save(os.path.join(UPLOAD_FOLDER, saved_name))
-    return url_for("static", filename=f"uploads/store_photos/{saved_name}")
+    mime_extension = "jpeg" if extension == "jpg" else extension
+    image_bytes = file_storage.read()
+    if not image_bytes:
+        return ""
+
+    image_data = base64.b64encode(image_bytes).decode("ascii")
+    data_url = f"data:image/{mime_extension};base64,{image_data}"
+    if not is_valid_image_url(data_url):
+        raise ValueError("This photo is too large. Please upload a smaller jpg, png, or webp photo.")
+
+    return data_url
 
 
 def build_store_image_list(existing_urls, uploaded_files):
