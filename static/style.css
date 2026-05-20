@@ -2527,3 +2527,21 @@ textarea,
         padding: 18px !important;
     }
 }
+
+/* Dark mode readability for the business search empty state */
+[data-theme="dark"] .results-header h2,
+[data-theme="dark"] .empty-state h3 {
+    color: #f8fafc !important;
+    opacity: 1 !important;
+}
+
+[data-theme="dark"] .results-count,
+[data-theme="dark"] .empty-state,
+[data-theme="dark"] .empty-state p {
+    color: #d8e5df !important;
+}
+
+[data-theme="dark"] .empty-state {
+    background: rgba(10, 22, 18, 0.94) !important;
+    border: 1px solid rgba(148, 163, 184, 0.32) !important;
+}
