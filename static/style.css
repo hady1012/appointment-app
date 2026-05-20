@@ -2545,3 +2545,44 @@ textarea,
     background: rgba(10, 22, 18, 0.94) !important;
     border: 1px solid rgba(148, 163, 184, 0.32) !important;
 }
+
+/* Compact weekly-hours controls on mobile */
+@media (max-width: 720px) {
+    .day-box {
+        padding: 14px !important;
+        margin-bottom: 14px !important;
+    }
+
+    .day-box > strong {
+        display: block !important;
+        margin-bottom: 12px !important;
+        font-size: 1.2rem !important;
+        line-height: 1.25 !important;
+    }
+
+    .day-grid {
+        grid-template-columns: minmax(0, 1fr) minmax(0, 1fr) !important;
+        gap: 10px !important;
+        margin-top: 10px !important;
+    }
+
+    .day-grid > div:first-child {
+        grid-column: 1 / -1 !important;
+    }
+
+    .day-grid label {
+        margin-bottom: 6px !important;
+        font-size: 0.9rem !important;
+        line-height: 1.2 !important;
+    }
+
+    .day-grid input[type='time'],
+    .day-grid select {
+        height: 46px !important;
+        min-height: 46px !important;
+        padding: 8px 10px !important;
+        margin-bottom: 0 !important;
+        font-size: 16px !important;
+        text-align: center !important;
+    }
+}

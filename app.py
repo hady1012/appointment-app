@@ -26,6 +26,8 @@ APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
+OWNER_SESSION_CHECK_INTERVAL = timedelta(seconds=30)
+PERFORMANCE_INDEXES_READY = False
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -509,12 +511,28 @@ def ensure_store_optional_schema(cursor):
             ADD COLUMN IF NOT EXISTS reminder_minutes_before INT DEFAULT 30
             """
         )
+        ensure_performance_indexes(cursor)
         cursor.connection.commit()
     except Exception:
         cursor.connection.rollback()
         raise
 
     STORE_OPTIONAL_SCHEMA_READY = True
+
+
+def ensure_performance_indexes(cursor):
+    global PERFORMANCE_INDEXES_READY
+    if PERFORMANCE_INDEXES_READY:
+        return
+
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_owner_id ON stores(owner_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_store_id ON services(store_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_working_hours_store_day ON working_hours(store_id, day_of_week)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_appointments_store_date_time ON appointments(store_id, appointment_date, appointment_time)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_appointments_customer_id ON appointments(customer_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ratings_store_status ON ratings(store_id, status)")
+    PERFORMANCE_INDEXES_READY = True
 
 
 def ensure_password_reset_schema(cursor):
@@ -557,6 +575,7 @@ def ensure_owner_session_schema(cursor):
             ADD COLUMN IF NOT EXISTS active_owner_session_seen_at TIMESTAMP
             """
         )
+        ensure_performance_indexes(cursor)
         cursor.connection.commit()
     except Exception:
         cursor.connection.rollback()
@@ -620,6 +639,15 @@ def guard_owner_single_device_session():
     if session.get("role") != "owner" or not session.get("user_id") or not session.get("owner_session_token"):
         return None
 
+    current_time = now_local()
+    last_check = session.get("owner_session_last_check")
+    if last_check:
+        try:
+            if current_time - datetime.fromisoformat(last_check) < OWNER_SESSION_CHECK_INTERVAL:
+                return None
+        except ValueError:
+            pass
+
     conn = get_connection()
     cursor = conn.cursor()
 
@@ -649,7 +677,6 @@ def guard_owner_single_device_session():
                 should_touch = True
 
         if should_touch:
-            current_time = now_local()
             cursor.execute(
                 """
                 UPDATE users
@@ -660,6 +687,8 @@ def guard_owner_single_device_session():
             )
             conn.commit()
             session["owner_session_last_touch"] = current_time.isoformat()
+
+        session["owner_session_last_check"] = current_time.isoformat()
     finally:
         cursor.close()
         conn.close()
