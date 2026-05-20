@@ -369,14 +369,31 @@ p {
 }
 
 .nav-logo::after {
-    content: "Powered by Hady Amasha";
-    display: block;
+    content: none !important;
+    display: none !important;
+}
+
+.site-credit {
+    margin: 34px auto 0;
+    padding: 16px 18px;
+    border-top: 1px solid rgba(95, 111, 105, 0.22);
     color: var(--premium-muted);
-    font-size: 0.68rem;
+    text-align: center;
+    font-size: 0.95rem;
     font-weight: 800;
-    line-height: 1;
-    margin-inline-start: 2px;
-    opacity: 0.82;
+}
+
+.site-credit span {
+    color: var(--premium-primary);
+    font-weight: 900;
+}
+
+.site-credit small {
+    display: block;
+    margin-top: 4px;
+    color: #7b8a84;
+    font-size: 0.82rem;
+    font-weight: 700;
 }
 
 .hero-modern,
@@ -496,10 +513,6 @@ p {
         flex-direction: column;
         align-items: center;
         text-align: center;
-    }
-
-    .nav-logo::after {
-        margin-inline-start: 0;
     }
 
     .reminder-setting {
