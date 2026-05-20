@@ -451,7 +451,7 @@
 <body>
 
 <nav class="navbar">
-    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-logo">Golan Pick</div>
     <div class="nav-links">
         <a href="{{ url_for('home') }}">בית</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
@@ -507,7 +507,7 @@
         <div class="section-title">תמונות העסק</div>
         <div class="store-gallery">
             {% for image_url in store.image_urls[:5] %}
-            <img src="{{ image_url }}" alt="{{ store.name }} picture {{ loop.index }}" loading="lazy">
+            <img src="{{ image_url }}" alt="{{ store.name }} picture {{ loop.index }}" loading="lazy" onerror="this.remove();">
             {% endfor %}
         </div>
     </div>

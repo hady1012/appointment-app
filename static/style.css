@@ -362,6 +362,151 @@ p {
     }
 }
 
+/* Golan Pick launch polish */
+.nav-logo {
+    font-size: 1.35rem !important;
+    font-weight: 900 !important;
+}
+
+.nav-logo::after {
+    content: "Powered by local businesses";
+    display: block;
+    color: var(--premium-muted);
+    font-size: 0.68rem;
+    font-weight: 800;
+    line-height: 1;
+    margin-inline-start: 2px;
+    opacity: 0.82;
+}
+
+.hero-modern,
+.page-hero,
+.dashboard-hero,
+.store-header {
+    background:
+        linear-gradient(90deg, rgba(7, 17, 14, 0.88) 0%, rgba(9, 35, 29, 0.72) 48%, rgba(9, 35, 29, 0.42) 100%),
+        url("/static/golan-heights-hero.jpeg") center/cover no-repeat !important;
+}
+
+.hero-modern {
+    min-height: clamp(430px, 55vh, 620px) !important;
+}
+
+.hero-content-modern {
+    padding: 18px 0;
+}
+
+.hero-content-modern::before {
+    content: "Golan Pick";
+    display: inline-flex;
+    align-items: center;
+    min-height: 32px;
+    padding: 6px 12px;
+    margin-bottom: 14px;
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.14);
+    color: #eafff8;
+    border: 1px solid rgba(255, 255, 255, 0.2);
+    font-size: 0.86rem;
+    font-weight: 900;
+}
+
+.store-media {
+    width: 100%;
+    aspect-ratio: 16 / 10;
+    margin-bottom: 16px;
+    border-radius: 10px;
+    overflow: hidden;
+    border: 1px solid rgba(215, 227, 220, 0.95);
+    background:
+        linear-gradient(135deg, rgba(12, 111, 99, 0.18), rgba(233, 101, 69, 0.16)),
+        url("/static/golan-heights-hero.jpeg") center/cover no-repeat;
+    display: grid;
+    place-items: center;
+    position: relative;
+}
+
+.store-media::after {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(180deg, transparent 25%, rgba(7, 17, 14, 0.46));
+}
+
+.store-media img,
+.store-thumb {
+    width: 100% !important;
+    height: 100% !important;
+    aspect-ratio: auto !important;
+    object-fit: cover !important;
+    border: 0 !important;
+    border-radius: 0 !important;
+    margin: 0 !important;
+    background: transparent !important;
+}
+
+.store-media span {
+    position: absolute;
+    z-index: 1;
+    inset-inline-end: 12px;
+    bottom: 12px;
+    padding: 7px 10px;
+    border-radius: 8px;
+    color: #fff;
+    background: rgba(7, 17, 14, 0.58);
+    font-weight: 900;
+}
+
+.store-media:not(.is-empty) span {
+    opacity: 0;
+}
+
+.store-gallery {
+    align-items: stretch;
+}
+
+.store-gallery img {
+    min-height: 180px;
+}
+
+.store-gallery:empty {
+    display: none;
+}
+
+.reminder-setting {
+    margin-top: 18px;
+    padding: 16px;
+    border: 1px solid rgba(215, 227, 220, 0.95);
+    border-radius: 10px;
+    background: linear-gradient(135deg, rgba(12, 111, 99, 0.08), rgba(255, 255, 255, 0.9));
+    display: grid;
+    grid-template-columns: 1fr minmax(190px, 260px);
+    gap: 14px;
+    align-items: center;
+}
+
+.reminder-setting p {
+    color: var(--premium-muted);
+    margin: 5px 0 0;
+    font-weight: 700;
+}
+
+@media (max-width: 720px) {
+    .nav-logo {
+        flex-direction: column;
+        align-items: center;
+        text-align: center;
+    }
+
+    .nav-logo::after {
+        margin-inline-start: 0;
+    }
+
+    .reminder-setting {
+        grid-template-columns: 1fr;
+    }
+}
+
 /* App polish layer */
 :root {
     --app-bg: #f6f4ef;
@@ -458,7 +603,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.36);
     background:
         linear-gradient(90deg, rgba(19, 31, 28, 0.88), rgba(19, 31, 28, 0.58)),
-        url("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1600&q=80") center/cover !important;
+        url("/static/golan-heights-hero.jpeg") center/cover !important;
     box-shadow: var(--app-shadow) !important;
     overflow: hidden;
 }
@@ -912,7 +1057,7 @@ p {
     border: 1px solid rgba(255, 255, 255, 0.34) !important;
     background:
         linear-gradient(90deg, rgba(18, 32, 28, 0.9) 0%, rgba(18, 32, 28, 0.62) 58%, rgba(18, 32, 28, 0.36) 100%),
-        url("https://images.unsplash.com/photo-1551836022-d5d88e9218df?auto=format&fit=crop&w=1800&q=82") center/cover no-repeat !important;
+        url("/static/golan-heights-hero.jpeg") center/cover no-repeat !important;
     box-shadow: var(--site-shadow) !important;
 }
 
@@ -1888,7 +2033,7 @@ body {
     border: 1px solid rgba(255, 255, 255, 0.48) !important;
     background:
         linear-gradient(90deg, rgba(11, 22, 19, 0.92) 0%, rgba(14, 39, 34, 0.72) 48%, rgba(14, 39, 34, 0.38) 100%),
-        url("https://images.unsplash.com/photo-1556740758-90de374c12ad?auto=format&fit=crop&w=1800&q=84") center/cover no-repeat !important;
+        url("/static/golan-heights-hero.jpeg") center/cover no-repeat !important;
     box-shadow: var(--premium-shadow) !important;
 }
 

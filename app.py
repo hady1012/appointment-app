@@ -27,6 +27,13 @@ OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
 UPLOAD_FOLDER = os.path.join(app.root_path, "static", "uploads", "store_photos")
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
+REMINDER_OPTIONS = {
+    15: "about 15 minutes",
+    30: "about 30 minutes",
+    60: "about 1 hour",
+    120: "about 2 hours",
+    1440: "about 1 day",
+}
 
 DAYS = ["sunday", "monday", "tuesday", "wednesday", "thursday", "friday", "saturday"]
 DAY_LABELS = {
@@ -143,6 +150,14 @@ def clean_optional_coordinate(value, min_value, max_value):
     if coordinate < min_value or coordinate > max_value:
         return None
     return coordinate
+
+
+def clean_reminder_minutes(value):
+    try:
+        reminder_minutes = int(value)
+    except (TypeError, ValueError):
+        return 30
+    return reminder_minutes if reminder_minutes in REMINDER_OPTIONS else 30
 
 
 def is_valid_image_url(value):
@@ -443,6 +458,12 @@ def ensure_store_optional_schema(cursor):
             ADD COLUMN IF NOT EXISTS location_lng DOUBLE PRECISION
             """
         )
+        cursor.execute(
+            """
+            ALTER TABLE stores
+            ADD COLUMN IF NOT EXISTS reminder_minutes_before INT DEFAULT 30
+            """
+        )
         cursor.connection.commit()
     except Exception:
         cursor.connection.rollback()
@@ -512,7 +533,7 @@ Phone: {appointment['customer_phone']}
 Open the business page:
 {appointment['store_url']}
 
-Thank you for trusting My Marketplace. We wish you the best time in our store.
+Thank you for trusting Golan Pick. We wish you the best time in our store.
 """
 
 
@@ -904,7 +925,8 @@ def get_owner_store_full(owner_id):
         ensure_store_optional_schema(cursor)
         cursor.execute(
             """
-            SELECT id, name, category, description, location, image_urls, location_lat, location_lng
+            SELECT id, name, category, description, location, image_urls, location_lat, location_lng,
+                   COALESCE(reminder_minutes_before, 30)
             FROM stores
             WHERE owner_id = %s
             """,
@@ -923,6 +945,7 @@ def get_owner_store_full(owner_id):
             "image_urls": parse_json_list(store_row[5]),
             "location_lat": store_row[6],
             "location_lng": store_row[7],
+            "reminder_minutes_before": store_row[8],
         }
 
         cursor.execute(
@@ -1391,6 +1414,7 @@ def work():
             day_appointments=[],
             pending_ratings=[],
             analytics=empty_owner_analytics(),
+            reminder_options=REMINDER_OPTIONS,
         )
 
     try:
@@ -1424,6 +1448,7 @@ def work():
         day_appointments=day_appointments,
         pending_ratings=pending_ratings,
         analytics=analytics,
+        reminder_options=REMINDER_OPTIONS,
     )
 
 
@@ -1449,6 +1474,7 @@ def add_store():
         location = clean_optional_text(request.form.get("location"), max_len=255)
         location_lat = clean_optional_coordinate(request.form.get("location_lat"), -90, 90)
         location_lng = clean_optional_coordinate(request.form.get("location_lng"), -180, 180)
+        reminder_minutes = clean_reminder_minutes(request.form.get("reminder_minutes_before"))
         try:
             image_urls = build_store_image_list([], request.files.getlist("image_file[]"))
         except ValueError as exc:
@@ -1479,11 +1505,24 @@ def add_store():
 
         cursor.execute(
             """
-            INSERT INTO stores (name, category, description, location, image_urls, location_lat, location_lng, owner_id)
-            VALUES (%s, %s, %s, %s, %s, %s, %s, %s)
+            INSERT INTO stores (
+                name, category, description, location, image_urls,
+                location_lat, location_lng, reminder_minutes_before, owner_id
+            )
+            VALUES (%s, %s, %s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (name, category, description, location, json.dumps(image_urls), location_lat, location_lng, owner_id),
+            (
+                name,
+                category,
+                description,
+                location,
+                json.dumps(image_urls),
+                location_lat,
+                location_lng,
+                reminder_minutes,
+                owner_id,
+            ),
         )
         store_id = cursor.fetchone()[0]
 
@@ -1551,6 +1590,7 @@ def update_store(store_id):
         location = clean_optional_text(request.form.get("location"), max_len=255)
         location_lat = clean_optional_coordinate(request.form.get("location_lat"), -90, 90)
         location_lng = clean_optional_coordinate(request.form.get("location_lng"), -180, 180)
+        reminder_minutes = clean_reminder_minutes(request.form.get("reminder_minutes_before"))
         try:
             image_urls = build_store_image_list(
                 request.form.getlist("existing_image_url[]"),
@@ -1586,10 +1626,22 @@ def update_store(store_id):
             """
             UPDATE stores
             SET name = %s, category = %s, description = %s, location = %s,
-                image_urls = %s, location_lat = %s, location_lng = %s
+                image_urls = %s, location_lat = %s, location_lng = %s,
+                reminder_minutes_before = %s
             WHERE id = %s AND owner_id = %s
             """,
-            (name, category, description, location, json.dumps(image_urls), location_lat, location_lng, store_id, owner_id),
+            (
+                name,
+                category,
+                description,
+                location,
+                json.dumps(image_urls),
+                location_lat,
+                location_lng,
+                reminder_minutes,
+                store_id,
+                owner_id,
+            ),
         )
 
         # update ONLY working hours
@@ -2091,26 +2143,31 @@ def send_reminders():
 
     try:
         ensure_email_schema(cursor)
+        ensure_store_optional_schema(cursor)
         current_time = now_local()
         window_start = current_time
-        window_end = current_time + timedelta(minutes=35)
+        window_end = current_time + timedelta(minutes=10)
 
         cursor.execute(
             """
             SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time,
-                   cu.email, st.name, sv.name, ou.email, st.id
+                   cu.email, st.name, sv.name, ou.email, st.id,
+                   COALESCE(st.reminder_minutes_before, 30)
             FROM appointments a
             JOIN users cu ON cu.id = a.customer_id
             JOIN stores st ON st.id = a.store_id
             JOIN users ou ON ou.id = st.owner_id
             LEFT JOIN services sv ON sv.id = a.service_id
             WHERE a.reminder_sent_at IS NULL
-              AND (a.appointment_date + a.appointment_time)
-                  BETWEEN %s AND %s
+              AND (a.appointment_date + a.appointment_time) > %s
+              AND (
+                  (a.appointment_date + a.appointment_time)
+                  - (COALESCE(st.reminder_minutes_before, 30) * INTERVAL '1 minute')
+              ) <= %s
             ORDER BY a.appointment_date, a.appointment_time
             LIMIT 50
             """,
-            (window_start, window_end),
+            (current_time, window_end),
         )
         rows = cursor.fetchall()
 
@@ -2126,11 +2183,13 @@ def send_reminders():
                 "service_name": row[7] or "",
                 "owner_email": row[8],
                 "store_url": url_for("store_details", store_id=row[9], _external=True),
+                "reminder_minutes": row[10],
             }
             subject = f"Reminder: appointment at {appointment['time']} today"
+            reminder_label = REMINDER_OPTIONS.get(appointment["reminder_minutes"], "soon")
             body = build_appointment_email_body(
                 appointment,
-                "Reminder: your appointment starts in about 30 minutes.",
+                f"Reminder: your appointment starts in {reminder_label}.",
             )
             if send_email(appointment["customer_email"], subject, body):
                 sent_count += 1

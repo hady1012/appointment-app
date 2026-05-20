@@ -456,7 +456,7 @@
 <body>
 
 <nav class="navbar">
-    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-logo">Golan Pick</div>
     <div class="nav-links">
         <a href="{{ url_for('home') }}">בית</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
@@ -738,11 +738,24 @@
                     <label class="photo-upload-slot {% if existing_image %}has-image{% endif %}">
                         <input type="hidden" name="existing_image_url[]" value="{{ existing_image if not existing_image.startswith('data:image/') else '' }}">
                         <input type="file" name="image_file[]" accept="image/png,image/jpeg,image/webp" class="photo-file-input">
-                        <img src="{{ existing_image }}" alt="Store photo {{ i + 1 }} preview">
+                        <img {% if existing_image %}src="{{ existing_image }}"{% endif %} alt="Store photo {{ i + 1 }} preview" onerror="this.closest('.photo-upload-slot').classList.remove('has-image'); this.removeAttribute('src');">
                         <span>בחר תמונה<br>{{ i + 1 }}/5</span>
                     </label>
                     {% endfor %}
                 </div>
+            </div>
+
+            <div class="reminder-setting">
+                <div>
+                    <label>תזכורת ללקוח</label>
+                    <p>בחר מתי Golan Pick ישלח מייל תזכורת לפני התור.</p>
+                </div>
+                <select name="reminder_minutes_before">
+                    {% set selected_reminder = store.reminder_minutes_before if store else 30 %}
+                    {% for minutes, label in reminder_options.items() %}
+                    <option value="{{ minutes }}" {% if selected_reminder == minutes %}selected{% endif %}>{{ label }}</option>
+                    {% endfor %}
+                </select>
             </div>
         </div>
 

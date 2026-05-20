@@ -393,7 +393,7 @@
 <body>
 
 <nav class="navbar">
-    <div class="nav-logo">My Marketplace</div>
+    <div class="nav-logo">Golan Pick</div>
     <div class="nav-links">
         <a href="{{ url_for('home') }}">בית</a>
         <a href="{{ url_for('pick') }}">עסקים</a>
@@ -448,9 +448,12 @@
             {% for store in stores %}
             <div class="store-card" data-store-name="{{ store.name|lower }}" data-store-category="{{ store.category|lower }}">
                 <div>
-                    {% if store.image_urls %}
-                    <img class="store-thumb" src="{{ store.image_urls[0] }}" alt="{{ store.name }} picture" loading="lazy">
-                    {% endif %}
+                    <div class="store-media {% if not store.image_urls %}is-empty{% endif %}">
+                        {% if store.image_urls %}
+                        <img class="store-thumb" src="{{ store.image_urls[0] }}" alt="{{ store.name }} picture" loading="lazy" onerror="this.closest('.store-media').classList.add('is-empty'); this.remove();">
+                        {% endif %}
+                        <span>{{ store.category }}</span>
+                    </div>
                     <div class="store-badge">{{ store.category }}</div>
                     <div class="store-title">{{ store.name }}</div>
                     <div class="store-description">{{ store.description }}</div>
