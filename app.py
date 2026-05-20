@@ -295,7 +295,7 @@ def send_brevo_email(to_email, subject, body):
             "api-key": api_key,
             "Content-Type": "application/json",
             "Accept": "application/json",
-            "User-Agent": "appointment-booking-render/1.0",
+            "User-Agent": "appointment-booking/1.0",
         },
         method="POST",
     )
@@ -335,7 +335,7 @@ def send_resend_email(to_email, subject, body):
         headers={
             "Authorization": f"Bearer {api_key}",
             "Content-Type": "application/json",
-            "User-Agent": "appointment-booking-render/1.0",
+            "User-Agent": "appointment-booking/1.0",
         },
         method="POST",
     )

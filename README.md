@@ -4,11 +4,11 @@ A full-stack Flask web app for booking appointments with local businesses. Custo
 
 ## Live Demo
 
-Production URL:
+Current demo URL:
 
 https://appointment-app-2-1k3v.onrender.com/
 
-If the site works on mobile data but not on home Wi-Fi, the deployment is fine and the issue is usually local DNS. Restart the router, run `ipconfig /flushdns` on Windows, or switch DNS to `1.1.1.1` / `8.8.8.8`.
+The app can run on any Python host that supports Flask, Gunicorn, and environment variables. A free host usually gives the app a provider subdomain, for example `your-app.examplehost.app`. A custom domain normally costs money because the domain name must be purchased separately.
 
 ## Main Features
 
@@ -64,7 +64,7 @@ If the site works on mobile data but not on home Wi-Fi, the deployment is fine a
 - Backend: Flask, Python
 - Database: PostgreSQL
 - Frontend: HTML, CSS, Bootstrap, vanilla JavaScript
-- Deployment: Render
+- Deployment: Any Python web host that can run `gunicorn app:app`
 - Database hosting: Neon or any PostgreSQL provider
 - Server: Gunicorn
 - Version control: Git + GitHub
@@ -250,7 +250,9 @@ CREATE INDEX IF NOT EXISTS idx_users_email
 ON users(email);
 ```
 
-## Deployment On Render
+## Public Deployment
+
+This project is not tied to Render. It can be deployed anywhere that supports Python web apps and PostgreSQL.
 
 Build command:
 
@@ -262,6 +264,12 @@ Start command:
 
 ```bash
 gunicorn app:app
+```
+
+The repository also includes a `Procfile`:
+
+```text
+web: gunicorn app:app
 ```
 
 Environment variables:
@@ -285,31 +293,37 @@ SMTP_USERNAME=your_smtp_username
 SMTP_PASSWORD=your_smtp_password
 ```
 
-Recommended production setup:
+Free public hosting options:
 
-- Use Render auto-deploy from the `main` branch.
+- Koyeb free web service + Neon free PostgreSQL: good fit for this Flask app and keeps the app as a normal always-public website within free-tier limits.
+- PythonAnywhere free account + hosted PostgreSQL such as Neon: simple for Python apps, but free accounts have platform limitations.
+- Vercel/Netlify free static hosting is not enough by itself because this app has login, booking logic, email, and PostgreSQL. It would need a serverless rewrite.
+- GitHub Pages is not suitable for the live app because it only hosts static files.
+
+Recommended setup:
+
+- Connect the GitHub repository to the chosen host and enable auto-deploy from the `main` branch.
 - Use Neon PostgreSQL with a pooled connection string when possible.
-- Keep `FLASK_SECRET_KEY` private in Render environment variables.
-- Use `BREVO_API_KEY` on Render Free if you want to send to normal customers without Resend test-mode limits.
-- Use `RESEND_API_KEY` on Render Free because SMTP ports are blocked there.
-- Keep email API keys and SMTP passwords private in Render environment variables.
+- Keep `FLASK_SECRET_KEY` private in the host environment variables.
+- Use `BREVO_API_KEY` when you want to send to normal customers without Resend test-mode limits.
+- Keep email API keys and SMTP passwords private in environment variables.
 - Direct Resend API calls include a `User-Agent` header, which Resend requires to avoid 403 error code 1010.
-- On Render free instances, the first request after inactivity can be slow because the service sleeps. Upgrade the instance for always-on performance.
+- Free hosting can sleep, throttle traffic, or require periodic redeploys depending on the provider. Paid hosting is usually needed for guaranteed always-on production service.
 
-### Restart Or Redeploy On Render
+### Restart Or Redeploy
 
 Use this after pushing new code or changing environment variables:
 
-1. Open the Render service, for example `appointment-app-2`.
-2. Click `Manual Deploy`.
-3. Choose `Deploy latest commit`.
+1. Open the web service in your hosting provider.
+2. Run a manual deploy or restart.
+3. Confirm the latest commit and environment variables are being used.
 
 If the app still uses old files or behaves strangely:
 
-1. Click `Manual Deploy`.
-2. Choose `Clear build cache & deploy`.
+1. Clear the build cache if the provider supports it.
+2. Redeploy the latest commit.
 
-Render auto-deploys from GitHub, but a manual deploy is the fastest way to force the latest code and environment variables to run.
+Most hosts auto-deploy from GitHub, but a manual deploy is the fastest way to force the latest code and environment variables to run.
 
 ### Email Notifications
 
@@ -323,10 +337,10 @@ The app sends:
 - A password reset code when a user forgets their password.
 - Customer emails include a short My Marketplace thank-you message.
 
-The reminder email needs a scheduled request. The endpoint now checks appointments from the current time through the next 35 minutes, so it still works if the scheduler is a little late. In Render, create a Cron Job that runs every 5 minutes and calls:
+The reminder email needs a scheduled request. The endpoint checks appointments from the current time through the next 35 minutes, so it still works if the scheduler is a little late. Use your host's scheduler, cron-job.org, GitHub Actions, or any external cron service to call this every 5 minutes:
 
 ```bash
-curl -X POST "https://appointment-app-2-1k3v.onrender.com/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"
+curl -X POST "https://YOUR_PUBLIC_APP_URL/tasks/send-reminders?secret=YOUR_REMINDER_SECRET"
 ```
 
 Use the same value in the URL that you set for `REMINDER_SECRET`.
