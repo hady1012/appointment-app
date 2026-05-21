@@ -337,7 +337,7 @@
                 </div>
             </div>
 
-            <form class="ai-chat-form" id="aiChatForm">
+            <form class="ai-chat-form ai-chat-form-compact" id="aiChatForm">
                 <input
                     type="text"
                     id="aiChatInput"
@@ -345,12 +345,11 @@
                     placeholder="שאל את Golan Pick..."
                     aria-label="Ask Golan Pick assistant"
                 >
-                <button type="button" class="ai-mic-btn" id="aiMicBtn" aria-label="Use microphone">
-                    <span class="mic-icon" aria-hidden="true"></span>
+                <button type="button" class="ai-action-btn" id="aiActionBtn" aria-label="Voice chat">
+                    <span class="voice-icon" aria-hidden="true"></span>
                 </button>
-                <button type="submit" class="ai-send-btn">שאל</button>
             </form>
-            <div class="ai-chat-note">הדיבור הקולי יופעל רק אחרי לחיצה על המיקרופון.</div>
+            <div class="ai-chat-note">הקלד ושלח, או לחץ על הכפתור לשיחה קולית.</div>
         </div>
     </section>
 
@@ -366,8 +365,17 @@
 const aiChatForm = document.getElementById('aiChatForm');
 const aiChatInput = document.getElementById('aiChatInput');
 const aiChatLog = document.getElementById('aiChatLog');
-const aiMicBtn = document.getElementById('aiMicBtn');
+const aiActionBtn = document.getElementById('aiActionBtn');
+const aiChatNote = document.querySelector('.ai-chat-note');
 let shouldSpeakNextAiReply = false;
+
+if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
+
+function updateAiActionMode() {
+    const hasText = Boolean(aiChatInput?.value.trim());
+    aiActionBtn?.classList.toggle('has-text', hasText);
+    aiActionBtn?.setAttribute('aria-label', hasText ? 'Send message' : 'Voice chat');
+}
 
 function appendAiMessage(text, type = 'bot') {
     const bubble = document.createElement('div');
@@ -439,10 +447,45 @@ function speakAi(text) {
     utterance.rate = 0.95;
     utterance.pitch = 0.85;
     const voices = window.speechSynthesis.getVoices();
-    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex/i.test(voice.name));
-    if (maleVoice) utterance.voice = maleVoice;
+    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex|asaf|yaron|microsoft.*he/i.test(voice.name));
+    if (!maleVoice) {
+        appendAiMessage('הדפדפן לא מספק קול גברי כרגע, לכן השארתי את התשובה בטקסט.');
+        return;
+    }
+    utterance.voice = maleVoice;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
+}
+
+function startAiVoiceChat() {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        appendAiMessage('שיחה קולית לא נתמכת בדפדפן הזה כרגע. אפשר להקליד בצאט.');
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = document.documentElement.lang || 'he-IL';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    aiActionBtn?.classList.add('listening');
+    if (aiChatNote) aiChatNote.textContent = 'מאזין... אפשר לדבר עכשיו.';
+    recognition.start();
+
+    recognition.onresult = (event) => {
+        shouldSpeakNextAiReply = true;
+        aiChatInput.value = event.results[0][0].transcript;
+        updateAiActionMode();
+        aiChatForm.requestSubmit();
+    };
+    recognition.onerror = () => {
+        shouldSpeakNextAiReply = false;
+        appendAiMessage('לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על כפתור הקול.');
+    };
+    recognition.onend = () => {
+        aiActionBtn?.classList.remove('listening');
+        if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
+    };
 }
 
 aiChatForm?.addEventListener('submit', async (event) => {
@@ -452,6 +495,7 @@ aiChatForm?.addEventListener('submit', async (event) => {
 
     appendAiMessage(message, 'user');
     aiChatInput.value = '';
+    updateAiActionMode();
     appendAiMessage('בודק זמינות חיה...', 'bot');
 
     try {
@@ -475,31 +519,17 @@ aiChatForm?.addEventListener('submit', async (event) => {
     }
 });
 
-aiMicBtn?.addEventListener('click', () => {
-    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
-    if (!SpeechRecognition) {
-        appendAiMessage('המיקרופון לא נתמך בדפדפן הזה כרגע.');
+aiChatInput?.addEventListener('input', updateAiActionMode);
+
+aiActionBtn?.addEventListener('click', () => {
+    if (aiChatInput.value.trim()) {
+        aiChatForm.requestSubmit();
         return;
     }
-
-    const recognition = new SpeechRecognition();
-    recognition.lang = document.documentElement.lang || 'he-IL';
-    recognition.interimResults = false;
-    recognition.maxAlternatives = 1;
-    aiMicBtn.classList.add('listening');
-    recognition.start();
-
-    recognition.onresult = (event) => {
-        shouldSpeakNextAiReply = true;
-        aiChatInput.value = event.results[0][0].transcript;
-        aiChatForm.requestSubmit();
-    };
-    recognition.onerror = () => {
-        shouldSpeakNextAiReply = false;
-        appendAiMessage('לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על המיקרופון.');
-    };
-    recognition.onend = () => aiMicBtn.classList.remove('listening');
+    startAiVoiceChat();
 });
+
+updateAiActionMode();
 </script>
 </body>
 </html>

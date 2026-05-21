@@ -33,7 +33,7 @@ https://appointment-app-2-1k3v.onrender.com/
 ### Business Owner
 
 - Register and log in as an owner
-- Stay signed in for up to one week when using the remembered login option
+- Stay signed in with the remembered login option when returning at least once a week
 - Create and manage one business profile
 - Add an optional store location and up to 5 optional store photos that persist through Render restarts and redeploys
 - Add and update services
@@ -60,7 +60,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - User-selectable dark mode saved in the browser
 - Premium visual styling across the main pages
 - Live business filtering while typing
-- Home-page assistant with text search, browser microphone input, voice reply when supported, live database-backed business/availability cards, and one-business-at-a-time booking prefill links
+- Home-page assistant with a ChatGPT-style composer, text or voice-chat mode, male-voice replies when the browser provides a male voice, live database-backed business/availability cards, and one-business-at-a-time booking prefill links
 - Faster slot loading on the booking page
 - Automatic first service/day selection on booking pages
 - Loading states for login, signup, search, and booking
@@ -75,6 +75,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
 - Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem, and edit forms keep existing photos without resending the full image payload
+- Store detail pages expose the owner's first uploaded store photo as Apple touch icon and social preview metadata for better bookmarks and sharing
 
 ## Tech Stack
 

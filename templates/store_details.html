@@ -4,6 +4,15 @@
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>{{ store.name }}</title>
+    {% set store_icon = store.image_urls[0] if store.image_urls else url_for('static', filename='golan-heights-hero.jpeg', _external=True) %}
+    <meta name="apple-mobile-web-app-title" content="{{ store.name }}">
+    <meta property="og:title" content="{{ store.name }}">
+    <meta property="og:description" content="{{ store.description or 'Book an appointment on Golan Pick' }}">
+    <meta property="og:image" content="{{ store_icon }}">
+    <meta name="twitter:card" content="summary_large_image">
+    <meta name="twitter:image" content="{{ store_icon }}">
+    <link rel="apple-touch-icon" href="{{ store_icon }}">
+    <link rel="icon" href="{{ store_icon }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
 

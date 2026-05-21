@@ -3009,3 +3009,153 @@ textarea,
         min-height: 0;
     }
 }
+
+/* ChatGPT-style assistant composer and final dark-mode polish */
+.ai-chat-form.ai-chat-form-compact {
+    grid-template-columns: minmax(0, 1fr) 50px !important;
+    gap: 10px !important;
+    align-items: center !important;
+    padding: 10px !important;
+    border-radius: 0 0 18px 18px !important;
+}
+
+.ai-chat-form.ai-chat-form-compact .ai-send-btn {
+    display: none !important;
+}
+
+.ai-action-btn {
+    width: 50px !important;
+    height: 50px !important;
+    min-height: 50px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid rgba(15, 118, 110, 0.24) !important;
+    border-radius: 14px !important;
+    background: #e6fffb !important;
+    color: #0f766e !important;
+    display: grid !important;
+    place-items: center !important;
+    box-shadow: none !important;
+}
+
+.ai-action-btn:hover {
+    transform: none !important;
+    background: #ccfbf1 !important;
+}
+
+.ai-action-btn.listening {
+    background: #0f766e !important;
+    color: #ffffff !important;
+}
+
+.voice-icon {
+    position: relative;
+    width: 18px;
+    height: 22px;
+    display: block;
+    border: 2px solid currentColor;
+    border-radius: 999px;
+}
+
+.voice-icon::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -9px;
+    width: 2px;
+    height: 8px;
+    background: currentColor;
+    transform: translateX(-50%);
+}
+
+.voice-icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -12px;
+    width: 18px;
+    height: 9px;
+    border-bottom: 2px solid currentColor;
+    border-radius: 0 0 999px 999px;
+    transform: translateX(-50%);
+}
+
+.ai-action-btn.has-text .voice-icon {
+    width: 20px;
+    height: 20px;
+    border: 0;
+    border-radius: 0;
+}
+
+.ai-action-btn.has-text .voice-icon::before {
+    left: 4px;
+    top: 9px;
+    bottom: auto;
+    width: 16px;
+    height: 2px;
+    border-radius: 999px;
+    transform: none;
+}
+
+.ai-action-btn.has-text .voice-icon::after {
+    left: auto;
+    right: 1px;
+    top: 5px;
+    bottom: auto;
+    width: 10px;
+    height: 10px;
+    border: 2px solid currentColor;
+    border-left: 0;
+    border-bottom: 0;
+    border-radius: 0;
+    transform: rotate(45deg);
+}
+
+[data-theme="dark"] .product-highlights .feature-card-modern,
+html[data-theme="dark"] .product-highlights .feature-card-modern,
+body[data-theme="dark"] .product-highlights .feature-card-modern,
+.dark-mode .product-highlights .feature-card-modern {
+    background: linear-gradient(180deg, rgba(12, 24, 21, 0.98), rgba(8, 17, 15, 0.98)) !important;
+    border-color: rgba(148, 163, 184, 0.34) !important;
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .product-highlights .feature-card-modern h3,
+html[data-theme="dark"] .product-highlights .feature-card-modern h3,
+body[data-theme="dark"] .product-highlights .feature-card-modern h3,
+.dark-mode .product-highlights .feature-card-modern h3 {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .product-highlights .feature-card-modern p,
+html[data-theme="dark"] .product-highlights .feature-card-modern p,
+body[data-theme="dark"] .product-highlights .feature-card-modern p,
+.dark-mode .product-highlights .feature-card-modern p {
+    color: #d8e5df !important;
+}
+
+[data-theme="dark"] .product-highlights .feature-icon,
+html[data-theme="dark"] .product-highlights .feature-icon,
+body[data-theme="dark"] .product-highlights .feature-icon,
+.dark-mode .product-highlights .feature-icon {
+    background: rgba(20, 184, 166, 0.16) !important;
+    border-color: rgba(45, 212, 191, 0.36) !important;
+    color: #99f6e4 !important;
+}
+
+[data-theme="dark"] .ai-action-btn,
+html[data-theme="dark"] .ai-action-btn,
+body[data-theme="dark"] .ai-action-btn,
+.dark-mode .ai-action-btn {
+    background: rgba(20, 184, 166, 0.16) !important;
+    border-color: rgba(45, 212, 191, 0.38) !important;
+    color: #99f6e4 !important;
+}
+
+[data-theme="dark"] .ai-action-btn.has-text,
+html[data-theme="dark"] .ai-action-btn.has-text,
+body[data-theme="dark"] .ai-action-btn.has-text,
+.dark-mode .ai-action-btn.has-text {
+    background: #0f766e !important;
+    color: #ffffff !important;
+}
