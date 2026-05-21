@@ -33,6 +33,7 @@ https://appointment-app-2-1k3v.onrender.com/
 ### Business Owner
 
 - Register and log in as an owner
+- Stay signed in for up to one week when using the remembered login option
 - Create and manage one business profile
 - Add an optional store location and up to 5 optional store photos that persist through Render restarts and redeploys
 - Add and update services
@@ -68,6 +69,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - Adds performance indexes for common login, business, service, appointment, and rating lookups
 - Email notification support for appointment confirmations and reminders
 - Password reset by email verification code
+- Remembered login sessions refresh for active users and expire after a week away
 - Store ratings can be submitted any time and approved by the owner
 - Golan Pick branding with a Golan Heights hero image
 - Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe

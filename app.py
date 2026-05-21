@@ -22,6 +22,11 @@ from werkzeug.security import generate_password_hash, check_password_hash
 app = Flask(__name__)
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "x8sK29!akL#92jF@pQz")
 app.config["MAX_CONTENT_LENGTH"] = 16 * 1024 * 1024
+SESSION_KEEP_ALIVE = timedelta(days=7)
+app.permanent_session_lifetime = SESSION_KEEP_ALIVE
+app.config["SESSION_REFRESH_EACH_REQUEST"] = True
+app.config["SESSION_COOKIE_HTTPONLY"] = True
+app.config["SESSION_COOKIE_SAMESITE"] = "Lax"
 APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
@@ -629,6 +634,32 @@ Your verification code is: {reset_code}
 This code expires in 15 minutes. If you did not ask to reset your password, you can ignore this email.
 """
     return send_email(user_email, subject, body)
+
+
+@app.before_request
+def keep_recent_users_signed_in():
+    if request.endpoint == "static":
+        return None
+
+    if not session.get("user_id"):
+        return None
+
+    current_time = now_local()
+    last_activity = session.get("last_activity_at")
+
+    if session.permanent and last_activity:
+        try:
+            if current_time - datetime.fromisoformat(last_activity) > SESSION_KEEP_ALIVE:
+                session.clear()
+                flash("Your session expired after a week away. Please log in again.")
+                return redirect(url_for("login"))
+        except ValueError:
+            session.clear()
+            return redirect(url_for("login"))
+
+    session["last_activity_at"] = current_time.isoformat()
+    session.modified = True
+    return None
 
 
 @app.before_request
@@ -1506,6 +1537,8 @@ def login():
             conn.close()
 
         if user and check_password_hash(user[3], password):
+            remember_login = request.form.get("remember_login") == "on"
+            session.permanent = remember_login
             owner_session_token = None
             if user[4] == "owner":
                 active_token = user[5]
@@ -1539,6 +1572,7 @@ def login():
             session["full_name"] = user[1]
             session["email"] = user[2]
             session["role"] = user[4]
+            session["last_activity_at"] = now_local().isoformat()
             if owner_session_token:
                 session["owner_session_token"] = owner_session_token
                 session["owner_session_last_touch"] = now_local().isoformat()

@@ -35,6 +35,21 @@
             text-decoration: none;
             margin: 0 8px;
         }
+
+        .remember-row {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            margin: 4px 0 18px;
+            color: #475569;
+            font-weight: 700;
+        }
+
+        .remember-row input {
+            width: 18px;
+            height: 18px;
+            accent-color: #0f766e;
+        }
     </style>
 </head>
 <body>
@@ -71,6 +86,11 @@
                 <label for="password" class="form-label">סיסמה</label>
                 <input type="password" class="form-control" id="password" name="password" autocomplete="current-password" required>
             </div>
+
+            <label class="remember-row" for="remember_login">
+                <input type="checkbox" id="remember_login" name="remember_login" checked>
+                <span>זכור אותי לשבוע</span>
+            </label>
 
             <button type="submit" class="btn btn-dark w-100" id="loginSubmitBtn">התחבר</button>
         </form>
