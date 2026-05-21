@@ -3159,3 +3159,10 @@ body[data-theme="dark"] .ai-action-btn.has-text,
     background: #0f766e !important;
     color: #ffffff !important;
 }
+
+/* Light mode background image */
+html[data-theme="light"] body {
+    background:
+        linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(247, 250, 248, 0.68)),
+        url("/static/light-mode-background.jpeg") center/cover fixed no-repeat !important;
+}
