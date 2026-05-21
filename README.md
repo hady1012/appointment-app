@@ -62,7 +62,9 @@ https://appointment-app-2-1k3v.onrender.com/
 - Live business filtering while typing
 - Home-page assistant with a ChatGPT-style composer, text or voice-chat mode, male-voice replies when the browser provides a male voice, live database-backed business/availability cards, and one-business-at-a-time booking prefill links
 - Home-page assistant detects the user's typed or spoken language and keeps replies, voice recognition, speech output, and result-card labels in Hebrew, Arabic, or English
+- Voice mode now stays in conversation until the user stops it, and follow-up questions can reuse the businesses already shown in the chat
 - Mobile polish keeps the assistant input/microphone controls and remembered-login checkbox aligned and readable on small screens
+- Mobile store pages use compact navigation, cleaner booking calendar cards, and a friendly branded error page instead of the raw white server-error screen
 - Faster slot loading on the booking page
 - Automatic first service/day selection on booking pages
 - Loading states for login, signup, search, and booking

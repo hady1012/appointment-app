@@ -1,0 +1,34 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ title }} - Golan Pick</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-logo">Golan Pick</div>
+    <div class="nav-links">
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+        <a href="{{ url_for('login') }}">התחברות</a>
+    </div>
+</nav>
+
+<main class="error-page">
+    <section class="error-card">
+        <span class="error-kicker">Golan Pick</span>
+        <h1>{{ title }}</h1>
+        <p>{{ message }}</p>
+        <div class="error-actions">
+            <a class="primary-btn" href="{{ url_for('home') }}">חזרה לבית</a>
+            <a class="secondary-btn" href="{{ url_for('pick') }}">לעסקים</a>
+        </div>
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+</body>
+</html>

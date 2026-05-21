@@ -370,6 +370,11 @@ const aiChatNote = document.querySelector('.ai-chat-note');
 let shouldSpeakNextAiReply = false;
 let speechUnlocked = false;
 let currentAiLanguage = document.documentElement.lang || navigator.language || 'he';
+let aiConversationStoreIds = [];
+let aiVoiceConversationActive = false;
+let aiVoiceRecognition = null;
+let aiVoiceRestartTimer = null;
+let aiVoiceWaitingForReply = false;
 
 if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
 
@@ -423,6 +428,16 @@ function aiText(language, key) {
             ar: 'المحادثة الصوتية غير مدعومة في هذا المتصفح حاليا. يمكنك الكتابة في الدردشة.',
         },
         listening: { en: 'Listening... speak now.', he: 'מאזין... אפשר לדבר עכשיו.', ar: 'أستمع... يمكنك التحدث الآن.' },
+        voiceReady: {
+            en: 'Voice conversation is on. Speak after the answer and tap the mic again to stop.',
+            he: 'השיחה הקולית פעילה. דבר אחרי התשובה ולחץ שוב על המיקרופון כדי לעצור.',
+            ar: 'المحادثة الصوتية مفعلة. تحدث بعد الإجابة واضغط زر الميكروفون مرة أخرى للإيقاف.',
+        },
+        voiceOff: {
+            en: 'Voice conversation stopped. You can type or press the mic again.',
+            he: 'השיחה הקולית נעצרה. אפשר להקליד או ללחוץ שוב על המיקרופון.',
+            ar: 'تم إيقاف المحادثة الصوتية. يمكنك الكتابة أو الضغط على الميكروفون مرة أخرى.',
+        },
         unclear: {
             en: 'I did not hear clearly. You can type or press voice again.',
             he: 'לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על כפתור הקול.',
@@ -536,49 +551,124 @@ function unlockAiSpeech() {
 async function speakAi(text, language = currentAiLanguage) {
     if (!('speechSynthesis' in window) || !text) return;
     const meta = aiLanguageMeta(language);
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.lang = meta.lang;
-    utterance.rate = 0.95;
-    utterance.pitch = 0.58;
-    const voices = await loadAiVoices();
-    const voice = voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.code))
-        || voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.lang.toLowerCase().split('-')[0]));
-    if (voice) utterance.voice = voice;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
+    return new Promise(async (resolve) => {
+        const utterance = new SpeechSynthesisUtterance(text);
+        utterance.lang = meta.lang;
+        utterance.rate = 0.95;
+        utterance.pitch = 0.58;
+        const voices = await loadAiVoices();
+        const voice = voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.code))
+            || voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.lang.toLowerCase().split('-')[0]));
+        if (voice) utterance.voice = voice;
+        utterance.onend = resolve;
+        utterance.onerror = resolve;
+        window.speechSynthesis.cancel();
+        window.speechSynthesis.speak(utterance);
+    });
 }
 
-function startAiVoiceChat() {
+function clearAiVoiceRestart() {
+    if (aiVoiceRestartTimer) {
+        clearTimeout(aiVoiceRestartTimer);
+        aiVoiceRestartTimer = null;
+    }
+}
+
+function stopAiVoiceConversation() {
+    aiVoiceConversationActive = false;
+    aiVoiceWaitingForReply = false;
+    shouldSpeakNextAiReply = false;
+    clearAiVoiceRestart();
+    window.speechSynthesis?.cancel();
+    if (aiVoiceRecognition) {
+        aiVoiceRecognition.onend = null;
+        aiVoiceRecognition.onerror = null;
+        aiVoiceRecognition.onresult = null;
+        try { aiVoiceRecognition.stop(); } catch (_error) {}
+        aiVoiceRecognition = null;
+    }
+    aiActionBtn?.classList.remove('listening');
+    if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'voiceOff');
+}
+
+function scheduleAiVoiceListening() {
+    clearAiVoiceRestart();
+    if (!aiVoiceConversationActive || aiVoiceWaitingForReply) return;
+    aiVoiceRestartTimer = setTimeout(startAiListeningTurn, 450);
+}
+
+function startAiListeningTurn() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
         appendAiMessage(aiText(currentAiLanguage, 'noVoice'), 'bot', currentAiLanguage);
+        stopAiVoiceConversation();
         return;
     }
 
-    unlockAiSpeech();
     const recognition = new SpeechRecognition();
+    aiVoiceRecognition = recognition;
     recognition.lang = aiLanguageMeta(currentAiLanguage).lang;
+    recognition.continuous = false;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     aiActionBtn?.classList.add('listening');
     if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'listening');
-    recognition.start();
 
     recognition.onresult = (event) => {
+        const transcript = event.results[0][0].transcript.trim();
+        if (!transcript) {
+            scheduleAiVoiceListening();
+            return;
+        }
         shouldSpeakNextAiReply = true;
-        aiChatInput.value = event.results[0][0].transcript;
+        aiVoiceWaitingForReply = true;
+        aiChatInput.value = transcript;
         currentAiLanguage = detectAiLanguage(aiChatInput.value);
         updateAiActionMode();
         aiChatForm.requestSubmit();
     };
-    recognition.onerror = () => {
-        shouldSpeakNextAiReply = false;
+    recognition.onerror = (event) => {
+        if (!aiVoiceConversationActive) return;
+        if (event.error === 'not-allowed' || event.error === 'service-not-allowed') {
+            appendAiMessage(aiText(currentAiLanguage, 'noVoice'), 'bot', currentAiLanguage);
+            stopAiVoiceConversation();
+            return;
+        }
+        if (event.error === 'no-speech' || event.error === 'aborted') {
+            scheduleAiVoiceListening();
+            return;
+        }
         appendAiMessage(aiText(currentAiLanguage, 'unclear'), 'bot', currentAiLanguage);
+        scheduleAiVoiceListening();
     };
     recognition.onend = () => {
         aiActionBtn?.classList.remove('listening');
-        if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'note');
+        if (aiVoiceConversationActive && !aiVoiceWaitingForReply) {
+            scheduleAiVoiceListening();
+        } else if (!aiVoiceConversationActive && aiChatNote) {
+            aiChatNote.textContent = aiText(currentAiLanguage, 'note');
+        }
     };
+
+    try {
+        recognition.start();
+    } catch (_error) {
+        appendAiMessage(aiText(currentAiLanguage, 'unclear'), 'bot', currentAiLanguage);
+        stopAiVoiceConversation();
+    }
+}
+
+function startAiVoiceChat() {
+    if (aiVoiceConversationActive) {
+        stopAiVoiceConversation();
+        return;
+    }
+
+    unlockAiSpeech();
+    aiVoiceConversationActive = true;
+    shouldSpeakNextAiReply = true;
+    if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'voiceReady');
+    startAiListeningTurn();
 }
 
 aiChatForm?.addEventListener('submit', async (event) => {
@@ -596,21 +686,32 @@ aiChatForm?.addEventListener('submit', async (event) => {
         const response = await fetch('{{ url_for("assistant_chat") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message, language: aiLanguageMeta(currentAiLanguage).lang }),
+            body: JSON.stringify({
+                message,
+                language: aiLanguageMeta(currentAiLanguage).lang,
+                context_store_ids: aiConversationStoreIds,
+            }),
         });
         const data = await response.json();
         currentAiLanguage = data.language || currentAiLanguage;
         aiChatLog.lastElementChild?.remove();
         appendAiMessage(data.reply || aiText(currentAiLanguage, 'fallback'), 'bot', currentAiLanguage);
         appendAiCards(data.cards || [], currentAiLanguage);
+        if (data.cards?.length) {
+            aiConversationStoreIds = data.cards.map((card) => card.id).filter(Boolean).slice(0, 5);
+        }
         if (shouldSpeakNextAiReply) {
-            speakAi(data.reply || '', currentAiLanguage);
+            await speakAi(data.reply || '', currentAiLanguage);
             shouldSpeakNextAiReply = false;
         }
+        aiVoiceWaitingForReply = false;
+        if (aiVoiceConversationActive) scheduleAiVoiceListening();
     } catch (_error) {
         aiChatLog.lastElementChild?.remove();
         appendAiMessage(aiText(currentAiLanguage, 'error'), 'bot', currentAiLanguage);
+        aiVoiceWaitingForReply = false;
         shouldSpeakNextAiReply = false;
+        if (aiVoiceConversationActive) scheduleAiVoiceListening();
     }
 });
 

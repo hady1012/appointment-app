@@ -922,10 +922,12 @@ ASSISTANT_STOPWORDS = {
     "find", "search", "business", "businesses", "store", "stores", "appointment", "time", "available",
     "for", "me", "please", "near", "in", "on", "the", "a", "an", "do", "does", "have", "has", "can",
     "i", "want", "need", "book", "pick", "tell", "show", "open", "today", "tomorrow", "sunday",
-    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "what", "about", "when",
+    "free", "slot", "slots", "there", "is", "are",
     "חפש", "עסק", "עסקים", "תור", "תורים", "זמין", "זמינים", "אפשר", "לי", "אני", "רוצה", "צריך",
+    "מה", "ומה", "לגבי", "יש", "האם",
     "ביום", "היום", "מחר", "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת",
-    "ابحث", "عمل", "اعمال", "موعد", "متاح", "اليوم", "غدا",
+    "ابحث", "عمل", "اعمال", "موعد", "متاح", "اليوم", "غدا", "ماذا", "عن", "هل", "يوجد",
 }
 
 ASSISTANT_DAY_WORDS = {
@@ -1007,6 +1009,18 @@ def assistant_is_small_talk(message):
     }
 
 
+def assistant_is_capability_question(message):
+    normalized = (message or "").strip().lower()
+    return any(
+        phrase in normalized
+        for phrase in [
+            "what can you do", "how can you help", "help me", "how does this work",
+            "מה אתה יודע", "איך אתה יכול", "עזרה", "מה אפשר",
+            "ماذا تستطيع", "كيف تساعد", "مساعدة", "شو بتقدر",
+        ]
+    )
+
+
 def assistant_hello_reply(language):
     if language == "he":
         return "שלום. כתוב מה אתה מחפש, למשל: שטיפת רכב בתל אביב, או תור פנוי ביום ראשון."
@@ -1021,6 +1035,11 @@ def assistant_text(language, key, **kwargs):
             "en": "Hi, I am the Golan Pick assistant. Ask me for a business, city, service, or available time.",
             "he": "היי, אני העוזר של Golan Pick. אפשר לשאול אותי על עסק, עיר, שירות או שעה פנויה.",
             "ar": "مرحبا، أنا مساعد Golan Pick. اسألني عن عمل، مدينة، خدمة أو موعد متاح.",
+        },
+        "capabilities": {
+            "en": "I can search businesses by city, category, or service, check live availability, remember the options we just discussed, and help you continue with follow-up questions like: what about tomorrow?",
+            "he": "אני יכול לחפש עסקים לפי עיר, קטגוריה או שירות, לבדוק זמינות בזמן אמת, לזכור את האפשרויות שדיברנו עליהן, ולהמשיך עם שאלות המשך כמו: ומה לגבי מחר?",
+            "ar": "يمكنني البحث عن أعمال حسب المدينة أو الفئة أو الخدمة، فحص المواعيد المتاحة مباشرة، تذكر الخيارات التي تحدثنا عنها، والمتابعة بأسئلة مثل: وماذا عن الغد؟",
         },
         "too_long": {
             "en": "Please write a shorter, clearer request.",
@@ -1121,6 +1140,40 @@ def assistant_find_stores(message, cursor):
     return cursor.fetchall()
 
 
+def assistant_context_store_ids(raw_ids):
+    ids = []
+    if not isinstance(raw_ids, list):
+        return ids
+    for raw_id in raw_ids:
+        try:
+            store_id = int(raw_id)
+        except (TypeError, ValueError):
+            continue
+        if store_id > 0 and store_id not in ids:
+            ids.append(store_id)
+        if len(ids) >= 5:
+            break
+    return ids
+
+
+def assistant_find_stores_by_ids(store_ids, cursor):
+    if not store_ids:
+        return []
+    placeholders = ", ".join(["%s"] * len(store_ids))
+    cursor.execute(
+        f"""
+        SELECT DISTINCT st.id, st.name, st.category, COALESCE(st.description, ''),
+               COALESCE(st.location, '')
+        FROM stores st
+        WHERE st.id IN ({placeholders})
+        ORDER BY st.id DESC
+        LIMIT 5
+        """,
+        tuple(store_ids),
+    )
+    return cursor.fetchall()
+
+
 def assistant_store_services(store_id, cursor):
     cursor.execute(
         """
@@ -1139,6 +1192,7 @@ def assistant_chat():
     payload = request.get_json(silent=True) or {}
     message = " ".join(str(payload.get("message", "") or "").strip().split())
     language = assistant_language(message, payload.get("language", ""))
+    context_store_ids = assistant_context_store_ids(payload.get("context_store_ids", []))
     if len(message) > 500:
         return jsonify({"reply": assistant_text(language, "too_long"), "cards": [], "language": language}), 400
 
@@ -1156,7 +1210,15 @@ def assistant_chat():
             "language": language,
         })
 
+    if assistant_is_capability_question(message):
+        return jsonify({
+            "reply": assistant_text(language, "capabilities"),
+            "cards": [],
+            "language": language,
+        })
+
     requested_date, date_label = assistant_requested_date(message)
+    search_tokens = assistant_search_tokens(message)
     try:
         conn = get_connection()
     except RuntimeError:
@@ -1170,7 +1232,10 @@ def assistant_chat():
 
     try:
         ensure_store_optional_schema(cursor)
-        store_rows = assistant_find_stores(message, cursor)
+        if requested_date and context_store_ids and not search_tokens:
+            store_rows = assistant_find_stores_by_ids(context_store_ids, cursor)
+        else:
+            store_rows = assistant_find_stores(message, cursor)
         cards = []
 
         for store_id, name, category, description, location in store_rows:
@@ -1227,6 +1292,24 @@ def assistant_chat():
         reply += assistant_text(language, "login_rule")
 
     return jsonify({"reply": reply, "cards": cards, "language": language})
+
+
+@app.errorhandler(404)
+def not_found_error(_error):
+    return render_template(
+        "error.html",
+        title="העמוד לא נמצא",
+        message="לא מצאנו את העמוד שחיפשת. אפשר לחזור לעמוד הבית ולהמשיך משם.",
+    ), 404
+
+
+@app.errorhandler(500)
+def internal_error(_error):
+    return render_template(
+        "error.html",
+        title="משהו השתבש",
+        message="הבקשה לא הושלמה כרגע. נסה לרענן את העמוד או לחזור לעמוד הבית.",
+    ), 500
 
 
 def get_store_calendar_days(store_id):

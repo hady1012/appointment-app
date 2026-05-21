@@ -3057,6 +3057,16 @@ textarea,
 .ai-action-btn.listening {
     background: #0f766e !important;
     color: #ffffff !important;
+    animation: ai-listening-pulse 1.2s ease-in-out infinite;
+}
+
+@keyframes ai-listening-pulse {
+    0%, 100% {
+        box-shadow: 0 0 0 0 rgba(15, 118, 110, 0.34) !important;
+    }
+    50% {
+        box-shadow: 0 0 0 8px rgba(15, 118, 110, 0) !important;
+    }
 }
 
 .voice-icon {
@@ -3268,5 +3278,172 @@ html[data-theme="light"] body {
         padding: 0 12px 12px !important;
         font-size: 0.82rem !important;
         line-height: 1.45 !important;
+    }
+}
+
+/* Friendly error page */
+.error-page {
+    width: min(760px, calc(100% - 32px));
+    margin: 54px auto 80px;
+}
+
+.error-card {
+    padding: 34px;
+    border: 1px solid var(--site-line);
+    border-radius: 10px;
+    background: rgba(255, 255, 255, 0.94);
+    box-shadow: var(--site-shadow-soft);
+    text-align: center;
+}
+
+.error-kicker {
+    display: inline-flex;
+    margin-bottom: 12px;
+    padding: 6px 10px;
+    border-radius: 8px;
+    background: var(--site-primary-soft);
+    color: var(--site-primary-dark);
+    font-weight: 900;
+}
+
+.error-card h1 {
+    margin: 0 0 10px;
+    color: var(--site-ink);
+    font-size: 1.9rem;
+    font-weight: 900;
+}
+
+.error-card p {
+    margin: 0 auto 22px;
+    max-width: 560px;
+    color: var(--site-muted);
+    line-height: 1.65;
+}
+
+.error-actions {
+    display: flex;
+    justify-content: center;
+    gap: 10px;
+    flex-wrap: wrap;
+}
+
+[data-theme="dark"] .error-card {
+    background: rgba(17, 24, 22, 0.94);
+    border-color: rgba(148, 163, 184, 0.24);
+    box-shadow: 0 16px 42px rgba(0,0,0,0.32);
+}
+
+[data-theme="dark"] .error-card h1 {
+    color: #f8fafc;
+}
+
+[data-theme="dark"] .error-card p {
+    color: #b6c7c1;
+}
+
+/* Mobile store page and navigation polish */
+@media (max-width: 720px) {
+    .navbar {
+        position: static !important;
+        top: auto !important;
+        width: min(100% - 18px, 1180px) !important;
+        margin-top: 9px !important;
+        padding: 12px !important;
+        gap: 10px !important;
+    }
+
+    .nav-logo {
+        width: 100% !important;
+        justify-content: center !important;
+        font-size: 1.12rem !important;
+    }
+
+    .nav-logo::before {
+        width: 28px !important;
+        height: 28px !important;
+        border-radius: 7px !important;
+    }
+
+    .nav-links {
+        display: grid !important;
+        grid-template-columns: repeat(3, minmax(0, 1fr)) !important;
+        width: 100% !important;
+        gap: 6px !important;
+    }
+
+    .nav-links a {
+        min-height: 38px !important;
+        padding: 7px 6px !important;
+        border: 1px solid rgba(148, 163, 184, 0.18) !important;
+        border-radius: 8px !important;
+        text-align: center !important;
+        font-size: 0.88rem !important;
+        line-height: 1.15 !important;
+        display: inline-flex !important;
+        align-items: center !important;
+        justify-content: center !important;
+    }
+
+    .page-wrap,
+    .home-wrap,
+    .dashboard-wrap {
+        margin-top: 16px !important;
+    }
+
+    .store-header,
+    .section-box {
+        padding: 18px !important;
+    }
+
+    .section-title {
+        font-size: 1.35rem !important;
+        line-height: 1.25 !important;
+    }
+
+    .service-card,
+    .hours-row,
+    .rating-card {
+        padding: 14px !important;
+        border-radius: 10px !important;
+    }
+
+    .calendar-grid {
+        grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+        gap: 10px !important;
+    }
+
+    .calendar-day {
+        min-height: 92px !important;
+        padding: 12px 8px !important;
+        border-radius: 10px !important;
+        display: flex !important;
+        flex-direction: column !important;
+        align-items: center !important;
+        justify-content: center !important;
+        gap: 8px !important;
+    }
+
+    .login-note {
+        padding: 13px !important;
+        border-radius: 8px !important;
+        font-size: 0.95rem !important;
+        line-height: 1.45 !important;
+    }
+
+    .theme-toggle {
+        width: 38px !important;
+        height: 38px !important;
+        min-height: 38px !important;
+        left: 10px !important;
+        bottom: 10px !important;
+        font-size: 19px !important;
+    }
+
+    .error-page {
+        margin-top: 24px;
+    }
+
+    .error-card {
+        padding: 24px 18px;
     }
 }
