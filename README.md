@@ -21,6 +21,7 @@ https://appointment-app-2-1k3v.onrender.com/
 ### Customer
 
 - Browse all businesses
+- Ask the 24/7 Golan Pick assistant to search by business, service, city, or available day
 - Search instantly by business name or category
 - Filter businesses by category
 - View business details, services, prices, and working hours
@@ -58,11 +59,13 @@ https://appointment-app-2-1k3v.onrender.com/
 - User-selectable dark mode saved in the browser
 - Premium visual styling across the main pages
 - Live business filtering while typing
+- Home-page assistant with text search, browser microphone input, voice reply when supported, live database-backed business/availability cards, and one-business-at-a-time booking prefill links
 - Faster slot loading on the booking page
 - Automatic first service/day selection on booking pages
 - Loading states for login, signup, search, and booking
 - Reduced database connection overhead for availability checks
 - Reuses PostgreSQL connections with a small app-side connection pool for faster login, signup, and owner save flows
+- Adds performance indexes for common login, business, service, appointment, and rating lookups
 - Email notification support for appointment confirmations and reminders
 - Password reset by email verification code
 - Store ratings can be submitted any time and approved by the owner

@@ -297,6 +297,38 @@
         </div>
     {% endif %}
 
+    <section class="ai-concierge" aria-labelledby="ai-concierge-title">
+        <div class="ai-concierge-copy">
+            <span class="ai-kicker">Golan Pick Assistant</span>
+            <h2 id="ai-concierge-title">Ask for a business, city, service, or available time</h2>
+            <p>
+                The assistant checks real businesses, services, working hours, and booked appointments.
+                It helps customers choose one safe booking path at a time.
+            </p>
+        </div>
+
+        <div class="ai-chat-panel">
+            <div class="ai-chat-log" id="aiChatLog" aria-live="polite">
+                <div class="ai-message ai-message-bot">
+                    Hi, I am online 24/7. Try: “Find a car wash in Tel Aviv” or “Do they have time on Sunday?”
+                </div>
+            </div>
+
+            <form class="ai-chat-form" id="aiChatForm">
+                <input
+                    type="text"
+                    id="aiChatInput"
+                    autocomplete="off"
+                    placeholder="Ask Golan Pick..."
+                    aria-label="Ask Golan Pick assistant"
+                >
+                <button type="button" class="ai-mic-btn" id="aiMicBtn" aria-label="Use microphone">🎙</button>
+                <button type="submit" class="ai-send-btn">Ask</button>
+            </form>
+            <div class="ai-chat-note">Voice support depends on your browser. Booking is always limited to one business at a time.</div>
+        </div>
+    </section>
+
     <footer class="site-credit">
         Powered by <a href="https://www.linkedin.com/in/hadyamashaswe" target="_blank" rel="noopener">Hady Amasha</a>
     </footer>
@@ -305,5 +337,135 @@
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
 <script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script>
+const aiChatForm = document.getElementById('aiChatForm');
+const aiChatInput = document.getElementById('aiChatInput');
+const aiChatLog = document.getElementById('aiChatLog');
+const aiMicBtn = document.getElementById('aiMicBtn');
+
+function appendAiMessage(text, type = 'bot') {
+    const bubble = document.createElement('div');
+    bubble.className = `ai-message ai-message-${type}`;
+    bubble.textContent = text;
+    aiChatLog.appendChild(bubble);
+    aiChatLog.scrollTop = aiChatLog.scrollHeight;
+}
+
+function appendAiCards(cards = []) {
+    if (!cards.length) return;
+
+    const wrap = document.createElement('div');
+    wrap.className = 'ai-result-grid';
+
+    cards.forEach((card) => {
+        const item = document.createElement('article');
+        item.className = 'ai-result-card';
+
+        const title = document.createElement('strong');
+        title.textContent = card.name;
+        item.appendChild(title);
+
+        const category = document.createElement('em');
+        category.textContent = card.category || 'Business';
+        item.appendChild(category);
+
+        const summary = document.createElement('p');
+        summary.textContent = card.location || card.description || 'Open the business page for details.';
+        item.appendChild(summary);
+
+        if (card.service) {
+            const service = document.createElement('small');
+            service.textContent = `${card.service}${card.price !== null ? ` · ₪${card.price}` : ''}`;
+            item.appendChild(service);
+        }
+
+        if (card.date) {
+            const slotWrap = document.createElement('div');
+            slotWrap.className = 'ai-slots';
+            if (card.slots?.length) {
+                card.slots.forEach((slot) => {
+                    const slotChip = document.createElement('span');
+                    slotChip.textContent = slot;
+                    slotWrap.appendChild(slotChip);
+                });
+            } else {
+                const noSlot = document.createElement('small');
+                noSlot.textContent = 'No time found for this day';
+                slotWrap.appendChild(noSlot);
+            }
+            item.appendChild(slotWrap);
+        }
+
+        const link = document.createElement('a');
+        link.href = card.url;
+        link.textContent = 'Open business';
+        item.appendChild(link);
+        wrap.appendChild(item);
+    });
+
+    aiChatLog.appendChild(wrap);
+    aiChatLog.scrollTop = aiChatLog.scrollHeight;
+}
+
+function speakAi(text) {
+    if (!('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 0.85;
+    const voices = window.speechSynthesis.getVoices();
+    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex/i.test(voice.name));
+    if (maleVoice) utterance.voice = maleVoice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+}
+
+aiChatForm?.addEventListener('submit', async (event) => {
+    event.preventDefault();
+    const message = aiChatInput.value.trim();
+    if (!message) return;
+
+    appendAiMessage(message, 'user');
+    aiChatInput.value = '';
+    appendAiMessage('Checking live availability...', 'bot');
+
+    try {
+        const response = await fetch('{{ url_for("assistant_chat") }}', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message }),
+        });
+        const data = await response.json();
+        aiChatLog.lastElementChild?.remove();
+        appendAiMessage(data.reply || 'I found a result.');
+        appendAiCards(data.cards || []);
+        speakAi(data.reply || '');
+    } catch (_error) {
+        aiChatLog.lastElementChild?.remove();
+        appendAiMessage('I could not reach the assistant right now. Please try again.');
+    }
+});
+
+aiMicBtn?.addEventListener('click', () => {
+    const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
+    if (!SpeechRecognition) {
+        appendAiMessage('Microphone search is not supported in this browser yet.');
+        return;
+    }
+
+    const recognition = new SpeechRecognition();
+    recognition.lang = document.documentElement.lang || 'he-IL';
+    recognition.interimResults = false;
+    recognition.maxAlternatives = 1;
+    aiMicBtn.classList.add('listening');
+    recognition.start();
+
+    recognition.onresult = (event) => {
+        aiChatInput.value = event.results[0][0].transcript;
+        aiChatForm.requestSubmit();
+    };
+    recognition.onerror = () => appendAiMessage('I could not hear clearly. Try typing or press the microphone again.');
+    recognition.onend = () => aiMicBtn.classList.remove('listening');
+});
+</script>
 </body>
 </html>

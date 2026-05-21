@@ -694,6 +694,10 @@ const bookingForm = document.querySelector('.booking-form');
 const slotsStatus = document.getElementById('slotsStatus');
 const bookSubmitBtn = document.getElementById('bookSubmitBtn');
 let slotsAbortController = null;
+const bookingParams = new URLSearchParams(window.location.search);
+const preferredServiceId = bookingParams.get('service_id');
+const preferredDate = bookingParams.get('appointment_date');
+let preferredTime = bookingParams.get('appointment_time');
 
 function localDateString(date = new Date()) {
     const year = date.getFullYear();
@@ -764,6 +768,10 @@ async function loadSlots() {
             timeSelect.appendChild(opt);
         });
         timeSelect.disabled = false;
+        if (preferredTime && futureSlots.includes(preferredTime)) {
+            timeSelect.value = preferredTime;
+            preferredTime = null;
+        }
         setSlotsStatus(`${futureSlots.length} שעות פנויות נטענו.`);
     } catch (error) {
         if (error.name === 'AbortError') return;
@@ -802,12 +810,25 @@ document.querySelectorAll('.calendar-day').forEach(card => {
     });
 });
 
+if (serviceSelect && preferredServiceId) {
+    serviceSelect.value = preferredServiceId;
+}
+
+if (dateInput && preferredDate) {
+    dateInput.value = preferredDate;
+}
+
 if (serviceSelect && serviceSelect.options.length > 1 && !serviceSelect.value) {
     serviceSelect.selectedIndex = 1;
 }
 
 const firstAvailableDay = document.querySelector('.calendar-day.available');
-if (firstAvailableDay && dateInput && !dateInput.value) {
+if (preferredDate && dateInput) {
+    document.querySelectorAll('.calendar-day').forEach(card => {
+        card.classList.toggle('selected', card.dataset.date === preferredDate);
+    });
+    loadSlots();
+} else if (firstAvailableDay && dateInput && !dateInput.value) {
     firstAvailableDay.classList.add('selected');
     dateInput.value = firstAvailableDay.dataset.date;
     loadSlots();

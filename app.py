@@ -7,7 +7,7 @@ import smtplib
 import ssl
 from datetime import date, timedelta, datetime
 from email.message import EmailMessage
-from urllib.parse import urlparse
+from urllib.parse import urlparse, urlencode
 from urllib import request as urlrequest
 from urllib.error import HTTPError, URLError
 from zoneinfo import ZoneInfo
@@ -885,6 +885,255 @@ def generate_available_slots(store_id, service_id, appointment_date, cursor=None
         if internal_conn:
             internal_cursor.close()
             internal_conn.close()
+
+
+ASSISTANT_STOPWORDS = {
+    "find", "search", "business", "businesses", "store", "stores", "appointment", "time", "available",
+    "for", "me", "please", "near", "in", "on", "the", "a", "an", "do", "does", "have", "has", "can",
+    "i", "want", "need", "book", "pick", "tell", "show", "open", "today", "tomorrow", "sunday",
+    "monday", "tuesday", "wednesday", "thursday", "friday", "saturday",
+    "חפש", "עסק", "עסקים", "תור", "תורים", "זמין", "זמינים", "אפשר", "לי", "אני", "רוצה", "צריך",
+    "ביום", "היום", "מחר", "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת",
+    "ابحث", "عمل", "اعمال", "موعد", "متاح", "اليوم", "غدا",
+}
+
+ASSISTANT_DAY_WORDS = {
+    "sunday": "sunday", "ראשון": "sunday", "الاحد": "sunday", "الأحد": "sunday",
+    "monday": "monday", "שני": "monday", "الاثنين": "monday", "الإثنين": "monday",
+    "tuesday": "tuesday", "שלישי": "tuesday", "الثلاثاء": "tuesday",
+    "wednesday": "wednesday", "רביעי": "wednesday", "الاربعاء": "wednesday", "الأربعاء": "wednesday",
+    "thursday": "thursday", "חמישי": "thursday", "الخميس": "thursday",
+    "friday": "friday", "שישי": "friday", "الجمعة": "friday",
+    "saturday": "saturday", "שבת": "saturday", "السبت": "saturday",
+}
+
+
+def assistant_requested_date(message):
+    normalized = (message or "").lower()
+    today = now_local().date()
+
+    if any(word in normalized for word in ["tomorrow", "מחר", "غدا", "غداً"]):
+        return today + timedelta(days=1), "tomorrow"
+
+    if any(word in normalized for word in ["today", "היום", "اليوم"]):
+        return today, "today"
+
+    for raw_word, day_name in ASSISTANT_DAY_WORDS.items():
+        if raw_word in normalized:
+            target_index = DAYS.index(day_name)
+            current_day = get_day_name_from_date(today.isoformat())
+            current_index = DAYS.index(current_day)
+            days_ahead = (target_index - current_index) % 7
+            if days_ahead == 0:
+                days_ahead = 7
+            return today + timedelta(days=days_ahead), day_name
+
+    return None, ""
+
+
+def assistant_search_tokens(message):
+    normalized = (message or "").lower().replace("-", " ")
+    normalized = normalized.replace("telaviv", "tel aviv").replace("תל-אביב", "תל אביב")
+    raw_tokens = re.findall(r"[\w\u0590-\u05FF\u0600-\u06FF]+", normalized, flags=re.UNICODE)
+    tokens = []
+
+    for token in raw_tokens:
+        if len(token) < 2 or token in ASSISTANT_STOPWORDS:
+            continue
+        if token.isdigit():
+            continue
+        tokens.append(token)
+
+    if "tel" in tokens and "aviv" in tokens:
+        tokens.append("tel aviv")
+    if "תל" in tokens and "אביב" in tokens:
+        tokens.append("תל אביב")
+
+    return tokens[:8]
+
+
+def assistant_language(message):
+    if re.search(r"[\u0600-\u06FF]", message or ""):
+        return "ar"
+    if re.search(r"[\u0590-\u05FF]", message or ""):
+        return "he"
+    return "en"
+
+
+def assistant_text(language, key, **kwargs):
+    texts = {
+        "empty": {
+            "en": "Hi, I am the Golan Pick assistant. Ask me for a business, city, service, or available time.",
+            "he": "היי, אני העוזר של Golan Pick. אפשר לשאול אותי על עסק, עיר, שירות או שעה פנויה.",
+            "ar": "مرحبا، أنا مساعد Golan Pick. اسألني عن عمل، مدينة، خدمة أو موعد متاح.",
+        },
+        "db_down": {
+            "en": "The assistant needs the live database to search businesses. Please try again when the service is connected.",
+            "he": "העוזר צריך את הדאטהבייס החי כדי לחפש עסקים. נסה שוב כשהשירות מחובר.",
+            "ar": "المساعد يحتاج قاعدة البيانات المباشرة للبحث عن الأعمال. حاول مرة أخرى عند اتصال الخدمة.",
+        },
+        "no_results": {
+            "en": "I could not find a matching business yet. Try a service, city, or category, for example: car wash in Tel Aviv.",
+            "he": "לא מצאתי עסק מתאים עדיין. נסה שירות, עיר או קטגוריה, למשל: שטיפת רכב בתל אביב.",
+            "ar": "لم أجد عملا مناسبا بعد. جرّب خدمة أو مدينة أو فئة، مثلا: غسيل سيارات في تل أبيب.",
+        },
+        "found_open": {
+            "en": "I found {count} business option with available times for {date}.",
+            "he": "מצאתי {count} אפשרויות עם שעות פנויות ל־{date}.",
+            "ar": "وجدت {count} خيارات فيها مواعيد متاحة في {date}.",
+        },
+        "found_closed": {
+            "en": "I found matching businesses, but no open time for {date}. Try another day.",
+            "he": "מצאתי עסקים מתאימים, אבל אין שעה פנויה ל־{date}. נסה יום אחר.",
+            "ar": "وجدت أعمالا مناسبة، لكن لا يوجد موعد متاح في {date}. جرّب يوما آخر.",
+        },
+        "found_businesses": {
+            "en": "I found these businesses. Ask me about a day, for example: do they have time on Sunday?",
+            "he": "מצאתי את העסקים האלה. אפשר לשאול על יום, למשל: יש להם זמן ביום ראשון?",
+            "ar": "وجدت هذه الأعمال. اسألني عن يوم، مثلا: هل يوجد وقت يوم الأحد؟",
+        },
+        "customer_rule": {
+            "en": " I can help you choose one business at a time so owners do not receive duplicate bookings.",
+            "he": " אני יכול לעזור לבחור עסק אחד בכל פעם כדי שלא יהיו הזמנות כפולות לבעלי עסקים.",
+            "ar": " يمكنني مساعدتك في اختيار عمل واحد كل مرة حتى لا تصل حجوزات مكررة لأصحاب الأعمال.",
+        },
+        "login_rule": {
+            "en": " Log in as a customer before booking a time.",
+            "he": " כדי לקבוע תור צריך להתחבר כלקוח.",
+            "ar": " سجّل الدخول كزبون قبل حجز موعد.",
+        },
+    }
+    return texts[key].get(language, texts[key]["en"]).format(**kwargs)
+
+
+def assistant_find_stores(message, cursor):
+    tokens = assistant_search_tokens(message)
+    params = []
+
+    query = """
+        SELECT DISTINCT st.id, st.name, st.category, COALESCE(st.description, ''),
+               COALESCE(st.location, '')
+        FROM stores st
+        LEFT JOIN services sv ON sv.store_id = st.id
+    """
+
+    if tokens:
+        conditions = []
+        for token in tokens:
+            conditions.append(
+                """
+                (
+                    st.name ILIKE %s OR st.category ILIKE %s OR st.description ILIKE %s
+                    OR st.location ILIKE %s OR sv.name ILIKE %s
+                )
+                """
+            )
+            like_token = f"%{token}%"
+            params.extend([like_token, like_token, like_token, like_token, like_token])
+        query += " WHERE " + " OR ".join(conditions)
+
+    query += " ORDER BY st.id DESC LIMIT 5"
+    cursor.execute(query, tuple(params))
+    return cursor.fetchall()
+
+
+def assistant_store_services(store_id, cursor):
+    cursor.execute(
+        """
+        SELECT id, name, price, duration_minutes
+        FROM services
+        WHERE store_id = %s
+        ORDER BY id
+        """,
+        (store_id,),
+    )
+    return cursor.fetchall()
+
+
+@app.route("/assistant/chat", methods=["POST"])
+def assistant_chat():
+    payload = request.get_json(silent=True) or {}
+    message = " ".join(str(payload.get("message", "") or "").strip().split())
+    language = assistant_language(message)
+    if len(message) > 500:
+        return jsonify({"reply": "Please write a shorter, clearer request.", "cards": []}), 400
+
+    if not message:
+        return jsonify({
+            "reply": assistant_text(language, "empty"),
+            "cards": [],
+        })
+
+    requested_date, date_label = assistant_requested_date(message)
+    try:
+        conn = get_connection()
+    except RuntimeError:
+        return jsonify({
+            "reply": assistant_text(language, "db_down"),
+            "cards": [],
+        }), 503
+
+    cursor = conn.cursor()
+
+    try:
+        ensure_store_optional_schema(cursor)
+        store_rows = assistant_find_stores(message, cursor)
+        cards = []
+
+        for store_id, name, category, description, location in store_rows:
+            services = assistant_store_services(store_id, cursor)
+            service = services[0] if services else None
+            slots = []
+
+            if requested_date and service:
+                slots = generate_available_slots(store_id, service[0], requested_date.isoformat(), cursor)[:3]
+
+            store_url = url_for("store_details", store_id=store_id)
+            if requested_date and service and slots:
+                store_url = f"{store_url}?{urlencode({
+                    'service_id': service[0],
+                    'appointment_date': requested_date.isoformat(),
+                    'appointment_time': slots[0],
+                })}"
+
+            cards.append({
+                "id": store_id,
+                "name": name,
+                "category": category,
+                "description": description[:140],
+                "location": location,
+                "service": service[1] if service else "",
+                "price": float(service[2]) if service else None,
+                "duration": service[3] if service else None,
+                "date": requested_date.isoformat() if requested_date else "",
+                "slots": slots,
+                "url": store_url,
+            })
+    finally:
+        cursor.close()
+        conn.close()
+
+    if not cards:
+        return jsonify({
+            "reply": assistant_text(language, "no_results"),
+            "cards": [],
+        })
+
+    if requested_date:
+        available_count = sum(1 for card in cards if card["slots"])
+        if available_count:
+            reply = assistant_text(language, "found_open", count=available_count, date=requested_date.strftime("%A, %d %B"))
+        else:
+            reply = assistant_text(language, "found_closed", date=requested_date.strftime("%A, %d %B"))
+    else:
+        reply = assistant_text(language, "found_businesses")
+
+    if session.get("role") == "customer":
+        reply += assistant_text(language, "customer_rule")
+    elif not session.get("user_id"):
+        reply += assistant_text(language, "login_rule")
+
+    return jsonify({"reply": reply, "cards": cards})
 
 
 def get_store_calendar_days(store_id):
