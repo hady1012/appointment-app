@@ -2919,6 +2919,31 @@ textarea,
 }
 
 /* Professional product highlights on the home page */
+.home-wrap {
+    display: flex;
+    flex-direction: column;
+}
+
+.home-wrap > * {
+    order: 10;
+}
+
+.home-wrap > .ai-concierge {
+    order: 20;
+}
+
+.home-wrap > .product-highlights {
+    order: 30;
+}
+
+.home-wrap > .site-credit {
+    order: 40;
+}
+
+.home-wrap > .section-title {
+    display: none !important;
+}
+
 .legacy-home-features {
     display: none !important;
 }
