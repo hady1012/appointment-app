@@ -369,8 +369,73 @@ const aiActionBtn = document.getElementById('aiActionBtn');
 const aiChatNote = document.querySelector('.ai-chat-note');
 let shouldSpeakNextAiReply = false;
 let speechUnlocked = false;
+let currentAiLanguage = document.documentElement.lang || navigator.language || 'he';
 
 if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
+
+function normalizeAiLanguage(language) {
+    const value = String(language || '').toLowerCase();
+    if (value.startsWith('ar')) return 'ar';
+    if (value.startsWith('he') || value.startsWith('iw')) return 'he';
+    return 'en';
+}
+
+function detectAiLanguage(text) {
+    if (/[\u0600-\u06FF]/.test(text || '')) return 'ar';
+    if (/[\u0590-\u05FF]/.test(text || '')) return 'he';
+    return normalizeAiLanguage(currentAiLanguage);
+}
+
+function aiLanguageMeta(language) {
+    const normalized = normalizeAiLanguage(language);
+    return {
+        code: normalized,
+        lang: normalized === 'he' ? 'he-IL' : normalized === 'ar' ? 'ar' : 'en-US',
+        dir: normalized === 'en' ? 'ltr' : 'rtl',
+    };
+}
+
+function aiText(language, key) {
+    const normalized = normalizeAiLanguage(language);
+    const copy = {
+        business: { en: 'Business', he: 'עסק', ar: 'عمل' },
+        details: {
+            en: 'Open the business page for details.',
+            he: 'פתח את עמוד העסק לפרטים.',
+            ar: 'افتح صفحة العمل للتفاصيل.',
+        },
+        noTime: {
+            en: 'No time found for this day',
+            he: 'לא נמצאה שעה פנויה ביום הזה',
+            ar: 'لم يتم العثور على موعد في هذا اليوم',
+        },
+        open: { en: 'Open business', he: 'פתח עסק', ar: 'افتح العمل' },
+        checking: { en: 'Checking live availability...', he: 'בודק זמינות חיה...', ar: 'أفحص المواعيد المتاحة...' },
+        fallback: { en: 'I found a result.', he: 'מצאתי תוצאה.', ar: 'وجدت نتيجة.' },
+        error: {
+            en: 'I could not reach the assistant right now. Try again.',
+            he: 'לא הצלחתי להגיע לעוזר כרגע. נסה שוב.',
+            ar: 'لم أتمكن من الوصول إلى المساعد الآن. حاول مرة أخرى.',
+        },
+        noVoice: {
+            en: 'Voice chat is not supported in this browser right now. You can type in the chat.',
+            he: 'שיחה קולית לא נתמכת בדפדפן הזה כרגע. אפשר להקליד בצאט.',
+            ar: 'المحادثة الصوتية غير مدعومة في هذا المتصفح حاليا. يمكنك الكتابة في الدردشة.',
+        },
+        listening: { en: 'Listening... speak now.', he: 'מאזין... אפשר לדבר עכשיו.', ar: 'أستمع... يمكنك التحدث الآن.' },
+        unclear: {
+            en: 'I did not hear clearly. You can type or press voice again.',
+            he: 'לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על כפתור הקול.',
+            ar: 'لم أسمع بوضوح. يمكنك الكتابة أو الضغط على زر الصوت مرة أخرى.',
+        },
+        note: {
+            en: 'Type and send, or press the button for voice chat.',
+            he: 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.',
+            ar: 'اكتب وأرسل، أو اضغط على الزر للمحادثة الصوتية.',
+        },
+    };
+    return copy[key]?.[normalized] || copy[key]?.en || '';
+}
 
 function updateAiActionMode() {
     const hasText = Boolean(aiChatInput?.value.trim());
@@ -378,19 +443,25 @@ function updateAiActionMode() {
     aiActionBtn?.setAttribute('aria-label', hasText ? 'Send message' : 'Voice chat');
 }
 
-function appendAiMessage(text, type = 'bot') {
+function appendAiMessage(text, type = 'bot', language = currentAiLanguage) {
+    const meta = aiLanguageMeta(language);
     const bubble = document.createElement('div');
     bubble.className = `ai-message ai-message-${type}`;
+    bubble.lang = meta.lang;
+    bubble.dir = meta.dir;
     bubble.textContent = text;
     aiChatLog.appendChild(bubble);
     aiChatLog.scrollTop = aiChatLog.scrollHeight;
 }
 
-function appendAiCards(cards = []) {
+function appendAiCards(cards = [], language = currentAiLanguage) {
     if (!cards.length) return;
+    const meta = aiLanguageMeta(language);
 
     const wrap = document.createElement('div');
     wrap.className = 'ai-result-grid';
+    wrap.lang = meta.lang;
+    wrap.dir = meta.dir;
 
     cards.forEach((card) => {
         const item = document.createElement('article');
@@ -401,11 +472,11 @@ function appendAiCards(cards = []) {
         item.appendChild(title);
 
         const category = document.createElement('em');
-        category.textContent = card.category || 'Business';
+        category.textContent = card.category || aiText(language, 'business');
         item.appendChild(category);
 
         const summary = document.createElement('p');
-        summary.textContent = card.location || card.description || 'Open the business page for details.';
+        summary.textContent = card.location || card.description || aiText(language, 'details');
         item.appendChild(summary);
 
         if (card.service) {
@@ -425,7 +496,7 @@ function appendAiCards(cards = []) {
                 });
             } else {
                 const noSlot = document.createElement('small');
-                noSlot.textContent = 'No time found for this day';
+                noSlot.textContent = aiText(language, 'noTime');
                 slotWrap.appendChild(noSlot);
             }
             item.appendChild(slotWrap);
@@ -433,7 +504,7 @@ function appendAiCards(cards = []) {
 
         const link = document.createElement('a');
         link.href = card.url;
-        link.textContent = 'Open business';
+        link.textContent = aiText(language, 'open');
         item.appendChild(link);
         wrap.appendChild(item);
     });
@@ -462,63 +533,51 @@ function unlockAiSpeech() {
     speechUnlocked = true;
 }
 
-async function speakAi(text) {
+async function speakAi(text, language = currentAiLanguage) {
     if (!('speechSynthesis' in window) || !text) return;
+    const meta = aiLanguageMeta(language);
     const utterance = new SpeechSynthesisUtterance(text);
+    utterance.lang = meta.lang;
     utterance.rate = 0.95;
-    utterance.pitch = 0.62;
+    utterance.pitch = 0.58;
     const voices = await loadAiVoices();
-    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex|asaf|yaron|microsoft.*he/i.test(voice.name));
-    if (!maleVoice) {
-        appendAiMessage('הדפדפן לא מספק קול גברי כרגע, לכן השארתי את התשובה בטקסט.');
-        return;
-    }
-    utterance.voice = maleVoice;
+    const voice = voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.code))
+        || voices.find((candidate) => candidate.lang?.toLowerCase().startsWith(meta.lang.toLowerCase().split('-')[0]));
+    if (voice) utterance.voice = voice;
     window.speechSynthesis.cancel();
     window.speechSynthesis.speak(utterance);
 }
 
-speakAi = async function(text) {
-    if (!('speechSynthesis' in window) || !text) return;
-    const utterance = new SpeechSynthesisUtterance(text);
-    utterance.rate = 0.95;
-    utterance.pitch = 0.58;
-    const voices = await loadAiVoices();
-    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex|asaf|yaron|microsoft.*he/i.test(voice.name));
-    if (maleVoice) utterance.voice = maleVoice;
-    window.speechSynthesis.cancel();
-    window.speechSynthesis.speak(utterance);
-};
-
 function startAiVoiceChat() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-        appendAiMessage('שיחה קולית לא נתמכת בדפדפן הזה כרגע. אפשר להקליד בצאט.');
+        appendAiMessage(aiText(currentAiLanguage, 'noVoice'), 'bot', currentAiLanguage);
         return;
     }
 
     unlockAiSpeech();
     const recognition = new SpeechRecognition();
-    recognition.lang = document.documentElement.lang || 'he-IL';
+    recognition.lang = aiLanguageMeta(currentAiLanguage).lang;
     recognition.interimResults = false;
     recognition.maxAlternatives = 1;
     aiActionBtn?.classList.add('listening');
-    if (aiChatNote) aiChatNote.textContent = 'מאזין... אפשר לדבר עכשיו.';
+    if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'listening');
     recognition.start();
 
     recognition.onresult = (event) => {
         shouldSpeakNextAiReply = true;
         aiChatInput.value = event.results[0][0].transcript;
+        currentAiLanguage = detectAiLanguage(aiChatInput.value);
         updateAiActionMode();
         aiChatForm.requestSubmit();
     };
     recognition.onerror = () => {
         shouldSpeakNextAiReply = false;
-        appendAiMessage('לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על כפתור הקול.');
+        appendAiMessage(aiText(currentAiLanguage, 'unclear'), 'bot', currentAiLanguage);
     };
     recognition.onend = () => {
         aiActionBtn?.classList.remove('listening');
-        if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
+        if (aiChatNote) aiChatNote.textContent = aiText(currentAiLanguage, 'note');
     };
 }
 
@@ -526,34 +585,39 @@ aiChatForm?.addEventListener('submit', async (event) => {
     event.preventDefault();
     const message = aiChatInput.value.trim();
     if (!message) return;
+    currentAiLanguage = detectAiLanguage(message);
 
-    appendAiMessage(message, 'user');
+    appendAiMessage(message, 'user', currentAiLanguage);
     aiChatInput.value = '';
     updateAiActionMode();
-    appendAiMessage('בודק זמינות חיה...', 'bot');
+    appendAiMessage(aiText(currentAiLanguage, 'checking'), 'bot', currentAiLanguage);
 
     try {
         const response = await fetch('{{ url_for("assistant_chat") }}', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message }),
+            body: JSON.stringify({ message, language: aiLanguageMeta(currentAiLanguage).lang }),
         });
         const data = await response.json();
+        currentAiLanguage = data.language || currentAiLanguage;
         aiChatLog.lastElementChild?.remove();
-        appendAiMessage(data.reply || 'I found a result.');
-        appendAiCards(data.cards || []);
+        appendAiMessage(data.reply || aiText(currentAiLanguage, 'fallback'), 'bot', currentAiLanguage);
+        appendAiCards(data.cards || [], currentAiLanguage);
         if (shouldSpeakNextAiReply) {
-            speakAi(data.reply || '');
+            speakAi(data.reply || '', currentAiLanguage);
             shouldSpeakNextAiReply = false;
         }
     } catch (_error) {
         aiChatLog.lastElementChild?.remove();
-        appendAiMessage('לא הצלחתי להגיע לעוזר כרגע. נסה שוב.');
+        appendAiMessage(aiText(currentAiLanguage, 'error'), 'bot', currentAiLanguage);
         shouldSpeakNextAiReply = false;
     }
 });
 
-aiChatInput?.addEventListener('input', updateAiActionMode);
+aiChatInput?.addEventListener('input', () => {
+    if (aiChatInput.value.trim()) currentAiLanguage = detectAiLanguage(aiChatInput.value);
+    updateAiActionMode();
+});
 
 aiActionBtn?.addEventListener('click', () => {
     if (aiChatInput.value.trim()) {

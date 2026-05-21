@@ -983,10 +983,16 @@ def assistant_search_tokens(message):
     return tokens[:8]
 
 
-def assistant_language(message):
-    if re.search(r"[\u0600-\u06FF]", message or ""):
+def assistant_language(message, fallback=""):
+    text = message or ""
+    fallback_text = (fallback or "").lower()
+    if re.search(r"[\u0600-\u06FF]", text):
         return "ar"
-    if re.search(r"[\u0590-\u05FF]", message or ""):
+    if re.search(r"[\u0590-\u05FF]", text):
+        return "he"
+    if fallback_text.startswith("ar"):
+        return "ar"
+    if fallback_text.startswith("he") or fallback_text.startswith("iw"):
         return "he"
     return "en"
 
@@ -1015,6 +1021,11 @@ def assistant_text(language, key, **kwargs):
             "en": "Hi, I am the Golan Pick assistant. Ask me for a business, city, service, or available time.",
             "he": "היי, אני העוזר של Golan Pick. אפשר לשאול אותי על עסק, עיר, שירות או שעה פנויה.",
             "ar": "مرحبا، أنا مساعد Golan Pick. اسألني عن عمل، مدينة، خدمة أو موعد متاح.",
+        },
+        "too_long": {
+            "en": "Please write a shorter, clearer request.",
+            "he": "כתוב בקשה קצרה וברורה יותר בבקשה.",
+            "ar": "اكتب طلبا أقصر وأوضح من فضلك.",
         },
         "db_down": {
             "en": "The assistant needs the live database to search businesses. Please try again when the service is connected.",
@@ -1053,6 +1064,30 @@ def assistant_text(language, key, **kwargs):
         },
     }
     return texts[key].get(language, texts[key]["en"]).format(**kwargs)
+
+
+def assistant_date_label(date_value, language):
+    day_labels = {
+        "en": {
+            "sunday": "Sunday", "monday": "Monday", "tuesday": "Tuesday", "wednesday": "Wednesday",
+            "thursday": "Thursday", "friday": "Friday", "saturday": "Saturday",
+        },
+        "he": {
+            "sunday": "יום ראשון", "monday": "יום שני", "tuesday": "יום שלישי", "wednesday": "יום רביעי",
+            "thursday": "יום חמישי", "friday": "יום שישי", "saturday": "שבת",
+        },
+        "ar": {
+            "sunday": "الأحد", "monday": "الاثنين", "tuesday": "الثلاثاء", "wednesday": "الأربعاء",
+            "thursday": "الخميس", "friday": "الجمعة", "saturday": "السبت",
+        },
+    }
+    day_name = get_day_name_from_date(date_value.isoformat())
+    day_label = day_labels.get(language, day_labels["en"]).get(day_name, day_name)
+    if language == "he":
+        return f"{day_label}, {date_value.strftime('%d/%m')}"
+    if language == "ar":
+        return f"{day_label}، {date_value.strftime('%d/%m')}"
+    return f"{day_label}, {date_value.strftime('%d %B')}"
 
 
 def assistant_find_stores(message, cursor):
@@ -1103,20 +1138,22 @@ def assistant_store_services(store_id, cursor):
 def assistant_chat():
     payload = request.get_json(silent=True) or {}
     message = " ".join(str(payload.get("message", "") or "").strip().split())
-    language = assistant_language(message)
+    language = assistant_language(message, payload.get("language", ""))
     if len(message) > 500:
-        return jsonify({"reply": "Please write a shorter, clearer request.", "cards": []}), 400
+        return jsonify({"reply": assistant_text(language, "too_long"), "cards": [], "language": language}), 400
 
     if not message:
         return jsonify({
             "reply": assistant_text(language, "empty"),
             "cards": [],
+            "language": language,
         })
 
     if assistant_is_small_talk(message):
         return jsonify({
             "reply": assistant_hello_reply(language),
             "cards": [],
+            "language": language,
         })
 
     requested_date, date_label = assistant_requested_date(message)
@@ -1126,6 +1163,7 @@ def assistant_chat():
         return jsonify({
             "reply": assistant_text(language, "db_down"),
             "cards": [],
+            "language": language,
         }), 503
 
     cursor = conn.cursor()
@@ -1172,21 +1210,23 @@ def assistant_chat():
         return jsonify({
             "reply": assistant_text(language, "no_results"),
             "cards": [],
+            "language": language,
         })
 
     if requested_date:
         available_count = sum(1 for card in cards if card["slots"])
+        date_text = assistant_date_label(requested_date, language)
         if available_count:
-            reply = assistant_text(language, "found_open", count=available_count, date=requested_date.strftime("%A, %d %B"))
+            reply = assistant_text(language, "found_open", count=available_count, date=date_text)
         else:
-            reply = assistant_text(language, "found_closed", date=requested_date.strftime("%A, %d %B"))
+            reply = assistant_text(language, "found_closed", date=date_text)
     else:
         reply = assistant_text(language, "found_businesses")
 
     if not session.get("user_id"):
         reply += assistant_text(language, "login_rule")
 
-    return jsonify({"reply": reply, "cards": cards})
+    return jsonify({"reply": reply, "cards": cards, "language": language})
 
 
 def get_store_calendar_days(store_id):
