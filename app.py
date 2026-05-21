@@ -924,7 +924,7 @@ ASSISTANT_STOPWORDS = {
     "i", "want", "need", "book", "pick", "tell", "show", "open", "today", "tomorrow", "sunday",
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "what", "about", "when",
     "free", "slot", "slots", "there", "is", "are",
-    "חפש", "עסק", "עסקים", "תור", "תורים", "זמין", "זמינים", "אפשר", "לי", "אני", "רוצה", "צריך",
+    "חפש", "מחפש", "לחפש", "עסק", "עסקים", "תור", "תורים", "זמין", "זמינים", "אפשר", "לי", "אני", "רוצה", "צריך",
     "מה", "ומה", "לגבי", "יש", "האם",
     "ביום", "היום", "מחר", "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת",
     "ابحث", "عمل", "اعمال", "موعد", "متاح", "اليوم", "غدا", "ماذا", "عن", "هل", "يوجد",
@@ -1002,11 +1002,15 @@ def assistant_language(message, fallback=""):
 def assistant_is_small_talk(message):
     normalized = (message or "").strip().lower()
     normalized = re.sub(r"[^\w\u0590-\u05FF\u0600-\u06FF\s]", "", normalized, flags=re.UNICODE)
-    return normalized in {
+    small_talk_phrases = {
         "hi", "hello", "hey", "thanks", "thank you",
-        "שלום", "היי", "הי", "תודה",
-        "مرحبا", "اهلا", "أهلا", "شكرا",
+        "bye", "goodbye", "see you",
+        "שלום", "היי", "הי", "תודה", "תודה רבה", "ביי", "להתראות",
+        "مرحبا", "اهلا", "أهلا", "شكرا", "مع السلامة", "باي",
     }
+    if normalized in small_talk_phrases:
+        return True
+    return any(phrase in normalized for phrase in ["thank you", "תודה", "ביי", "شكرا"])
 
 
 def assistant_is_capability_question(message):
@@ -1029,6 +1033,17 @@ def assistant_hello_reply(language):
     return "Hi. Tell me what you need, for example: car wash in Tel Aviv, or a free time on Sunday."
 
 
+def assistant_small_talk_reply(message, language):
+    normalized = (message or "").strip().lower()
+    if any(word in normalized for word in ["bye", "goodbye", "ביי", "להתראות", "مع السلامة", "باي"]):
+        if language == "he":
+            return "בשמחה. אם תרצה לחפש עסק או תור אחר, אני כאן."
+        if language == "ar":
+            return "على الرحب والسعة. إذا أردت البحث عن عمل أو موعد آخر، أنا هنا."
+        return "You are welcome. If you want to find another business or time, I am here."
+    return assistant_hello_reply(language)
+
+
 def assistant_text(language, key, **kwargs):
     texts = {
         "empty": {
@@ -1040,6 +1055,11 @@ def assistant_text(language, key, **kwargs):
             "en": "I can search businesses by city, category, or service, check live availability, remember the options we just discussed, and help you continue with follow-up questions like: what about tomorrow?",
             "he": "אני יכול לחפש עסקים לפי עיר, קטגוריה או שירות, לבדוק זמינות בזמן אמת, לזכור את האפשרויות שדיברנו עליהן, ולהמשיך עם שאלות המשך כמו: ומה לגבי מחר?",
             "ar": "يمكنني البحث عن أعمال حسب المدينة أو الفئة أو الخدمة، فحص المواعيد المتاحة مباشرة، تذكر الخيارات التي تحدثنا عنها، والمتابعة بأسئلة مثل: وماذا عن الغد؟",
+        },
+        "need_more_details": {
+            "en": "Sure. What kind of business are you looking for, and in which city? For example: barber in Haifa, car wash in Tel Aviv, or private lesson tomorrow.",
+            "he": "בשמחה. איזה סוג עסק אתה מחפש ובאיזו עיר? למשל: מספרה בחיפה, שטיפת רכב בתל אביב, או שיעור פרטי מחר.",
+            "ar": "أكيد. ما نوع العمل الذي تبحث عنه وفي أي مدينة؟ مثلا: حلاق في حيفا، غسيل سيارات في تل أبيب، أو درس خاص غدا.",
         },
         "too_long": {
             "en": "Please write a shorter, clearer request.",
@@ -1205,7 +1225,7 @@ def assistant_chat():
 
     if assistant_is_small_talk(message):
         return jsonify({
-            "reply": assistant_hello_reply(language),
+            "reply": assistant_small_talk_reply(message, language),
             "cards": [],
             "language": language,
         })
@@ -1219,6 +1239,13 @@ def assistant_chat():
 
     requested_date, date_label = assistant_requested_date(message)
     search_tokens = assistant_search_tokens(message)
+    if not requested_date and not search_tokens and not context_store_ids:
+        return jsonify({
+            "reply": assistant_text(language, "need_more_details"),
+            "cards": [],
+            "language": language,
+        })
+
     try:
         conn = get_connection()
     except RuntimeError:

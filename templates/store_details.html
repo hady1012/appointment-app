@@ -556,7 +556,7 @@
 
         {% if not session.get('user_id') %}
             <div class="login-note">יש להתחבר כדי לקבוע תור</div>
-            <a href="{{ url_for('login') }}" class="btn btn-dark">התחברות</a>
+            <a href="{{ url_for('login') }}" class="btn btn-dark booking-login-btn">התחברות</a>
 
         {% elif session.get('role') != 'customer' %}
             <div class="login-note">רק לקוחות יכולים לקבוע תור</div>
