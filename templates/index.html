@@ -325,18 +325,15 @@
 
     <section class="ai-concierge" aria-labelledby="ai-concierge-title">
         <div class="ai-concierge-copy">
-            <span class="ai-kicker">Golan Pick Assistant</span>
-            <h2 id="ai-concierge-title">Ask for a business, city, service, or available time</h2>
-            <p>
-                The assistant checks real businesses, services, working hours, and booked appointments.
-                It helps customers choose one safe booking path at a time.
-            </p>
+            <span class="ai-kicker">Golan Pick AI</span>
+            <h2 id="ai-concierge-title">העוזר החכם שלך למציאת עסק ותור פנוי</h2>
+            <p>כתוב או לחץ על המיקרופון. העוזר בודק עסקים, שירותים ושעות פנויות בזמן אמת.</p>
         </div>
 
         <div class="ai-chat-panel">
             <div class="ai-chat-log" id="aiChatLog" aria-live="polite">
                 <div class="ai-message ai-message-bot">
-                    Hi, I am online 24/7. Try: “Find a car wash in Tel Aviv” or “Do they have time on Sunday?”
+                    שלום, אני העוזר של Golan Pick. אפשר לשאול: “מצא לי שטיפת רכב בתל אביב” או “יש תור ביום ראשון?”
                 </div>
             </div>
 
@@ -345,13 +342,15 @@
                     type="text"
                     id="aiChatInput"
                     autocomplete="off"
-                    placeholder="Ask Golan Pick..."
+                    placeholder="שאל את Golan Pick..."
                     aria-label="Ask Golan Pick assistant"
                 >
-                <button type="button" class="ai-mic-btn" id="aiMicBtn" aria-label="Use microphone">🎙</button>
-                <button type="submit" class="ai-send-btn">Ask</button>
+                <button type="button" class="ai-mic-btn" id="aiMicBtn" aria-label="Use microphone">
+                    <span class="mic-icon" aria-hidden="true"></span>
+                </button>
+                <button type="submit" class="ai-send-btn">שאל</button>
             </form>
-            <div class="ai-chat-note">Voice support depends on your browser. Booking is always limited to one business at a time.</div>
+            <div class="ai-chat-note">הדיבור הקולי יופעל רק אחרי לחיצה על המיקרופון.</div>
         </div>
     </section>
 
@@ -368,6 +367,7 @@ const aiChatForm = document.getElementById('aiChatForm');
 const aiChatInput = document.getElementById('aiChatInput');
 const aiChatLog = document.getElementById('aiChatLog');
 const aiMicBtn = document.getElementById('aiMicBtn');
+let shouldSpeakNextAiReply = false;
 
 function appendAiMessage(text, type = 'bot') {
     const bubble = document.createElement('div');
@@ -452,7 +452,7 @@ aiChatForm?.addEventListener('submit', async (event) => {
 
     appendAiMessage(message, 'user');
     aiChatInput.value = '';
-    appendAiMessage('Checking live availability...', 'bot');
+    appendAiMessage('בודק זמינות חיה...', 'bot');
 
     try {
         const response = await fetch('{{ url_for("assistant_chat") }}', {
@@ -464,17 +464,21 @@ aiChatForm?.addEventListener('submit', async (event) => {
         aiChatLog.lastElementChild?.remove();
         appendAiMessage(data.reply || 'I found a result.');
         appendAiCards(data.cards || []);
-        speakAi(data.reply || '');
+        if (shouldSpeakNextAiReply) {
+            speakAi(data.reply || '');
+            shouldSpeakNextAiReply = false;
+        }
     } catch (_error) {
         aiChatLog.lastElementChild?.remove();
-        appendAiMessage('I could not reach the assistant right now. Please try again.');
+        appendAiMessage('לא הצלחתי להגיע לעוזר כרגע. נסה שוב.');
+        shouldSpeakNextAiReply = false;
     }
 });
 
 aiMicBtn?.addEventListener('click', () => {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
-        appendAiMessage('Microphone search is not supported in this browser yet.');
+        appendAiMessage('המיקרופון לא נתמך בדפדפן הזה כרגע.');
         return;
     }
 
@@ -486,10 +490,14 @@ aiMicBtn?.addEventListener('click', () => {
     recognition.start();
 
     recognition.onresult = (event) => {
+        shouldSpeakNextAiReply = true;
         aiChatInput.value = event.results[0][0].transcript;
         aiChatForm.requestSubmit();
     };
-    recognition.onerror = () => appendAiMessage('I could not hear clearly. Try typing or press the microphone again.');
+    recognition.onerror = () => {
+        shouldSpeakNextAiReply = false;
+        appendAiMessage('לא שמעתי ברור. אפשר להקליד או ללחוץ שוב על המיקרופון.');
+    };
     recognition.onend = () => aiMicBtn.classList.remove('listening');
 });
 </script>

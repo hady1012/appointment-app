@@ -991,6 +991,24 @@ def assistant_language(message):
     return "en"
 
 
+def assistant_is_small_talk(message):
+    normalized = (message or "").strip().lower()
+    normalized = re.sub(r"[^\w\u0590-\u05FF\u0600-\u06FF\s]", "", normalized, flags=re.UNICODE)
+    return normalized in {
+        "hi", "hello", "hey", "thanks", "thank you",
+        "שלום", "היי", "הי", "תודה",
+        "مرحبا", "اهلا", "أهلا", "شكرا",
+    }
+
+
+def assistant_hello_reply(language):
+    if language == "he":
+        return "שלום. כתוב מה אתה מחפש, למשל: שטיפת רכב בתל אביב, או תור פנוי ביום ראשון."
+    if language == "ar":
+        return "مرحبا. اكتب ما تبحث عنه، مثلا: غسيل سيارات في تل أبيب، أو موعد متاح يوم الأحد."
+    return "Hi. Tell me what you need, for example: car wash in Tel Aviv, or a free time on Sunday."
+
+
 def assistant_text(language, key, **kwargs):
     texts = {
         "empty": {
@@ -1095,6 +1113,12 @@ def assistant_chat():
             "cards": [],
         })
 
+    if assistant_is_small_talk(message):
+        return jsonify({
+            "reply": assistant_hello_reply(language),
+            "cards": [],
+        })
+
     requested_date, date_label = assistant_requested_date(message)
     try:
         conn = get_connection()
@@ -1159,9 +1183,7 @@ def assistant_chat():
     else:
         reply = assistant_text(language, "found_businesses")
 
-    if session.get("role") == "customer":
-        reply += assistant_text(language, "customer_rule")
-    elif not session.get("user_id"):
+    if not session.get("user_id"):
         reply += assistant_text(language, "login_rule")
 
     return jsonify({"reply": reply, "cards": cards})

@@ -2590,11 +2590,11 @@ textarea,
 /* Home assistant */
 .ai-concierge {
     display: grid;
-    grid-template-columns: minmax(0, 0.9fr) minmax(320px, 1.1fr);
-    gap: 22px;
+    grid-template-columns: minmax(0, 0.72fr) minmax(320px, 1.28fr);
+    gap: 18px;
     align-items: stretch;
     margin: 30px 0;
-    padding: 24px;
+    padding: 18px;
     border: 1px solid rgba(20, 184, 166, 0.18);
     border-radius: 24px;
     background:
@@ -2624,15 +2624,16 @@ textarea,
 .ai-concierge h2 {
     margin: 0 0 10px;
     color: #0f172a;
-    font-size: 1.75rem;
+    font-size: 1.34rem;
     font-weight: 900;
-    line-height: 1.2;
+    line-height: 1.35;
 }
 
 .ai-concierge p {
     margin: 0;
     color: #475569;
-    line-height: 1.7;
+    line-height: 1.55;
+    font-size: 0.96rem;
 }
 
 .ai-chat-panel {
@@ -2702,11 +2703,46 @@ textarea,
     background: #ecfeff;
     color: #0f766e;
     border: 1px solid #99f6e4;
+    display: grid;
+    place-items: center;
+    min-height: 44px;
 }
 
 .ai-mic-btn.listening {
     background: #0f766e;
     color: #ffffff;
+}
+
+.mic-icon {
+    position: relative;
+    display: block;
+    width: 14px;
+    height: 20px;
+    border: 2px solid currentColor;
+    border-radius: 999px;
+}
+
+.mic-icon::before {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -8px;
+    width: 2px;
+    height: 8px;
+    background: currentColor;
+    transform: translateX(-50%);
+}
+
+.mic-icon::after {
+    content: "";
+    position: absolute;
+    left: 50%;
+    bottom: -10px;
+    width: 14px;
+    height: 8px;
+    border-bottom: 2px solid currentColor;
+    border-radius: 0 0 999px 999px;
+    transform: translateX(-50%);
 }
 
 .ai-send-btn {
@@ -2838,6 +2874,40 @@ textarea,
 }
 
 @media (max-width: 520px) {
+    .ai-concierge {
+        gap: 12px !important;
+        padding: 14px !important;
+    }
+
+    .ai-kicker {
+        font-size: 0.74rem !important;
+        padding: 5px 9px !important;
+        margin-bottom: 8px !important;
+    }
+
+    .ai-concierge h2 {
+        font-size: 1.22rem !important;
+        line-height: 1.35 !important;
+        margin-bottom: 8px !important;
+    }
+
+    .ai-concierge p {
+        font-size: 0.9rem !important;
+        line-height: 1.55 !important;
+    }
+
+    .ai-chat-panel {
+        min-height: 340px !important;
+    }
+
+    .ai-message {
+        max-width: 92% !important;
+        padding: 9px 11px !important;
+        font-size: 0.92rem !important;
+        line-height: 1.5 !important;
+        font-weight: 750 !important;
+    }
+
     .ai-chat-form {
         grid-template-columns: minmax(0, 1fr) 44px;
     }
