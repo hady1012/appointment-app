@@ -368,6 +368,7 @@ const aiChatLog = document.getElementById('aiChatLog');
 const aiActionBtn = document.getElementById('aiActionBtn');
 const aiChatNote = document.querySelector('.ai-chat-note');
 let shouldSpeakNextAiReply = false;
+let speechUnlocked = false;
 
 if (aiChatNote) aiChatNote.textContent = 'הקלד ושלח, או לחץ על הכפתור לשיחה קולית.';
 
@@ -441,12 +442,32 @@ function appendAiCards(cards = []) {
     aiChatLog.scrollTop = aiChatLog.scrollHeight;
 }
 
-function speakAi(text) {
-    if (!('speechSynthesis' in window)) return;
+function loadAiVoices() {
+    if (!('speechSynthesis' in window)) return Promise.resolve([]);
+    const voices = window.speechSynthesis.getVoices();
+    if (voices.length) return Promise.resolve(voices);
+
+    return new Promise((resolve) => {
+        const finish = () => resolve(window.speechSynthesis.getVoices());
+        window.speechSynthesis.addEventListener('voiceschanged', finish, { once: true });
+        setTimeout(finish, 700);
+    });
+}
+
+function unlockAiSpeech() {
+    if (speechUnlocked || !('speechSynthesis' in window)) return;
+    const utterance = new SpeechSynthesisUtterance(' ');
+    utterance.volume = 0;
+    window.speechSynthesis.speak(utterance);
+    speechUnlocked = true;
+}
+
+async function speakAi(text) {
+    if (!('speechSynthesis' in window) || !text) return;
     const utterance = new SpeechSynthesisUtterance(text);
     utterance.rate = 0.95;
-    utterance.pitch = 0.85;
-    const voices = window.speechSynthesis.getVoices();
+    utterance.pitch = 0.62;
+    const voices = await loadAiVoices();
     const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex|asaf|yaron|microsoft.*he/i.test(voice.name));
     if (!maleVoice) {
         appendAiMessage('הדפדפן לא מספק קול גברי כרגע, לכן השארתי את התשובה בטקסט.');
@@ -457,6 +478,18 @@ function speakAi(text) {
     window.speechSynthesis.speak(utterance);
 }
 
+speakAi = async function(text) {
+    if (!('speechSynthesis' in window) || !text) return;
+    const utterance = new SpeechSynthesisUtterance(text);
+    utterance.rate = 0.95;
+    utterance.pitch = 0.58;
+    const voices = await loadAiVoices();
+    const maleVoice = voices.find((voice) => /male|david|guy|daniel|alex|asaf|yaron|microsoft.*he/i.test(voice.name));
+    if (maleVoice) utterance.voice = maleVoice;
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+};
+
 function startAiVoiceChat() {
     const SpeechRecognition = window.SpeechRecognition || window.webkitSpeechRecognition;
     if (!SpeechRecognition) {
@@ -464,6 +497,7 @@ function startAiVoiceChat() {
         return;
     }
 
+    unlockAiSpeech();
     const recognition = new SpeechRecognition();
     recognition.lang = document.documentElement.lang || 'he-IL';
     recognition.interimResults = false;

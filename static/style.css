@@ -3166,3 +3166,79 @@ html[data-theme="light"] body {
         linear-gradient(180deg, rgba(255, 255, 255, 0.46), rgba(247, 250, 248, 0.68)),
         url("/static/light-mode-background.jpeg") center/cover fixed no-repeat !important;
 }
+
+/* Mobile assistant and login polish */
+.remember-row {
+    align-items: flex-start !important;
+    margin-top: -2px !important;
+    margin-bottom: 14px !important;
+    line-height: 1.2 !important;
+}
+
+.remember-row input {
+    flex: 0 0 auto !important;
+    margin-top: 1px !important;
+}
+
+.remember-row span {
+    display: inline-flex !important;
+    align-items: center !important;
+    min-height: 22px !important;
+}
+
+.ai-chat-log {
+    min-height: 190px;
+}
+
+@media (max-width: 520px) {
+    .ai-concierge {
+        margin: 18px 0 !important;
+        border-radius: 18px !important;
+    }
+
+    .ai-concierge h2 {
+        font-size: 1.08rem !important;
+        line-height: 1.32 !important;
+    }
+
+    .ai-concierge p {
+        font-size: 0.84rem !important;
+        line-height: 1.45 !important;
+    }
+
+    .ai-chat-panel {
+        min-height: 0 !important;
+        border-radius: 16px !important;
+    }
+
+    .ai-chat-log {
+        min-height: 168px !important;
+        max-height: 280px !important;
+        padding: 12px !important;
+    }
+
+    .ai-chat-form.ai-chat-form-compact {
+        grid-template-columns: 48px minmax(0, 1fr) !important;
+        gap: 8px !important;
+        padding: 10px !important;
+    }
+
+    .ai-action-btn {
+        width: 48px !important;
+        height: 48px !important;
+        min-height: 48px !important;
+        border-radius: 13px !important;
+    }
+
+    .ai-chat-form input {
+        min-height: 48px !important;
+        margin-bottom: 0 !important;
+        font-size: 16px !important;
+    }
+
+    .ai-chat-note {
+        padding: 0 12px 12px !important;
+        font-size: 0.82rem !important;
+        line-height: 1.45 !important;
+    }
+}
