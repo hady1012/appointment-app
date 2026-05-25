@@ -1834,24 +1834,146 @@ textarea {
     }
 }
 
-/* User-selectable dark mode */
-.theme-toggle {
+/* Accessibility widget */
+.accessibility-widget {
     position: fixed;
     left: 14px;
     bottom: 14px;
     z-index: 10000;
-    width: 42px !important;
-    height: 42px !important;
-    min-height: 42px !important;
-    border-radius: 999px !important;
+    font-family: inherit;
+}
+
+.accessibility-toggle {
+    display: grid !important;
+    grid-template-columns: minmax(72px, 1fr) 1px 48px;
+    align-items: stretch;
+    width: 174px !important;
+    min-height: 58px !important;
     padding: 0 !important;
-    background: rgba(255, 255, 255, 0.86) !important;
-    color: #111827 !important;
-    border: 1px solid rgba(15, 23, 42, 0.12) !important;
+    background: rgba(15, 23, 42, 0.96) !important;
+    color: #ffffff !important;
+    border: 1px solid rgba(255, 255, 255, 0.34) !important;
+    border-radius: 0 !important;
     box-shadow: 0 12px 30px rgba(0,0,0,0.18) !important;
     backdrop-filter: blur(18px);
-    font-size: 22px !important;
-    line-height: 1 !important;
+    overflow: hidden;
+}
+
+.accessibility-toggle-label {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 8px 9px;
+    font-size: 0.78rem;
+    font-weight: 800;
+    line-height: 1.12;
+    text-align: center;
+}
+
+.accessibility-toggle-divider {
+    width: 1px;
+    background: rgba(255, 255, 255, 0.42);
+}
+
+.accessibility-person {
+    position: relative;
+    display: grid;
+    place-items: center;
+    min-height: 58px;
+}
+
+.accessibility-person::before {
+    content: "";
+    width: 10px;
+    height: 10px;
+    margin-top: -22px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.accessibility-person span,
+.accessibility-person span::before,
+.accessibility-person span::after {
+    position: absolute;
+    left: 50%;
+    background: currentColor;
+    transform: translateX(-50%);
+}
+
+.accessibility-person span {
+    top: 25px;
+    width: 6px;
+    height: 22px;
+    border-radius: 999px;
+}
+
+.accessibility-person span::before,
+.accessibility-person span::after {
+    content: "";
+    top: 2px;
+    width: 30px;
+    height: 5px;
+    border-radius: 999px;
+}
+
+.accessibility-person span::after {
+    top: 17px;
+    width: 26px;
+    transform: translateX(-50%) rotate(90deg);
+}
+
+.accessibility-panel {
+    position: absolute;
+    left: 0;
+    bottom: calc(100% + 10px);
+    width: 174px;
+    padding: 8px;
+    border: 1px solid rgba(15, 23, 42, 0.12);
+    border-radius: 8px;
+    background: rgba(255, 255, 255, 0.96);
+    box-shadow: 0 16px 36px rgba(15, 23, 42, 0.18);
+    opacity: 0;
+    pointer-events: none;
+    transform: translateY(8px);
+    transition: opacity 0.16s ease, transform 0.16s ease;
+}
+
+.accessibility-widget.is-open .accessibility-panel {
+    opacity: 1;
+    pointer-events: auto;
+    transform: translateY(0);
+}
+
+.accessibility-option {
+    display: flex !important;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    width: 100%;
+    min-height: 42px !important;
+    padding: 8px 10px !important;
+    border: 0 !important;
+    border-radius: 6px !important;
+    background: transparent !important;
+    color: #111827 !important;
+    font-size: 0.92rem !important;
+    font-weight: 800 !important;
+    text-align: left;
+}
+
+.accessibility-option:hover,
+.accessibility-option:focus-visible {
+    background: rgba(15, 118, 110, 0.1) !important;
+}
+
+.accessibility-option strong {
+    min-width: 34px;
+    padding: 3px 7px;
+    border-radius: 999px;
+    background: rgba(15, 118, 110, 0.12);
+    color: #0f766e;
+    font-size: 0.76rem;
+    text-align: center;
 }
 
 [data-theme="dark"] body {
@@ -1979,10 +2101,29 @@ textarea {
     border-color: rgba(148, 163, 184, 0.22) !important;
 }
 
-[data-theme="dark"] .theme-toggle {
-    background: rgba(15, 23, 42, 0.86) !important;
+[data-theme="dark"] .accessibility-toggle {
+    background: rgba(2, 6, 23, 0.96) !important;
     color: #f8fafc !important;
     border-color: rgba(255,255,255,0.16) !important;
+}
+
+[data-theme="dark"] .accessibility-panel {
+    background: rgba(15, 23, 42, 0.96);
+    border-color: rgba(255, 255, 255, 0.16);
+}
+
+[data-theme="dark"] .accessibility-option {
+    color: #f8fafc !important;
+}
+
+[data-theme="dark"] .accessibility-option:hover,
+[data-theme="dark"] .accessibility-option:focus-visible {
+    background: rgba(45, 212, 191, 0.16) !important;
+}
+
+[data-theme="dark"] .accessibility-option strong {
+    background: rgba(45, 212, 191, 0.16);
+    color: #99f6e4;
 }
 
 /* Premium finish and fast interaction states */
