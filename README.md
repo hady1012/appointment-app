@@ -76,7 +76,6 @@ https://appointment-app-2-1k3v.onrender.com/
 - Remembered login sessions refresh for active users and expire after a week away
 - Store ratings can be submitted any time and approved by the owner
 - Golan Pick branding with a Golan Heights hero image
-- Main-page footer credit links `Powered by Hady Amasha` to https://www.linkedin.com/in/hadyamashaswe
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
 - Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem, and edit forms keep existing photos without resending the full image payload
 - Store detail pages expose the owner's first uploaded store photo as Apple touch icon and social preview metadata for better bookmarks and sharing

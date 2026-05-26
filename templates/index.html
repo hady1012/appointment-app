@@ -490,6 +490,13 @@ function appendAiCards(cards = [], language = currentAiLanguage) {
         summary.textContent = card.location || card.description || aiText(language, 'details');
         item.appendChild(summary);
 
+        if (card.reason) {
+            const reason = document.createElement('small');
+            reason.className = 'ai-result-reason';
+            reason.textContent = card.reason;
+            item.appendChild(reason);
+        }
+
         if (card.service) {
             const service = document.createElement('small');
             service.textContent = `${card.service}${card.price !== null ? ` · ₪${card.price}` : ''}`;
@@ -694,7 +701,7 @@ aiChatForm?.addEventListener('submit', async (event) => {
         appendAiMessage(data.reply || aiText(currentAiLanguage, 'fallback'), 'bot', currentAiLanguage);
         appendAiCards(data.cards || [], currentAiLanguage);
         if (data.cards?.length) {
-            aiConversationStoreIds = data.cards.map((card) => card.id).filter(Boolean).slice(0, 5);
+            aiConversationStoreIds = (data.context_store_ids?.length ? data.context_store_ids : data.cards.map((card) => card.id)).filter(Boolean).slice(0, 5);
         }
         if (shouldSpeakNextAiReply) {
             await speakAi(data.reply || '', currentAiLanguage);

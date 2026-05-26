@@ -940,6 +940,25 @@ ASSISTANT_DAY_WORDS = {
     "saturday": "saturday", "שבת": "saturday", "السبت": "saturday",
 }
 
+ASSISTANT_PREFERENCE_WORDS = {
+    "cheap": "cheapest", "cheaper": "cheapest", "cheapest": "cheapest", "price": "cheapest",
+    "fast": "fastest", "faster": "fastest", "fastest": "fastest", "quick": "fastest", "short": "fastest",
+    "best": "best", "recommended": "best", "recommend": "best",
+    "זול": "cheapest", "זולה": "cheapest", "זולים": "cheapest", "מחיר": "cheapest", "הכי זול": "cheapest",
+    "מהיר": "fastest", "מהירה": "fastest", "קצר": "fastest", "קצרה": "fastest", "הכי מהר": "fastest",
+    "מומלץ": "best", "מומלצת": "best", "הכי טוב": "best",
+    "رخيص": "cheapest", "ارخص": "cheapest", "أرخص": "cheapest", "سعر": "cheapest",
+    "سريع": "fastest", "اسرع": "fastest", "أسرع": "fastest",
+    "افضل": "best", "أفضل": "best",
+}
+
+ASSISTANT_FOLLOWUP_WORDS = {
+    "them", "those", "these", "it", "there", "that", "same", "option", "options",
+    "what about", "how about", "which", "one",
+    "אותם", "אלה", "זה", "שם", "אותו", "אותה", "מה לגבי", "ומה", "איזה", "אחד",
+    "هذه", "هؤلاء", "نفس", "ماذا عن", "اي", "أي",
+}
+
 
 def assistant_requested_date(message):
     normalized = (message or "").lower()
@@ -983,6 +1002,61 @@ def assistant_search_tokens(message):
         tokens.append("תל אביב")
 
     return tokens[:8]
+
+
+def assistant_preferences(message):
+    normalized = (message or "").lower()
+    preferences = []
+    for phrase, preference in ASSISTANT_PREFERENCE_WORDS.items():
+        if phrase in normalized and preference not in preferences:
+            preferences.append(preference)
+    return preferences
+
+
+def assistant_extract_price_limit(message):
+    normalized = (message or "").lower()
+    patterns = [
+        r"(?:under|below|up to|max|maximum)\s*(?:₪|nis|ils)?\s*(\d{1,5})",
+        r"(?:עד|מקסימום|פחות מ)\s*₪?\s*(\d{1,5})",
+        r"(?:اقل من|حتى|حد اقصى)\s*(\d{1,5})",
+    ]
+    for pattern in patterns:
+        match = re.search(pattern, normalized)
+        if match:
+            try:
+                return float(match.group(1))
+            except ValueError:
+                return None
+    return None
+
+
+def assistant_should_use_context(message, tokens, context_store_ids):
+    if not context_store_ids:
+        return False
+    normalized = (message or "").lower()
+    if any(word in normalized for word in ASSISTANT_FOLLOWUP_WORDS):
+        return True
+    if assistant_preferences(message):
+        return True
+    if not tokens:
+        return True
+    preference_values = set(ASSISTANT_PREFERENCE_WORDS)
+    return all(token in preference_values for token in tokens)
+
+
+def assistant_text_score(text, tokens):
+    normalized = (text or "").lower()
+    score = 0
+    for token in tokens:
+        if not token:
+            continue
+        if normalized == token:
+            score += 8
+        elif normalized.startswith(token):
+            score += 5
+        elif token in normalized:
+            score += 3
+    return score
 
 
 def assistant_language(message, fallback=""):
@@ -1155,9 +1229,22 @@ def assistant_find_stores(message, cursor):
             params.extend([like_token, like_token, like_token, like_token, like_token])
         query += " WHERE " + " OR ".join(conditions)
 
-    query += " ORDER BY st.id DESC LIMIT 5"
+    query += " ORDER BY st.id DESC LIMIT 16"
     cursor.execute(query, tuple(params))
-    return cursor.fetchall()
+    rows = cursor.fetchall()
+    if not tokens:
+        return rows[:5]
+
+    def row_score(row):
+        _store_id, name, category, description, location = row
+        return (
+            assistant_text_score(name, tokens) * 3
+            + assistant_text_score(category, tokens) * 2
+            + assistant_text_score(location, tokens) * 2
+            + assistant_text_score(description, tokens)
+        )
+
+    return sorted(rows, key=row_score, reverse=True)[:5]
 
 
 def assistant_context_store_ids(raw_ids):
@@ -1207,6 +1294,97 @@ def assistant_store_services(store_id, cursor):
     return cursor.fetchall()
 
 
+def assistant_choose_service(services, message, tokens):
+    if not services:
+        return None
+    preferences = assistant_preferences(message)
+    price_limit = assistant_extract_price_limit(message)
+
+    def service_score(service):
+        _service_id, name, price, duration = service
+        score = assistant_text_score(name, tokens) * 4
+        price_value = float(price or 0)
+        duration_value = int(duration or 0)
+        if price_limit is not None:
+            score += 10 if price_value <= price_limit else -12
+        if "cheapest" in preferences:
+            score -= price_value / 20
+        if "fastest" in preferences:
+            score -= duration_value / 10
+        if "best" in preferences:
+            score += 2
+        return score
+
+    return sorted(services, key=service_score, reverse=True)[0]
+
+
+def assistant_card_reason(language, card, preferences):
+    bits = []
+    if card.get("service"):
+        if language == "he":
+            bits.append(f"שירות מתאים: {card['service']}")
+        elif language == "ar":
+            bits.append(f"خدمة مناسبة: {card['service']}")
+        else:
+            bits.append(f"Matching service: {card['service']}")
+    if card.get("location"):
+        if language == "he":
+            bits.append(f"מיקום: {card['location']}")
+        elif language == "ar":
+            bits.append(f"الموقع: {card['location']}")
+        else:
+            bits.append(f"Location: {card['location']}")
+    if "cheapest" in preferences and card.get("price") is not None:
+        if language == "he":
+            bits.append(f"מחיר: ₪{card['price']}")
+        elif language == "ar":
+            bits.append(f"السعر: ₪{card['price']}")
+        else:
+            bits.append(f"Price: ₪{card['price']}")
+    if "fastest" in preferences and card.get("duration"):
+        if language == "he":
+            bits.append(f"משך: {card['duration']} דקות")
+        elif language == "ar":
+            bits.append(f"المدة: {card['duration']} دقيقة")
+        else:
+            bits.append(f"Duration: {card['duration']} min")
+    return " · ".join(bits[:3])
+
+
+def assistant_smart_reply(language, cards, requested_date, preferences):
+    best = cards[0] if cards else {}
+    if requested_date:
+        available_count = sum(1 for card in cards if card["slots"])
+        date_text = assistant_date_label(requested_date, language)
+        if available_count:
+            base = assistant_text(language, "found_open", count=available_count, date=date_text)
+        else:
+            base = assistant_text(language, "found_closed", date=date_text)
+    else:
+        base = assistant_text(language, "found_businesses")
+
+    if not best:
+        return base
+
+    if language == "he":
+        if "cheapest" in preferences and best.get("price") is not None:
+            return f"{base} האפשרות הראשונה נראית הכי משתלמת: {best['name']} עם {best['service']} במחיר ₪{best['price']}."
+        if "fastest" in preferences and best.get("duration"):
+            return f"{base} שמתי קודם את {best['name']} כי השירות קצר יחסית ({best['duration']} דקות)."
+        return f"{base} שמתי את {best['name']} ראשון כי הוא הכי קרוב למה שביקשת."
+    if language == "ar":
+        if "cheapest" in preferences and best.get("price") is not None:
+            return f"{base} الخيار الأول يبدو أوفر: {best['name']} مع {best['service']} بسعر ₪{best['price']}."
+        if "fastest" in preferences and best.get("duration"):
+            return f"{base} وضعت {best['name']} أولا لأن الخدمة قصيرة نسبيا ({best['duration']} دقيقة)."
+        return f"{base} وضعت {best['name']} أولا لأنه الأقرب لطلبك."
+    if "cheapest" in preferences and best.get("price") is not None:
+        return f"{base} The first option looks like the best price: {best['name']} with {best['service']} for ₪{best['price']}."
+    if "fastest" in preferences and best.get("duration"):
+        return f"{base} I put {best['name']} first because the service is relatively quick ({best['duration']} minutes)."
+    return f"{base} I put {best['name']} first because it best matches your request."
+
+
 @app.route("/assistant/chat", methods=["POST"])
 def assistant_chat():
     payload = request.get_json(silent=True) or {}
@@ -1239,6 +1417,8 @@ def assistant_chat():
 
     requested_date, date_label = assistant_requested_date(message)
     search_tokens = assistant_search_tokens(message)
+    preferences = assistant_preferences(message)
+    use_context = assistant_should_use_context(message, search_tokens, context_store_ids)
     if not requested_date and not search_tokens and not context_store_ids:
         return jsonify({
             "reply": assistant_text(language, "need_more_details"),
@@ -1259,7 +1439,7 @@ def assistant_chat():
 
     try:
         ensure_store_optional_schema(cursor)
-        if requested_date and context_store_ids and not search_tokens:
+        if use_context:
             store_rows = assistant_find_stores_by_ids(context_store_ids, cursor)
         else:
             store_rows = assistant_find_stores(message, cursor)
@@ -1267,7 +1447,7 @@ def assistant_chat():
 
         for store_id, name, category, description, location in store_rows:
             services = assistant_store_services(store_id, cursor)
-            service = services[0] if services else None
+            service = assistant_choose_service(services, message, search_tokens)
             slots = []
 
             if requested_date and service:
@@ -1294,6 +1474,28 @@ def assistant_chat():
                 "slots": slots,
                 "url": store_url,
             })
+
+        def card_score(card):
+            score = 0
+            combined_text = " ".join([
+                str(card.get("name", "")),
+                str(card.get("category", "")),
+                str(card.get("description", "")),
+                str(card.get("location", "")),
+                str(card.get("service", "")),
+            ])
+            score += assistant_text_score(combined_text, search_tokens)
+            if requested_date and card.get("slots"):
+                score += 25
+            if "cheapest" in preferences and card.get("price") is not None:
+                score -= float(card["price"]) / 10
+            if "fastest" in preferences and card.get("duration"):
+                score -= int(card["duration"]) / 5
+            return score
+
+        cards = sorted(cards, key=card_score, reverse=True)[:5]
+        for card in cards:
+            card["reason"] = assistant_card_reason(language, card, preferences)
     finally:
         cursor.close()
         conn.close()
@@ -1305,20 +1507,17 @@ def assistant_chat():
             "language": language,
         })
 
-    if requested_date:
-        available_count = sum(1 for card in cards if card["slots"])
-        date_text = assistant_date_label(requested_date, language)
-        if available_count:
-            reply = assistant_text(language, "found_open", count=available_count, date=date_text)
-        else:
-            reply = assistant_text(language, "found_closed", date=date_text)
-    else:
-        reply = assistant_text(language, "found_businesses")
+    reply = assistant_smart_reply(language, cards, requested_date, preferences)
 
     if not session.get("user_id"):
         reply += assistant_text(language, "login_rule")
 
-    return jsonify({"reply": reply, "cards": cards, "language": language})
+    return jsonify({
+        "reply": reply,
+        "cards": cards,
+        "language": language,
+        "context_store_ids": [card["id"] for card in cards],
+    })
 
 
 @app.errorhandler(404)
