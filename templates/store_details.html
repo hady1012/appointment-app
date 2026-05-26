@@ -703,6 +703,7 @@ const bookingForm = document.querySelector('.booking-form');
 const slotsStatus = document.getElementById('slotsStatus');
 const bookSubmitBtn = document.getElementById('bookSubmitBtn');
 let slotsAbortController = null;
+const slotsCache = new Map();
 const bookingParams = new URLSearchParams(window.location.search);
 const preferredServiceId = bookingParams.get('service_id');
 const preferredDate = bookingParams.get('appointment_date');
@@ -737,24 +738,29 @@ async function loadSlots() {
         return;
     }
 
-    if (slotsAbortController) {
-        slotsAbortController.abort();
-    }
-
-    slotsAbortController = new AbortController();
+    const cacheKey = `${serviceSelect.value}:${dateInput.value}`;
     timeSelect.disabled = true;
     timeSelect.innerHTML = '<option value="">טוען שעות...</option>';
     setSlotsStatus('בודק שעות פנויות בזמן אמת...');
 
     try {
-        const params = new URLSearchParams({
-            service_id: serviceSelect.value,
-            appointment_date: dateInput.value
-        });
-        const res = await fetch(`/available-slots/{{ store.id }}?${params.toString()}`, {
-            signal: slotsAbortController.signal
-        });
-        const data = await res.json();
+        let data = slotsCache.get(cacheKey);
+        if (!data) {
+            if (slotsAbortController) {
+                slotsAbortController.abort();
+            }
+
+            slotsAbortController = new AbortController();
+            const params = new URLSearchParams({
+                service_id: serviceSelect.value,
+                appointment_date: dateInput.value
+            });
+            const res = await fetch(`/available-slots/{{ store.id }}?${params.toString()}`, {
+                signal: slotsAbortController.signal
+            });
+            data = await res.json();
+            slotsCache.set(cacheKey, data);
+        }
 
         timeSelect.innerHTML = "";
 

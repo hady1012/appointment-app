@@ -31,8 +31,10 @@ APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
-OWNER_SESSION_CHECK_INTERVAL = timedelta(seconds=30)
+OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
+AVAILABLE_SLOTS_CACHE = {}
+AVAILABLE_SLOTS_CACHE_TTL = 20
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -87,6 +89,10 @@ def get_connection():
             maxconn=int(os.environ.get("DATABASE_POOL_SIZE", "5")),
             dsn=database_url,
             connect_timeout=5,
+            keepalives=1,
+            keepalives_idle=30,
+            keepalives_interval=10,
+            keepalives_count=3,
         )
 
     return PooledConnection(DB_POOL.getconn(), DB_POOL)
@@ -532,11 +538,15 @@ def ensure_performance_indexes(cursor):
 
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_users_email ON users(email)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_owner_id ON stores(owner_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_stores_category ON stores(category)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_store_id ON services(store_id)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_services_store_duration ON services(store_id, duration_minutes, id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_working_hours_store_day ON working_hours(store_id, day_of_week)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_appointments_store_date_time ON appointments(store_id, appointment_date, appointment_time)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_appointments_store_date_time_desc ON appointments(store_id, appointment_date DESC, appointment_time DESC)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_appointments_customer_id ON appointments(customer_id)")
     cursor.execute("CREATE INDEX IF NOT EXISTS idx_ratings_store_status ON ratings(store_id, status)")
+    cursor.execute("CREATE INDEX IF NOT EXISTS idx_ratings_store_status_created ON ratings(store_id, status, created_at DESC)")
     PERFORMANCE_INDEXES_READY = True
 
 
@@ -638,7 +648,7 @@ This code expires in 15 minutes. If you did not ask to reset your password, you 
 
 @app.before_request
 def keep_recent_users_signed_in():
-    if request.endpoint == "static":
+    if request.endpoint in {"static", "available_slots"}:
         return None
 
     if not session.get("user_id"):
@@ -664,7 +674,7 @@ def keep_recent_users_signed_in():
 
 @app.before_request
 def guard_owner_single_device_session():
-    if request.endpoint in {"static", "login", "logout"}:
+    if request.endpoint in {"static", "login", "logout", "available_slots"}:
         return None
 
     if session.get("role") != "owner" or not session.get("user_id") or not session.get("owner_session_token"):
@@ -916,6 +926,36 @@ def generate_available_slots(store_id, service_id, appointment_date, cursor=None
         if internal_conn:
             internal_cursor.close()
             internal_conn.close()
+
+
+def cached_available_slots(store_id, service_id, appointment_date):
+    key = (int(store_id), str(service_id), str(appointment_date))
+    current_time = now_local()
+    cached = AVAILABLE_SLOTS_CACHE.get(key)
+    if cached and current_time - cached["created_at"] < timedelta(seconds=AVAILABLE_SLOTS_CACHE_TTL):
+        return list(cached["slots"])
+
+    slots = generate_available_slots(store_id, service_id, appointment_date)
+    AVAILABLE_SLOTS_CACHE[key] = {"created_at": current_time, "slots": list(slots)}
+
+    if len(AVAILABLE_SLOTS_CACHE) > 200:
+        cutoff = current_time - timedelta(seconds=AVAILABLE_SLOTS_CACHE_TTL)
+        stale_keys = [cache_key for cache_key, value in AVAILABLE_SLOTS_CACHE.items() if value["created_at"] < cutoff]
+        for cache_key in stale_keys:
+            AVAILABLE_SLOTS_CACHE.pop(cache_key, None)
+
+    return slots
+
+
+def clear_available_slots_cache(store_id=None):
+    if store_id is None:
+        AVAILABLE_SLOTS_CACHE.clear()
+        return
+
+    store_id = int(store_id)
+    for cache_key in list(AVAILABLE_SLOTS_CACHE):
+        if cache_key[0] == store_id:
+            AVAILABLE_SLOTS_CACHE.pop(cache_key, None)
 
 
 ASSISTANT_STOPWORDS = {
@@ -1538,12 +1578,16 @@ def internal_error(_error):
     ), 500
 
 
-def get_store_calendar_days(store_id):
-    conn = get_connection()
-    cursor = conn.cursor()
+def get_store_calendar_days(store_id, cursor=None):
+    internal_conn = None
+    internal_cursor = cursor
 
     try:
-        cursor.execute(
+        if internal_cursor is None:
+            internal_conn = get_connection()
+            internal_cursor = internal_conn.cursor()
+
+        internal_cursor.execute(
             """
             SELECT id, duration_minutes
             FROM services
@@ -1553,7 +1597,7 @@ def get_store_calendar_days(store_id):
             """,
             (store_id,),
         )
-        service_row = cursor.fetchone()
+        service_row = internal_cursor.fetchone()
 
         start_date = now_local().date()
         end_date = start_date + timedelta(days=8)
@@ -1561,7 +1605,7 @@ def get_store_calendar_days(store_id):
         appointments_by_date = {}
 
         if service_row:
-            cursor.execute(
+            internal_cursor.execute(
                 """
                 SELECT day_of_week, is_open, start_time, end_time
                 FROM working_hours
@@ -1571,10 +1615,10 @@ def get_store_calendar_days(store_id):
             )
             working_hours_by_day = {
                 row[0]: {"is_open": row[1], "start_time": row[2], "end_time": row[3]}
-                for row in cursor.fetchall()
+                for row in internal_cursor.fetchall()
             }
 
-            cursor.execute(
+            internal_cursor.execute(
                 """
                 SELECT a.appointment_date, a.appointment_time, s.duration_minutes
                 FROM appointments a
@@ -1585,7 +1629,7 @@ def get_store_calendar_days(store_id):
                 """,
                 (store_id, start_date, end_date),
             )
-            for appointment_date, appointment_time, duration in cursor.fetchall():
+            for appointment_date, appointment_time, duration in internal_cursor.fetchall():
                 appointments_by_date.setdefault(appointment_date, []).append((appointment_time, duration))
 
         days = []
@@ -1638,8 +1682,9 @@ def get_store_calendar_days(store_id):
 
         return days
     finally:
-        cursor.close()
-        conn.close()
+        if internal_conn:
+            internal_cursor.close()
+            internal_conn.close()
 
 
 def get_owner_store_full(owner_id):
@@ -1744,12 +1789,16 @@ def get_owner_day_appointments(store_id, selected_date):
         conn.close()
 
 
-def get_store_ratings_summary(store_id):
-    conn = get_connection()
-    cursor = conn.cursor()
+def get_store_ratings_summary(store_id, cursor=None):
+    internal_conn = None
+    internal_cursor = cursor
 
     try:
-        cursor.execute(
+        if internal_cursor is None:
+            internal_conn = get_connection()
+            internal_cursor = internal_conn.cursor()
+
+        internal_cursor.execute(
             """
             SELECT COALESCE(ROUND(AVG(rating)::numeric, 1), 0), COUNT(*)
             FROM ratings
@@ -1757,9 +1806,9 @@ def get_store_ratings_summary(store_id):
             """,
             (store_id,),
         )
-        avg_rating, total = cursor.fetchone()
+        avg_rating, total = internal_cursor.fetchone()
 
-        cursor.execute(
+        internal_cursor.execute(
             """
             SELECT customer_name, rating, comment, created_at
             FROM ratings
@@ -1769,7 +1818,7 @@ def get_store_ratings_summary(store_id):
             """,
             (store_id,),
         )
-        rows = cursor.fetchall()
+        rows = internal_cursor.fetchall()
 
         return {
             "average": float(avg_rating or 0),
@@ -1785,8 +1834,9 @@ def get_store_ratings_summary(store_id):
             ],
         }
     finally:
-        cursor.close()
-        conn.close()
+        if internal_conn:
+            internal_cursor.close()
+            internal_conn.close()
 
 
 def get_pending_owner_rating_requests(store_id):
@@ -1903,27 +1953,23 @@ def login():
                 (email,),
             )
             user = cursor.fetchone()
-        finally:
-            cursor.close()
-            conn.close()
 
-        if user and check_password_hash(user[3], password):
-            remember_login = request.form.get("remember_login") == "on"
-            session.permanent = remember_login
-            owner_session_token = None
-            if user[4] == "owner":
-                active_token = user[5]
-                active_seen_at = user[6]
-                active_is_recent = active_seen_at and active_seen_at >= now_local() - OWNER_SESSION_TIMEOUT
+            if user and check_password_hash(user[3], password):
+                remember_login = request.form.get("remember_login") == "on"
+                session.permanent = remember_login
+                owner_session_token = None
+                login_time = now_local()
 
-                if active_token and active_is_recent:
-                    flash("Oops, your business account is already open on another device. To open it here, log out from the other device first.")
-                    return redirect(url_for("login"))
+                if user[4] == "owner":
+                    active_token = user[5]
+                    active_seen_at = user[6]
+                    active_is_recent = active_seen_at and active_seen_at >= login_time - OWNER_SESSION_TIMEOUT
 
-                owner_session_token = secrets.token_urlsafe(32)
-                conn = get_connection()
-                cursor = conn.cursor()
-                try:
+                    if active_token and active_is_recent:
+                        flash("Oops, your business account is already open on another device. To open it here, log out from the other device first.")
+                        return redirect(url_for("login"))
+
+                    owner_session_token = secrets.token_urlsafe(32)
                     ensure_owner_session_schema(cursor)
                     cursor.execute(
                         """
@@ -1932,22 +1978,22 @@ def login():
                             active_owner_session_seen_at = %s
                         WHERE id = %s
                         """,
-                        (owner_session_token, now_local(), user[0]),
+                        (owner_session_token, login_time, user[0]),
                     )
                     conn.commit()
-                finally:
-                    cursor.close()
-                    conn.close()
 
-            session["user_id"] = user[0]
-            session["full_name"] = user[1]
-            session["email"] = user[2]
-            session["role"] = user[4]
-            session["last_activity_at"] = now_local().isoformat()
-            if owner_session_token:
-                session["owner_session_token"] = owner_session_token
-                session["owner_session_last_touch"] = now_local().isoformat()
-            return redirect(url_for("work" if user[4] == "owner" else "pick"))
+                session["user_id"] = user[0]
+                session["full_name"] = user[1]
+                session["email"] = user[2]
+                session["role"] = user[4]
+                session["last_activity_at"] = login_time.isoformat()
+                if owner_session_token:
+                    session["owner_session_token"] = owner_session_token
+                    session["owner_session_last_touch"] = login_time.isoformat()
+                return redirect(url_for("work" if user[4] == "owner" else "pick"))
+        finally:
+            cursor.close()
+            conn.close()
 
         flash("האימייל או הסיסמה אינם נכונים.")
         return redirect(url_for("login"))
@@ -2693,6 +2739,8 @@ def store_details(store_id):
 
         appointments = []
         is_owner_view = False
+        calendar_days = []
+        ratings_summary = {"average": 0, "count": 0, "items": []}
 
         if "user_id" in session and session.get("role") == "owner" and session["user_id"] == store["owner_id"]:
             is_owner_view = True
@@ -2716,21 +2764,14 @@ def store_details(store_id):
                 }
                 for a in cursor.fetchall()
             ]
+
+        calendar_days = get_store_calendar_days(store_id, cursor)
+        ratings_summary = get_store_ratings_summary(store_id, cursor)
     finally:
         cursor.close()
         conn.close()
 
     min_date, max_date = today_range()
-
-    try:
-        calendar_days = get_store_calendar_days(store_id)
-    except Exception:
-        calendar_days = []
-
-    try:
-        ratings_summary = get_store_ratings_summary(store_id)
-    except Exception:
-        ratings_summary = {"average": 0, "count": 0, "items": []}
 
     return render_template(
         "store_details.html",
@@ -2755,7 +2796,7 @@ def available_slots(store_id):
         return jsonify({"slots": []})
 
     try:
-        slots = generate_available_slots(store_id, service_id, appointment_date)
+        slots = cached_available_slots(store_id, service_id, appointment_date)
     except Exception:
         slots = []
 
@@ -2844,6 +2885,7 @@ def book(store_id):
             "store_url": url_for("store_details", store_id=store_id, _external=True),
         }
         conn.commit()
+        clear_available_slots_cache(store_id)
     finally:
         cursor.close()
         conn.close()
