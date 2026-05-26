@@ -2,6 +2,43 @@ html {
     scroll-behavior: smooth;
 }
 
+@media (hover: none), (pointer: coarse) {
+    html {
+        scroll-behavior: auto;
+    }
+
+    a:hover,
+    button:hover,
+    .btn:hover,
+    .hero-btn:hover,
+    .hero-main-btn:hover,
+    .hero-secondary-btn:hover,
+    .view-btn:hover,
+    .primary-btn:hover,
+    .secondary-btn:hover,
+    .modal-submit-btn:hover,
+    .modal-cancel-btn:hover,
+    .rating-btn:hover,
+    .rate-btn:hover,
+    .rate-open-btn:hover,
+    .back-btn:hover,
+    .feature-card:hover,
+    .feature-card-modern:hover,
+    .store-card:hover,
+    .service-card:hover,
+    .rating-card:hover,
+    .calendar-day:hover,
+    .accessibility-launcher:hover,
+    .accessibility-option:hover {
+        transform: none !important;
+    }
+}
+
+a.is-pressing-link,
+a.is-navigating-link {
+    opacity: 0.82;
+}
+
 body {
     font-family: "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
     background: #f5f7fb;

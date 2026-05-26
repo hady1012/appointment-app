@@ -124,11 +124,69 @@
         toggle?.setAttribute('aria-expanded', 'false');
     }
 
+    function isPlainLeftClick(event) {
+        return event.button === 0 && !event.metaKey && !event.ctrlKey && !event.shiftKey && !event.altKey;
+    }
+
+    function getSamePageLink(target) {
+        const link = target.closest?.('a[href]');
+        if (!link || link.target || link.hasAttribute('download') || link.dataset.noInstantNav === 'true') {
+            return null;
+        }
+
+        const url = new URL(link.href, window.location.href);
+        if (url.origin !== window.location.origin || url.protocol !== window.location.protocol) {
+            return null;
+        }
+
+        if (url.pathname === window.location.pathname && url.search === window.location.search && url.hash) {
+            return null;
+        }
+
+        return { link, url };
+    }
+
+    function installFastPageActions() {
+        document.addEventListener('pointerdown', (event) => {
+            if (event.pointerType === 'mouse' && event.button !== 0) {
+                return;
+            }
+
+            const match = getSamePageLink(event.target);
+            if (match) {
+                match.link.classList.add('is-pressing-link');
+            }
+        }, { capture: true, passive: true });
+
+        document.addEventListener('pointerup', () => {
+            document.querySelectorAll('.is-pressing-link').forEach((link) => {
+                link.classList.remove('is-pressing-link');
+            });
+        }, { capture: true, passive: true });
+
+        document.addEventListener('click', (event) => {
+            if (!isPlainLeftClick(event) || event.defaultPrevented) {
+                return;
+            }
+
+            const match = getSamePageLink(event.target);
+            if (!match) {
+                return;
+            }
+
+            event.preventDefault();
+            match.link.setAttribute('aria-busy', 'true');
+            match.link.classList.add('is-navigating-link');
+            window.location.assign(match.url.href);
+        }, { capture: true });
+    }
+
     applyTheme(initialTheme);
     applySettings(readSettings());
 
     document.addEventListener('DOMContentLoaded', () => {
         buildWidget();
+        installFastPageActions();
         applyTheme(root.dataset.theme || initialTheme);
         applySettings(readSettings());
 
