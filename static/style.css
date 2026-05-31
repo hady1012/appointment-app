@@ -2113,6 +2113,11 @@ textarea {
     border-bottom: 1px solid #e2e8f0;
 }
 
+.accessibility-panel-title + .accessibility-position {
+    margin-top: 0;
+    margin-bottom: 16px;
+}
+
 .accessibility-panel-title h2 {
     justify-self: center;
     min-width: 280px;
@@ -2239,7 +2244,7 @@ textarea {
 }
 
 .accessibility-position {
-    margin-top: 16px;
+    margin-top: 0;
     padding: 12px;
     border: 1px solid #d9e1ee;
     border-radius: 8px;
@@ -2786,6 +2791,38 @@ textarea,
     transform: translateY(calc(-100% - 18px)) !important;
     opacity: 0 !important;
     pointer-events: none !important;
+}
+
+.navbar.nav-menu-open {
+    transform: translateY(0) !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+}
+
+.home-nav-menu-button {
+    position: fixed;
+    top: 14px;
+    inset-inline-start: 16px;
+    z-index: 21000;
+    display: none;
+    width: 42px !important;
+    height: 42px !important;
+    min-height: 42px !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: 1px solid rgba(215, 227, 220, 0.9) !important;
+    border-radius: 50% !important;
+    background: rgba(255, 255, 255, 0.94) !important;
+    color: var(--premium-ink) !important;
+    box-shadow: 0 12px 26px rgba(18, 26, 23, 0.16) !important;
+    font-size: 1.35rem !important;
+    font-weight: 900 !important;
+    line-height: 1 !important;
+}
+
+.home-nav-menu-button.is-visible {
+    display: grid !important;
+    place-items: center;
 }
 
 .section-box {
@@ -4003,10 +4040,19 @@ html[data-theme="light"] body {
 }
 
 .nav-logo::before {
-    width: 38px !important;
-    height: 44px !important;
-    flex: 0 0 38px !important;
+    content: none !important;
+    display: none !important;
+}
+
+.nav-logo-mark {
+    display: block !important;
+    width: 34px !important;
+    height: 40px !important;
+    flex: 0 0 34px !important;
+    object-fit: contain !important;
+    margin: 0 !important;
+    border: 0 !important;
     border-radius: 0 !important;
-    background: url("/static/golan-pick-mark.svg") center / contain no-repeat !important;
+    background: transparent !important;
     box-shadow: none !important;
 }

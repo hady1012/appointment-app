@@ -107,6 +107,13 @@
             '<h2>Accessibility</h2>',
             '<span></span>',
             '</div>',
+            '<div class="accessibility-position" aria-label="Accessibility button position">',
+            '<strong>Move accessibility button</strong>',
+            '<div class="accessibility-position-buttons">',
+            '<button type="button" data-a11y-position="left" aria-pressed="true">Left</button>',
+            '<button type="button" data-a11y-position="right" aria-pressed="false">Right</button>',
+            '</div>',
+            '</div>',
             '<div class="accessibility-options">',
             '<button type="button" class="accessibility-option" data-theme-toggle aria-pressed="false">',
             '<span class="accessibility-icon" aria-hidden="true">DM</span>',
@@ -120,13 +127,6 @@
             option('HH', 'Highlight headers', 'highlightHeadings', 'Frame page headings'),
             option('RG', 'Reading guide', 'readingGuide', 'Follow the cursor'),
             option('RM', 'Reduce motion', 'reduceMotion', 'Quiet animations'),
-            '</div>',
-            '<div class="accessibility-position" aria-label="Accessibility button position">',
-            '<strong>Button position</strong>',
-            '<div class="accessibility-position-buttons">',
-            '<button type="button" data-a11y-position="left" aria-pressed="true">Left</button>',
-            '<button type="button" data-a11y-position="right" aria-pressed="false">Right</button>',
-            '</div>',
             '</div>',
             '<button type="button" class="accessibility-reset" data-accessibility-reset>Reset accessibility</button>',
             '</section>',
@@ -268,10 +268,31 @@
 
         const navbar = document.querySelector('.navbar');
         if (navbar && window.location.pathname === '/') {
+            const homeMenuButton = document.createElement('button');
+            homeMenuButton.type = 'button';
+            homeMenuButton.className = 'home-nav-menu-button';
+            homeMenuButton.setAttribute('aria-label', 'Open menu');
+            homeMenuButton.setAttribute('aria-expanded', 'false');
+            homeMenuButton.textContent = '☰';
+            document.body.appendChild(homeMenuButton);
+
             let lastScrollY = window.scrollY;
+            homeMenuButton.addEventListener('click', () => {
+                const isOpen = !navbar.classList.contains('nav-menu-open');
+                navbar.classList.toggle('nav-menu-open', isOpen);
+                navbar.classList.toggle('nav-hidden', !isOpen && window.scrollY > 90);
+                homeMenuButton.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
+            });
+
             window.addEventListener('scroll', () => {
                 const currentScrollY = window.scrollY;
-                navbar.classList.toggle('nav-hidden', currentScrollY > lastScrollY && currentScrollY > 90);
+                const shouldCollapse = currentScrollY > 90 && !navbar.classList.contains('nav-menu-open');
+                navbar.classList.toggle('nav-hidden', shouldCollapse);
+                homeMenuButton.classList.toggle('is-visible', shouldCollapse);
+                if (currentScrollY <= 90) {
+                    navbar.classList.remove('nav-menu-open');
+                    homeMenuButton.setAttribute('aria-expanded', 'false');
+                }
                 lastScrollY = currentScrollY;
             }, { passive: true });
         }
