@@ -97,7 +97,7 @@
         widget.className = 'accessibility-widget';
         widget.dataset.accessibilityWidget = 'true';
         widget.innerHTML = [
-            '<button type="button" class="accessibility-launcher" data-accessibility-toggle aria-expanded="false" aria-controls="accessibility-panel">',
+            '<button type="button" class="accessibility-launcher" data-accessibility-toggle aria-label="Accessibility menu" title="Accessibility" aria-expanded="false" aria-controls="accessibility-panel">',
             '<span aria-hidden="true">A</span>',
             '<b>Accessibility</b>',
             '</button>',

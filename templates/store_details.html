@@ -14,7 +14,7 @@
     <link rel="apple-touch-icon" href="{{ store_icon }}">
     <link rel="icon" href="{{ store_icon }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='style.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
 
     <style>
         body {
@@ -887,6 +887,6 @@ document.getElementById('ratingModal').addEventListener('click', function (e) {
 </script>
 
 <script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/theme.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme.js', v=asset_version) }}"></script>
 </body>
 </html>

@@ -2022,24 +2022,37 @@ textarea {
 .accessibility-launcher {
     display: inline-flex;
     align-items: center;
-    gap: 7px;
-    min-height: 38px !important;
-    padding: 6px 11px 6px 7px !important;
-    border-radius: 999px !important;
+    justify-content: center;
+    gap: 0;
+    width: 42px !important;
+    height: 42px !important;
+    min-width: 42px !important;
+    min-height: 42px !important;
+    padding: 0 !important;
+    border-radius: 50% !important;
     border: 1px solid rgba(15, 23, 42, 0.18) !important;
     background: #111827 !important;
     color: #ffffff !important;
     box-shadow: 0 12px 26px rgba(15, 23, 42, 0.2) !important;
-    font-size: 0.78rem !important;
+    font-size: 0.9rem !important;
     font-weight: 800 !important;
     letter-spacing: 0 !important;
+}
+
+.accessibility-launcher b {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    overflow: hidden;
+    clip: rect(0 0 0 0);
+    white-space: nowrap;
 }
 
 .accessibility-launcher span {
     display: grid;
     place-items: center;
-    width: 26px;
-    height: 26px;
+    width: 30px;
+    height: 30px;
     border-radius: 50%;
     background: #ffffff;
     color: #111827;
