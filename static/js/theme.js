@@ -12,7 +12,8 @@
         highlightLinks: false,
         highlightHeadings: false,
         readingGuide: false,
-        reduceMotion: false
+        reduceMotion: false,
+        launcherPosition: 'left'
     };
 
     function readSettings() {
@@ -61,6 +62,17 @@
                 }
             });
         });
+
+        document.querySelectorAll('[data-a11y-position]').forEach((button) => {
+            const enabled = button.dataset.a11yPosition === settings.launcherPosition;
+            button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
+            button.classList.toggle('is-active', enabled);
+        });
+
+        const widget = document.querySelector('[data-accessibility-widget]');
+        if (widget) {
+            widget.dataset.position = settings.launcherPosition || 'left';
+        }
     }
 
     function option(icon, title, setting, detail) {
@@ -108,6 +120,13 @@
             option('HH', 'Highlight headers', 'highlightHeadings', 'Frame page headings'),
             option('RG', 'Reading guide', 'readingGuide', 'Follow the cursor'),
             option('RM', 'Reduce motion', 'reduceMotion', 'Quiet animations'),
+            '</div>',
+            '<div class="accessibility-position" aria-label="Accessibility button position">',
+            '<strong>Button position</strong>',
+            '<div class="accessibility-position-buttons">',
+            '<button type="button" data-a11y-position="left" aria-pressed="true">Left</button>',
+            '<button type="button" data-a11y-position="right" aria-pressed="false">Right</button>',
+            '</div>',
             '</div>',
             '<button type="button" class="accessibility-reset" data-accessibility-reset>Reset accessibility</button>',
             '</section>',
@@ -214,6 +233,15 @@
             });
         });
 
+        document.querySelectorAll('[data-a11y-position]').forEach((button) => {
+            button.addEventListener('click', () => {
+                const next = readSettings();
+                next.launcherPosition = button.dataset.a11yPosition || 'left';
+                saveSettings(next);
+                applySettings(next);
+            });
+        });
+
         document.querySelector('[data-accessibility-reset]')?.addEventListener('click', () => {
             saveSettings({ ...defaults });
             applySettings({ ...defaults });
@@ -239,14 +267,13 @@
         }, { passive: true });
 
         const navbar = document.querySelector('.navbar');
-        let lastScrollY = window.scrollY;
-        window.addEventListener('scroll', () => {
-            if (!navbar) {
-                return;
-            }
-            const currentScrollY = window.scrollY;
-            navbar.classList.toggle('nav-hidden', currentScrollY > lastScrollY && currentScrollY > 90);
-            lastScrollY = currentScrollY;
-        }, { passive: true });
+        if (navbar && window.location.pathname === '/') {
+            let lastScrollY = window.scrollY;
+            window.addEventListener('scroll', () => {
+                const currentScrollY = window.scrollY;
+                navbar.classList.toggle('nav-hidden', currentScrollY > lastScrollY && currentScrollY > 90);
+                lastScrollY = currentScrollY;
+            }, { passive: true });
+        }
     });
 })();
