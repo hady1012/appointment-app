@@ -367,6 +367,7 @@ let shouldSpeakNextAiReply = false;
 let speechUnlocked = false;
 let currentAiLanguage = document.documentElement.lang || navigator.language || 'he';
 let aiConversationStoreIds = [];
+let aiConversationAreaTokens = [];
 let aiVoiceConversationActive = false;
 let aiVoiceRecognition = null;
 let aiVoiceRestartTimer = null;
@@ -693,6 +694,7 @@ aiChatForm?.addEventListener('submit', async (event) => {
                 message,
                 language: aiLanguageMeta(currentAiLanguage).lang,
                 context_store_ids: aiConversationStoreIds,
+                context_area_tokens: aiConversationAreaTokens,
             }),
         });
         const data = await response.json();
@@ -701,8 +703,9 @@ aiChatForm?.addEventListener('submit', async (event) => {
         appendAiMessage(data.reply || aiText(currentAiLanguage, 'fallback'), 'bot', currentAiLanguage);
         appendAiCards(data.cards || [], currentAiLanguage);
         if (data.cards?.length) {
-            aiConversationStoreIds = (data.context_store_ids?.length ? data.context_store_ids : data.cards.map((card) => card.id)).filter(Boolean).slice(0, 5);
+            aiConversationStoreIds = (data.context_store_ids?.length ? data.context_store_ids : data.cards.map((card) => card.id)).filter(Boolean).slice(0, 12);
         }
+        aiConversationAreaTokens = Array.isArray(data.context_area_tokens) ? data.context_area_tokens.slice(0, 8) : aiConversationAreaTokens;
         if (shouldSpeakNextAiReply) {
             await speakAi(data.reply || '', currentAiLanguage);
             shouldSpeakNextAiReply = false;

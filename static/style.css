@@ -3904,3 +3904,20 @@ html[data-theme="light"] body {
 .booking-login-btn {
     margin-top: -6px !important;
 }
+
+/* Brand mark from the Golan Pick poster */
+.nav-logo {
+    gap: 9px !important;
+    flex-direction: row !important;
+    align-items: center !important;
+    text-align: start !important;
+}
+
+.nav-logo::before {
+    width: 38px !important;
+    height: 44px !important;
+    flex: 0 0 38px !important;
+    border-radius: 0 !important;
+    background: url("/static/golan-pick-mark.svg") center / contain no-repeat !important;
+    box-shadow: none !important;
+}

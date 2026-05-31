@@ -964,6 +964,7 @@ ASSISTANT_STOPWORDS = {
     "i", "want", "need", "book", "pick", "tell", "show", "open", "today", "tomorrow", "sunday",
     "monday", "tuesday", "wednesday", "thursday", "friday", "saturday", "what", "about", "when",
     "free", "slot", "slots", "there", "is", "are",
+    "all", "every", "area", "type", "kind", "category", "categories", "around",
     "חפש", "מחפש", "לחפש", "עסק", "עסקים", "תור", "תורים", "זמין", "זמינים", "אפשר", "לי", "אני", "רוצה", "צריך",
     "מה", "ומה", "לגבי", "יש", "האם",
     "ביום", "היום", "מחר", "ראשון", "שני", "שלישי", "רביעי", "חמישי", "שישי", "שבת",
@@ -1243,8 +1244,34 @@ def assistant_date_label(date_value, language):
     return f"{day_label}, {date_value.strftime('%d %B')}"
 
 
-def assistant_find_stores(message, cursor):
+def assistant_location_condition(tokens):
+    conditions = []
+    params = []
+    for token in tokens:
+        conditions.append("st.location ILIKE %s")
+        params.append(f"%{token}%")
+    return " OR ".join(conditions), params
+
+
+def assistant_tokens_look_like_area(tokens, cursor):
+    if not tokens:
+        return False
+    condition, params = assistant_location_condition(tokens)
+    cursor.execute(
+        f"""
+        SELECT COUNT(*)
+        FROM stores st
+        WHERE COALESCE(st.location, '') <> ''
+          AND ({condition})
+        """,
+        tuple(params),
+    )
+    return (cursor.fetchone() or [0])[0] > 0
+
+
+def assistant_find_stores(message, cursor, area_tokens=None, limit=12):
     tokens = assistant_search_tokens(message)
+    area_tokens = list(area_tokens or [])
     params = []
 
     query = """
@@ -1253,6 +1280,13 @@ def assistant_find_stores(message, cursor):
         FROM stores st
         LEFT JOIN services sv ON sv.store_id = st.id
     """
+
+    where_clauses = []
+
+    if area_tokens:
+        location_clause, location_params = assistant_location_condition(area_tokens)
+        where_clauses.append(f"({location_clause})")
+        params.extend(location_params)
 
     if tokens:
         conditions = []
@@ -1267,13 +1301,16 @@ def assistant_find_stores(message, cursor):
             )
             like_token = f"%{token}%"
             params.extend([like_token, like_token, like_token, like_token, like_token])
-        query += " WHERE " + " OR ".join(conditions)
+        where_clauses.append("(" + " OR ".join(conditions) + ")")
 
-    query += " ORDER BY st.id DESC LIMIT 16"
+    if where_clauses:
+        query += " WHERE " + " AND ".join(where_clauses)
+
+    query += " ORDER BY st.id DESC LIMIT 40"
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
     if not tokens:
-        return rows[:5]
+        return rows[:limit]
 
     def row_score(row):
         _store_id, name, category, description, location = row
@@ -1284,7 +1321,7 @@ def assistant_find_stores(message, cursor):
             + assistant_text_score(description, tokens)
         )
 
-    return sorted(rows, key=row_score, reverse=True)[:5]
+    return sorted(rows, key=row_score, reverse=True)[:limit]
 
 
 def assistant_context_store_ids(raw_ids):
@@ -1298,9 +1335,26 @@ def assistant_context_store_ids(raw_ids):
             continue
         if store_id > 0 and store_id not in ids:
             ids.append(store_id)
-        if len(ids) >= 5:
+        if len(ids) >= 12:
             break
     return ids
+
+
+def assistant_context_tokens(raw_tokens):
+    tokens = []
+    if not isinstance(raw_tokens, list):
+        return tokens
+    for raw_token in raw_tokens:
+        token = str(raw_token or "").strip().lower()
+        if not token or len(token) > 60:
+            continue
+        if not re.match(r"^[\w\u0590-\u05FF\u0600-\u06FF ]+$", token, flags=re.UNICODE):
+            continue
+        if token not in tokens:
+            tokens.append(token)
+        if len(tokens) >= 8:
+            break
+    return tokens
 
 
 def assistant_find_stores_by_ids(store_ids, cursor):
@@ -1314,7 +1368,7 @@ def assistant_find_stores_by_ids(store_ids, cursor):
         FROM stores st
         WHERE st.id IN ({placeholders})
         ORDER BY st.id DESC
-        LIMIT 5
+        LIMIT 12
         """,
         tuple(store_ids),
     )
@@ -1391,8 +1445,9 @@ def assistant_card_reason(language, card, preferences):
     return " · ".join(bits[:3])
 
 
-def assistant_smart_reply(language, cards, requested_date, preferences):
+def assistant_smart_reply(language, cards, requested_date, preferences, area_tokens=None, filtered_by_area=False):
     best = cards[0] if cards else {}
+    area_text = " ".join(area_tokens or [])
     if requested_date:
         available_count = sum(1 for card in cards if card["slots"])
         date_text = assistant_date_label(requested_date, language)
@@ -1400,6 +1455,13 @@ def assistant_smart_reply(language, cards, requested_date, preferences):
             base = assistant_text(language, "found_open", count=available_count, date=date_text)
         else:
             base = assistant_text(language, "found_closed", date=date_text)
+    elif filtered_by_area and area_text:
+        if language == "he":
+            base = f"מצאתי {len(cards)} עסקים באזור {area_text}. עכשיו אפשר לכתוב סוג עסק או שירות, למשל: מספרה, שטיפת רכב, יופי, שיעור פרטי."
+        elif language == "ar":
+            base = f"وجدت {len(cards)} أعمال في منطقة {area_text}. اكتب نوع العمل أو الخدمة مثل: حلاق، غسيل سيارات، تجميل، درس خاص."
+        else:
+            base = f"I found {len(cards)} businesses in {area_text}. Now tell me the business type or service, like barber, car wash, beauty, or private lesson."
     else:
         base = assistant_text(language, "found_businesses")
 
@@ -1431,6 +1493,7 @@ def assistant_chat():
     message = " ".join(str(payload.get("message", "") or "").strip().split())
     language = assistant_language(message, payload.get("language", ""))
     context_store_ids = assistant_context_store_ids(payload.get("context_store_ids", []))
+    context_area_tokens = assistant_context_tokens(payload.get("context_area_tokens", []))
     if len(message) > 500:
         return jsonify({"reply": assistant_text(language, "too_long"), "cards": [], "language": language}), 400
 
@@ -1458,8 +1521,10 @@ def assistant_chat():
     requested_date, date_label = assistant_requested_date(message)
     search_tokens = assistant_search_tokens(message)
     preferences = assistant_preferences(message)
-    use_context = assistant_should_use_context(message, search_tokens, context_store_ids)
-    if not requested_date and not search_tokens and not context_store_ids:
+    has_area_context = bool(context_area_tokens)
+    use_area_filter = has_area_context and bool(search_tokens) and not assistant_should_use_context(message, search_tokens, context_store_ids)
+    use_context = assistant_should_use_context(message, search_tokens, context_store_ids) and bool(context_store_ids)
+    if not requested_date and not search_tokens and not context_store_ids and not has_area_context:
         return jsonify({
             "reply": assistant_text(language, "need_more_details"),
             "cards": [],
@@ -1479,10 +1544,18 @@ def assistant_chat():
 
     try:
         ensure_store_optional_schema(cursor)
+        is_area_only_search = False
+        active_area_tokens = []
         if use_context:
             store_rows = assistant_find_stores_by_ids(context_store_ids, cursor)
+            active_area_tokens = context_area_tokens
+        elif use_area_filter:
+            active_area_tokens = context_area_tokens
+            store_rows = assistant_find_stores(message, cursor, area_tokens=active_area_tokens, limit=12)
         else:
-            store_rows = assistant_find_stores(message, cursor)
+            is_area_only_search = assistant_tokens_look_like_area(search_tokens, cursor)
+            active_area_tokens = search_tokens if is_area_only_search else []
+            store_rows = assistant_find_stores(message, cursor, limit=12)
         cards = []
 
         for store_id, name, category, description, location in store_rows:
@@ -1533,7 +1606,7 @@ def assistant_chat():
                 score -= int(card["duration"]) / 5
             return score
 
-        cards = sorted(cards, key=card_score, reverse=True)[:5]
+        cards = sorted(cards, key=card_score, reverse=True)[:12]
         for card in cards:
             card["reason"] = assistant_card_reason(language, card, preferences)
     finally:
@@ -1547,7 +1620,14 @@ def assistant_chat():
             "language": language,
         })
 
-    reply = assistant_smart_reply(language, cards, requested_date, preferences)
+    reply = assistant_smart_reply(
+        language,
+        cards,
+        requested_date,
+        preferences,
+        area_tokens=active_area_tokens,
+        filtered_by_area=bool(active_area_tokens) and not requested_date,
+    )
 
     if not session.get("user_id"):
         reply += assistant_text(language, "login_rule")
@@ -1557,6 +1637,7 @@ def assistant_chat():
         "cards": cards,
         "language": language,
         "context_store_ids": [card["id"] for card in cards],
+        "context_area_tokens": active_area_tokens,
     })
 
 
