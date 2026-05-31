@@ -21,7 +21,8 @@ https://appointment-app-2-1k3v.onrender.com/
 ### Customer
 
 - Browse all businesses
-- Ask the 24/7 Golan Pick assistant to search by business, service, city, or available day
+- Ask the 24/7 Golan Pick assistant to search by area, business type, service, city, or available day
+- Start with an area such as Buqata or Tel Aviv, then refine the same chat by business type or service
 - Search instantly by business name or category
 - Filter businesses by category
 - View business details, services, prices, and working hours
@@ -58,11 +59,13 @@ https://appointment-app-2-1k3v.onrender.com/
 
 - Responsive layout for phones, tablets, and desktops
 - User-selectable dark mode saved in the browser
+- Accessibility widget with readable font, larger text, high contrast, link/headline highlighting, reading guide, reduced motion, and a movable left/right launcher
 - Premium visual styling across the main pages
 - Live business filtering while typing
-- Home-page assistant with a ChatGPT-style composer, text or voice-chat mode, male-voice replies when the browser provides a male voice, live database-backed business/availability cards, and one-business-at-a-time booking prefill links
+- Home-page assistant with a ChatGPT-style composer, text or voice-chat mode, male-voice replies when the browser provides a male voice, live database-backed business/availability cards, area-first follow-up search, and one-business-at-a-time booking prefill links
 - Home-page assistant detects the user's typed or spoken language and keeps replies, voice recognition, speech output, and result-card labels in Hebrew, Arabic, or English
 - Voice mode now stays in conversation until the user stops it, and follow-up questions can reuse the businesses already shown in the chat
+- Home-page navigation hides while scrolling down, while inner pages keep the menu visible for easier navigation
 - Mobile polish keeps the assistant input/microphone controls and remembered-login checkbox aligned and readable on small screens
 - Store pages keep their original mobile layout, with a small login-button position polish and a friendly branded error page instead of the raw white server-error screen
 - Faster slot loading on the booking page
@@ -75,7 +78,7 @@ https://appointment-app-2-1k3v.onrender.com/
 - Password reset by email verification code
 - Remembered login sessions refresh for active users and expire after a week away
 - Store ratings can be submitted any time and approved by the owner
-- Golan Pick branding with a Golan Heights hero image
+- Golan Pick branding with a Golan Heights hero image and reusable poster-style logo mark
 - Broken or missing store images fall back gracefully instead of showing broken image boxes
 - Store photos are saved as compressed database-backed image data instead of relying on Render's temporary filesystem, and edit forms keep existing photos without resending the full image payload
 - Store detail pages expose the owner's first uploaded store photo as Apple touch icon and social preview metadata for better bookmarks and sharing
@@ -98,6 +101,7 @@ appointment-booking/
   requirements.txt
   README.md
   static/
+    golan-pick-mark.svg
     golan-heights-hero.jpeg
     css/
       bootstrap.min.css
