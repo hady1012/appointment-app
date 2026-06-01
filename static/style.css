@@ -4056,3 +4056,158 @@ html[data-theme="light"] body {
     background: transparent !important;
     box-shadow: none !important;
 }
+
+/* Smaller accessibility widget with real placement controls */
+.accessibility-widget {
+    left: 14px !important;
+    right: auto !important;
+    top: auto !important;
+    bottom: 14px !important;
+}
+
+.accessibility-widget[data-position="right"],
+.accessibility-widget[data-position="bottom-right"] {
+    left: auto !important;
+    right: 14px !important;
+    top: auto !important;
+    bottom: 14px !important;
+}
+
+.accessibility-widget[data-position="top-left"] {
+    left: 14px !important;
+    right: auto !important;
+    top: 14px !important;
+    bottom: auto !important;
+}
+
+.accessibility-widget[data-position="top-right"] {
+    left: auto !important;
+    right: 14px !important;
+    top: 14px !important;
+    bottom: auto !important;
+}
+
+.accessibility-launcher {
+    width: 36px !important;
+    height: 36px !important;
+    min-width: 36px !important;
+    min-height: 36px !important;
+}
+
+.accessibility-launcher span {
+    width: 26px !important;
+    height: 26px !important;
+    font-size: 0.86rem !important;
+}
+
+.accessibility-panel {
+    width: min(430px, calc(100vw - 28px)) !important;
+    max-height: min(620px, calc(100vh - 82px)) !important;
+    bottom: 48px !important;
+    padding: 0 16px 16px !important;
+    border-radius: 12px !important;
+}
+
+.accessibility-widget[data-position="top-left"] .accessibility-panel,
+.accessibility-widget[data-position="top-right"] .accessibility-panel {
+    top: 48px !important;
+    bottom: auto !important;
+}
+
+.accessibility-widget[data-position="bottom-right"] .accessibility-panel,
+.accessibility-widget[data-position="top-right"] .accessibility-panel {
+    left: auto !important;
+    right: 0 !important;
+}
+
+.accessibility-panel-title {
+    grid-template-columns: 30px 1fr 30px !important;
+    margin: 0 -16px 12px !important;
+    padding: 0 16px 10px !important;
+}
+
+.accessibility-panel-title h2 {
+    min-width: 0 !important;
+    padding: 12px 18px 14px !important;
+    border-radius: 0 0 16px 16px !important;
+    font-size: 1rem !important;
+}
+
+.accessibility-close {
+    width: 30px !important;
+    height: 30px !important;
+    min-height: 30px !important;
+    margin-top: 10px !important;
+}
+
+.accessibility-options {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 10px !important;
+}
+
+.accessibility-option {
+    min-height: 92px !important;
+    gap: 6px !important;
+    padding: 10px 8px !important;
+}
+
+.accessibility-icon {
+    width: 36px !important;
+    height: 36px !important;
+    border-width: 2px !important;
+    border-radius: 8px !important;
+    font-size: 0.78rem !important;
+}
+
+.accessibility-copy strong {
+    font-size: 0.8rem !important;
+}
+
+.accessibility-copy small {
+    display: none !important;
+}
+
+.accessibility-option em {
+    min-width: 34px !important;
+    padding: 2px 6px !important;
+    font-size: 0.64rem !important;
+}
+
+.accessibility-position {
+    padding: 10px !important;
+}
+
+.accessibility-position-buttons {
+    grid-template-columns: repeat(2, minmax(0, 1fr)) !important;
+    gap: 7px !important;
+}
+
+.accessibility-position-buttons button {
+    min-height: 32px !important;
+    padding: 6px 8px !important;
+    font-size: 0.72rem !important;
+}
+
+.accessibility-reset {
+    min-height: 38px !important;
+    margin-top: 12px !important;
+    font-size: 0.78rem !important;
+}
+
+.home-nav-menu-button {
+    display: none;
+    place-items: center;
+    gap: 4px;
+}
+
+.home-nav-menu-button span {
+    display: block;
+    width: 18px;
+    height: 2px;
+    border-radius: 999px;
+    background: currentColor;
+}
+
+.home-nav-menu-button.is-visible {
+    display: grid !important;
+}

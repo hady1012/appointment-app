@@ -703,7 +703,7 @@ aiChatForm?.addEventListener('submit', async (event) => {
         appendAiMessage(data.reply || aiText(currentAiLanguage, 'fallback'), 'bot', currentAiLanguage);
         appendAiCards(data.cards || [], currentAiLanguage);
         if (data.cards?.length) {
-            aiConversationStoreIds = (data.context_store_ids?.length ? data.context_store_ids : data.cards.map((card) => card.id)).filter(Boolean).slice(0, 12);
+            aiConversationStoreIds = (data.context_store_ids?.length ? data.context_store_ids : data.cards.map((card) => card.id)).filter(Boolean).slice(0, 30);
         }
         aiConversationAreaTokens = Array.isArray(data.context_area_tokens) ? data.context_area_tokens.slice(0, 8) : aiConversationAreaTokens;
         if (shouldSpeakNextAiReply) {

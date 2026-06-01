@@ -13,7 +13,7 @@
         highlightHeadings: false,
         readingGuide: false,
         reduceMotion: false,
-        launcherPosition: 'left'
+        launcherPosition: 'bottom-left'
     };
 
     function readSettings() {
@@ -64,14 +64,22 @@
         });
 
         document.querySelectorAll('[data-a11y-position]').forEach((button) => {
-            const enabled = button.dataset.a11yPosition === settings.launcherPosition;
+            const normalizedPosition = {
+                left: 'bottom-left',
+                right: 'bottom-right'
+            }[settings.launcherPosition] || settings.launcherPosition || 'bottom-left';
+            const enabled = button.dataset.a11yPosition === normalizedPosition;
             button.setAttribute('aria-pressed', enabled ? 'true' : 'false');
             button.classList.toggle('is-active', enabled);
         });
 
         const widget = document.querySelector('[data-accessibility-widget]');
         if (widget) {
-            widget.dataset.position = settings.launcherPosition || 'left';
+            const normalizedPosition = {
+                left: 'bottom-left',
+                right: 'bottom-right'
+            }[settings.launcherPosition] || settings.launcherPosition || 'bottom-left';
+            widget.dataset.position = normalizedPosition;
         }
     }
 
@@ -110,8 +118,10 @@
             '<div class="accessibility-position" aria-label="Accessibility button position">',
             '<strong>Move accessibility button</strong>',
             '<div class="accessibility-position-buttons">',
-            '<button type="button" data-a11y-position="left" aria-pressed="true">Left</button>',
-            '<button type="button" data-a11y-position="right" aria-pressed="false">Right</button>',
+            '<button type="button" data-a11y-position="bottom-left" aria-pressed="true">Bottom left</button>',
+            '<button type="button" data-a11y-position="bottom-right" aria-pressed="false">Bottom right</button>',
+            '<button type="button" data-a11y-position="top-left" aria-pressed="false">Top left</button>',
+            '<button type="button" data-a11y-position="top-right" aria-pressed="false">Top right</button>',
             '</div>',
             '</div>',
             '<div class="accessibility-options">',
@@ -236,7 +246,7 @@
         document.querySelectorAll('[data-a11y-position]').forEach((button) => {
             button.addEventListener('click', () => {
                 const next = readSettings();
-                next.launcherPosition = button.dataset.a11yPosition || 'left';
+                next.launcherPosition = button.dataset.a11yPosition || 'bottom-left';
                 saveSettings(next);
                 applySettings(next);
             });
@@ -273,7 +283,7 @@
             homeMenuButton.className = 'home-nav-menu-button';
             homeMenuButton.setAttribute('aria-label', 'Open menu');
             homeMenuButton.setAttribute('aria-expanded', 'false');
-            homeMenuButton.textContent = '☰';
+            homeMenuButton.innerHTML = '<span aria-hidden="true"></span><span aria-hidden="true"></span><span aria-hidden="true"></span>';
             document.body.appendChild(homeMenuButton);
 
             let lastScrollY = window.scrollY;

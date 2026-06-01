@@ -35,7 +35,7 @@ OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
-ASSET_VERSION = "20260531-smart-ui-4"
+ASSET_VERSION = "20260601-smart-ui-5"
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -1007,6 +1007,16 @@ ASSISTANT_FOLLOWUP_WORDS = {
 }
 
 
+ASSISTANT_MAX_CARDS = 30
+ASSISTANT_LOCATION_ALIASES = {
+    "telaviv": ["tel aviv", "tel-aviv", "telaviv"],
+    "tel aviv": ["tel aviv", "tel-aviv", "telaviv"],
+    "buqata": ["buqata", "buq'ata", "buqata", "bukata", "buk'ata", "buqatha", "buqatah"],
+    "buq ata": ["buq ata", "buq'ata", "buqata", "buqata"],
+    "bukata": ["bukata", "buqata", "buq'ata", "buqata"],
+}
+
+
 def assistant_requested_date(message):
     normalized = (message or "").lower()
     today = now_local().date()
@@ -1030,6 +1040,32 @@ def assistant_requested_date(message):
     return None, ""
 
 
+def assistant_unique_tokens(tokens, limit=16):
+    unique_tokens = []
+    for token in tokens:
+        token = str(token or "").strip().lower()
+        if token and token not in unique_tokens:
+            unique_tokens.append(token)
+        if len(unique_tokens) >= limit:
+            break
+    return unique_tokens
+
+
+def assistant_expand_location_tokens(tokens):
+    expanded = []
+    for token in tokens:
+        normalized = str(token or "").strip().lower()
+        if not normalized:
+            continue
+        collapsed = normalized.replace("-", "").replace("'", "").replace(" ", "")
+        expanded.append(normalized)
+        for alias_key, aliases in ASSISTANT_LOCATION_ALIASES.items():
+            alias_collapsed = alias_key.replace("-", "").replace("'", "").replace(" ", "")
+            if collapsed == alias_collapsed or normalized == alias_key:
+                expanded.extend(aliases)
+    return assistant_unique_tokens(expanded, limit=24)
+
+
 def assistant_search_tokens(message):
     normalized = (message or "").lower().replace("-", " ")
     normalized = normalized.replace("telaviv", "tel aviv").replace("תל-אביב", "תל אביב")
@@ -1048,7 +1084,7 @@ def assistant_search_tokens(message):
     if "תל" in tokens and "אביב" in tokens:
         tokens.append("תל אביב")
 
-    return tokens[:8]
+    return assistant_unique_tokens(tokens, limit=8)
 
 
 def assistant_preferences(message):
@@ -1226,6 +1262,29 @@ def assistant_text(language, key, **kwargs):
     return texts[key].get(language, texts[key]["en"]).format(**kwargs)
 
 
+def assistant_general_reply(message, language):
+    normalized = (message or "").strip().lower()
+    question_words = ("?", "what", "how", "why", "can you", "do you", "help", "price", "cost", "login", "sign up", "register")
+    if not any(word in normalized for word in question_words):
+        return ""
+
+    if any(word in normalized for word in ["price", "cost", "pay", "payment"]):
+        return "Business owners add their own services, prices, and durations. Search by area or business type and I will show the matching businesses with their available service details."
+    if any(word in normalized for word in ["login", "sign up", "register", "account"]):
+        return "Customers can create an account to book appointments. Business owners can create an owner account, add a business, services, working hours, photos, and manage bookings."
+    if any(word in normalized for word in ["cancel", "change appointment", "reschedule"]):
+        return "For appointment changes, open the business page or your appointments area. If you tell me the business, service, city, or day, I can help you find the right option again."
+    if any(word in normalized for word in ["availability", "available", "free time", "slot", "hours"]):
+        return "I can check live availability from the businesses in Golan Pick. Try a request like: barber in Buqata tomorrow, car wash in Tel Aviv, or show businesses in Buqata."
+    if any(word in normalized for word in ["golan pick", "site", "app", "platform"]):
+        return "Golan Pick helps customers find local businesses and book available appointments, while business owners manage services, working hours, bookings, reminders, and customer ratings."
+    if language == "he":
+        return "I can help with Golan Pick questions and search the live business list. Write an area like Buqata or Tel Aviv, then write the business type or service you want."
+    if language == "ar":
+        return "I can help with Golan Pick questions and search the live business list. Write an area like Buqata or Tel Aviv, then write the business type or service you want."
+    return "I can help with Golan Pick questions and search the live business list. Write an area like Buqata or Tel Aviv, then write the business type or service you want."
+
+
 def assistant_date_label(date_value, language):
     day_labels = {
         "en": {
@@ -1253,7 +1312,7 @@ def assistant_date_label(date_value, language):
 def assistant_location_condition(tokens):
     conditions = []
     params = []
-    for token in tokens:
+    for token in assistant_expand_location_tokens(tokens):
         conditions.append("st.location ILIKE %s")
         params.append(f"%{token}%")
     return " OR ".join(conditions), params
@@ -1275,8 +1334,9 @@ def assistant_tokens_look_like_area(tokens, cursor):
     return (cursor.fetchone() or [0])[0] > 0
 
 
-def assistant_find_stores(message, cursor, area_tokens=None, limit=12):
+def assistant_find_stores(message, cursor, area_tokens=None, limit=ASSISTANT_MAX_CARDS):
     tokens = assistant_search_tokens(message)
+    search_tokens = assistant_unique_tokens(tokens + assistant_expand_location_tokens(tokens), limit=24)
     area_tokens = list(area_tokens or [])
     params = []
 
@@ -1294,9 +1354,9 @@ def assistant_find_stores(message, cursor, area_tokens=None, limit=12):
         where_clauses.append(f"({location_clause})")
         params.extend(location_params)
 
-    if tokens:
+    if search_tokens:
         conditions = []
-        for token in tokens:
+        for token in search_tokens:
             conditions.append(
                 """
                 (
@@ -1312,10 +1372,10 @@ def assistant_find_stores(message, cursor, area_tokens=None, limit=12):
     if where_clauses:
         query += " WHERE " + " AND ".join(where_clauses)
 
-    query += " ORDER BY st.id DESC LIMIT 40"
+    query += f" ORDER BY st.id DESC LIMIT {max(40, int(limit))}"
     cursor.execute(query, tuple(params))
     rows = cursor.fetchall()
-    if not tokens:
+    if not search_tokens:
         return rows[:limit]
 
     def row_score(row):
@@ -1341,7 +1401,7 @@ def assistant_context_store_ids(raw_ids):
             continue
         if store_id > 0 and store_id not in ids:
             ids.append(store_id)
-        if len(ids) >= 12:
+        if len(ids) >= ASSISTANT_MAX_CARDS:
             break
     return ids
 
@@ -1374,7 +1434,7 @@ def assistant_find_stores_by_ids(store_ids, cursor):
         FROM stores st
         WHERE st.id IN ({placeholders})
         ORDER BY st.id DESC
-        LIMIT 12
+        LIMIT 30
         """,
         tuple(store_ids),
     )
@@ -1451,7 +1511,7 @@ def assistant_card_reason(language, card, preferences):
     return " · ".join(bits[:3])
 
 
-def assistant_smart_reply(language, cards, requested_date, preferences, area_tokens=None, filtered_by_area=False):
+def assistant_smart_reply(language, cards, requested_date, preferences, area_tokens=None, filtered_by_area=False, area_only=False):
     best = cards[0] if cards else {}
     area_text = " ".join(area_tokens or [])
     if requested_date:
@@ -1467,7 +1527,11 @@ def assistant_smart_reply(language, cards, requested_date, preferences, area_tok
         elif language == "ar":
             base = f"وجدت {len(cards)} أعمال في منطقة {area_text}. اكتب نوع العمل أو الخدمة مثل: حلاق، غسيل سيارات، تجميل، درس خاص."
         else:
-            base = f"I found {len(cards)} businesses in {area_text}. Now tell me the business type or service, like barber, car wash, beauty, or private lesson."
+            categories = assistant_unique_tokens([str(card.get("category", "")).strip() for card in cards if card.get("category")], limit=6)
+            category_hint = f" Types here include: {', '.join(categories)}." if categories else ""
+            base = f"I found {len(cards)} businesses in {area_text}.{category_hint} Now tell me the business type or service, like barber, car wash, beauty, or private lesson."
+        if filtered_by_area and area_text and not area_only:
+            base = f"I found {len(cards)} matching options in {area_text}. You can open one, ask for available times, or try another business type."
     else:
         base = assistant_text(language, "found_businesses")
 
@@ -1540,6 +1604,14 @@ def assistant_chat():
     try:
         conn = get_connection()
     except RuntimeError:
+        general_reply = assistant_general_reply(message, language)
+        if general_reply:
+            return jsonify({
+                "reply": general_reply,
+                "cards": [],
+                "language": language,
+                "context_area_tokens": context_area_tokens,
+            })
         return jsonify({
             "reply": assistant_text(language, "db_down"),
             "cards": [],
@@ -1557,11 +1629,11 @@ def assistant_chat():
             active_area_tokens = context_area_tokens
         elif use_area_filter:
             active_area_tokens = context_area_tokens
-            store_rows = assistant_find_stores(message, cursor, area_tokens=active_area_tokens, limit=12)
+            store_rows = assistant_find_stores(message, cursor, area_tokens=active_area_tokens, limit=ASSISTANT_MAX_CARDS)
         else:
             is_area_only_search = assistant_tokens_look_like_area(search_tokens, cursor)
             active_area_tokens = search_tokens if is_area_only_search else []
-            store_rows = assistant_find_stores(message, cursor, limit=12)
+            store_rows = assistant_find_stores(message, cursor, limit=ASSISTANT_MAX_CARDS)
         cards = []
 
         for store_id, name, category, description, location in store_rows:
@@ -1612,7 +1684,7 @@ def assistant_chat():
                 score -= int(card["duration"]) / 5
             return score
 
-        cards = sorted(cards, key=card_score, reverse=True)[:12]
+        cards = sorted(cards, key=card_score, reverse=True)[:ASSISTANT_MAX_CARDS]
         for card in cards:
             card["reason"] = assistant_card_reason(language, card, preferences)
     finally:
@@ -1620,6 +1692,14 @@ def assistant_chat():
         conn.close()
 
     if not cards:
+        general_reply = assistant_general_reply(message, language)
+        if general_reply:
+            return jsonify({
+                "reply": general_reply,
+                "cards": [],
+                "language": language,
+                "context_area_tokens": context_area_tokens,
+            })
         return jsonify({
             "reply": assistant_text(language, "no_results"),
             "cards": [],
@@ -1633,6 +1713,7 @@ def assistant_chat():
         preferences,
         area_tokens=active_area_tokens,
         filtered_by_area=bool(active_area_tokens) and not requested_date,
+        area_only=is_area_only_search,
     )
 
     if not session.get("user_id"):
