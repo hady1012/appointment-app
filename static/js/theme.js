@@ -5,6 +5,7 @@
     const savedTheme = localStorage.getItem(themeStorageKey);
     const initialTheme = savedTheme || (prefersDark ? 'dark' : 'light');
     const root = document.documentElement;
+    let ignoreNextAccessibilityOutsideClick = false;
     const defaults = {
         readableFont: false,
         largerText: false,
@@ -82,9 +83,11 @@
         const widget = document.querySelector('[data-accessibility-widget]');
         if (widget) {
             if (Number.isFinite(settings.launcherCustomLeft) && Number.isFinite(settings.launcherCustomTop)) {
+                const left = Math.max(8, Math.min(window.innerWidth - widget.offsetWidth - 8, settings.launcherCustomLeft));
+                const top = Math.max(8, Math.min(window.innerHeight - widget.offsetHeight - 8, settings.launcherCustomTop));
                 widget.dataset.position = 'custom';
-                widget.style.left = `${settings.launcherCustomLeft}px`;
-                widget.style.top = `${settings.launcherCustomTop}px`;
+                widget.style.left = `${left}px`;
+                widget.style.top = `${top}px`;
                 widget.style.right = 'auto';
                 widget.style.bottom = 'auto';
             } else {
@@ -119,7 +122,8 @@
         widget.className = 'accessibility-widget';
         widget.dataset.accessibilityWidget = 'true';
         widget.innerHTML = [
-            '<button type="button" class="accessibility-launcher" data-accessibility-toggle aria-label="Accessibility menu" title="Accessibility" aria-expanded="false" aria-controls="accessibility-panel">',
+            '<input type="checkbox" class="accessibility-state" id="accessibility-state" data-accessibility-state>',
+            '<label class="accessibility-launcher" for="accessibility-state" data-accessibility-toggle aria-label="Accessibility menu" title="Accessibility" aria-expanded="false" aria-controls="accessibility-panel" role="button">',
             '<span class="accessibility-person-icon" aria-hidden="true">',
             '<svg viewBox="0 0 64 64" focusable="false">',
             '<circle cx="32" cy="32" r="29"></circle>',
@@ -131,7 +135,7 @@
             '</svg>',
             '</span>',
             '<b>Accessibility</b>',
-            '</button>',
+            '</label>',
             '<section class="accessibility-panel" id="accessibility-panel" aria-label="Accessibility options">',
             '<div class="accessibility-panel-title">',
             '<button type="button" class="accessibility-close" data-accessibility-close aria-label="Close accessibility menu">x</button>',
@@ -172,8 +176,23 @@
     function closeMenu() {
         const widget = document.querySelector('[data-accessibility-widget]');
         const toggle = document.querySelector('[data-accessibility-toggle]');
+        const state = document.querySelector('[data-accessibility-state]');
+        if (state) state.checked = false;
         widget?.classList.remove('is-open');
         toggle?.setAttribute('aria-expanded', 'false');
+    }
+
+    function openAccessibilityMenu() {
+        const widget = document.querySelector('[data-accessibility-widget]');
+        const toggle = document.querySelector('[data-accessibility-toggle]');
+        const rect = widget?.getBoundingClientRect();
+        if (rect) {
+            widget.classList.toggle('panel-above', rect.top > window.innerHeight / 2);
+        }
+        const state = document.querySelector('[data-accessibility-state]');
+        if (state) state.checked = true;
+        widget?.classList.add('is-open');
+        toggle?.setAttribute('aria-expanded', 'true');
     }
 
     function closeNavMenu() {
@@ -290,17 +309,17 @@
         const isLoggedIn = links.some((link) => link.getAttribute('href')?.includes('/logout'));
         const isOwner = links.some((link) => link.getAttribute('href')?.includes('/work')) || window.location.pathname === '/work';
         const accountHref = isLoggedIn ? '/logout' : '/login';
-        const accountLabel = isLoggedIn ? 'Log out' : 'Log in or sign up';
-        const picksHref = isOwner ? '/work' : (isLoggedIn ? '/appointments' : '/login');
-        const picksLabel = isOwner ? 'Today bookings' : 'My picked times';
+        const accountLabel = isLoggedIn ? 'התנתקות' : 'התחברות / הרשמה';
+        const picksHref = isOwner ? '/work' : (isLoggedIn ? '/my-bookings' : '/login');
+        const picksLabel = isOwner ? 'התורים של היום' : 'התורים שלי';
 
         const quickActions = document.createElement('div');
         quickActions.className = 'nav-quick-actions';
-        quickActions.appendChild(createNavAction('a', { href: '/pick', label: 'Search businesses', icon: 'search' }));
+        quickActions.appendChild(createNavAction('a', { href: '/pick', label: 'חיפוש עסקים', icon: 'search' }));
         quickActions.appendChild(createNavAction('a', { href: accountHref, label: accountLabel, icon: 'account' }));
         quickActions.appendChild(createNavAction('a', { href: picksHref, label: picksLabel, icon: 'picks' }));
 
-        const menuButton = createNavAction('button', { label: 'Open menu', icon: 'menu' });
+        const menuButton = createNavAction('button', { label: 'תפריט', icon: 'menu' });
         menuButton.dataset.navMore = 'true';
         menuButton.setAttribute('aria-expanded', 'false');
         menuButton.addEventListener('click', (event) => {
@@ -351,27 +370,39 @@
     function installAccessibilityDrag() {
         const widget = document.querySelector('[data-accessibility-widget]');
         const launcher = document.querySelector('[data-accessibility-toggle]');
-        if (!widget || !launcher) return;
+        const dragTarget = document.querySelector('[data-accessibility-state]') || launcher;
+        if (!widget || !launcher || !dragTarget) return;
 
-        let longPressTimer = null;
+        let pointerStartX = 0;
+        let pointerStartY = 0;
         let dragging = false;
         let dragOffsetX = 0;
         let dragOffsetY = 0;
         let suppressClick = false;
+        let mouseTracking = false;
 
-        const clearLongPress = () => {
-            if (longPressTimer) {
-                clearTimeout(longPressTimer);
-                longPressTimer = null;
-            }
+        const startInteraction = (clientX, clientY) => {
+            const rect = widget.getBoundingClientRect();
+            pointerStartX = clientX;
+            pointerStartY = clientY;
+            dragOffsetX = clientX - rect.left;
+            dragOffsetY = clientY - rect.top;
         };
 
-        const moveWidget = (event) => {
+        const moveWidgetTo = (clientX, clientY, event) => {
+            const moved = Math.hypot(clientX - pointerStartX, clientY - pointerStartY);
+            if (!dragging && moved > 8) {
+                dragging = true;
+                suppressClick = true;
+                widget.classList.add('is-dragging');
+                closeMenu();
+            }
             if (!dragging) return;
+            event?.preventDefault?.();
             const maxLeft = window.innerWidth - widget.offsetWidth - 8;
             const maxTop = window.innerHeight - widget.offsetHeight - 8;
-            const left = Math.max(8, Math.min(maxLeft, event.clientX - dragOffsetX));
-            const top = Math.max(8, Math.min(maxTop, event.clientY - dragOffsetY));
+            const left = Math.max(8, Math.min(maxLeft, clientX - dragOffsetX));
+            const top = Math.max(8, Math.min(maxTop, clientY - dragOffsetY));
             widget.dataset.position = 'custom';
             widget.style.left = `${left}px`;
             widget.style.top = `${top}px`;
@@ -379,29 +410,13 @@
             widget.style.bottom = 'auto';
         };
 
-        launcher.addEventListener('pointerdown', (event) => {
-            if (event.button && event.button !== 0) return;
-            clearLongPress();
-            const rect = widget.getBoundingClientRect();
-            dragOffsetX = event.clientX - rect.left;
-            dragOffsetY = event.clientY - rect.top;
-            longPressTimer = setTimeout(() => {
-                dragging = true;
-                suppressClick = true;
-                widget.classList.add('is-dragging');
-                closeMenu();
-                launcher.setPointerCapture?.(event.pointerId);
-            }, 280);
-        });
-
-        launcher.addEventListener('pointermove', moveWidget);
-
-        launcher.addEventListener('pointerup', (event) => {
-            clearLongPress();
+        const finishInteraction = () => {
+            if (!dragging && suppressClick) {
+                return;
+            }
             if (dragging) {
                 dragging = false;
                 widget.classList.remove('is-dragging');
-                launcher.releasePointerCapture?.(event.pointerId);
                 const rect = widget.getBoundingClientRect();
                 const next = readSettings();
                 next.launcherCustomLeft = Math.round(rect.left);
@@ -411,16 +426,63 @@
                 setTimeout(() => {
                     suppressClick = false;
                 }, 80);
+                return;
             }
+        };
+
+        dragTarget.addEventListener('pointerdown', (event) => {
+            if (event.button && event.button !== 0) return;
+            startInteraction(event.clientX, event.clientY);
+            dragTarget.setPointerCapture?.(event.pointerId);
         });
 
-        launcher.addEventListener('pointercancel', () => {
-            clearLongPress();
+        dragTarget.addEventListener('pointermove', (event) => {
+            moveWidgetTo(event.clientX, event.clientY, event);
+        });
+
+        dragTarget.addEventListener('pointerup', (event) => {
+            finishInteraction();
+            dragTarget.releasePointerCapture?.(event.pointerId);
+        });
+
+        dragTarget.addEventListener('pointercancel', (event) => {
             dragging = false;
             widget.classList.remove('is-dragging');
+            dragTarget.releasePointerCapture?.(event.pointerId);
         });
 
-        launcher.addEventListener('click', (event) => {
+        dragTarget.addEventListener('touchstart', (event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            startInteraction(touch.clientX, touch.clientY);
+        }, { passive: true });
+
+        dragTarget.addEventListener('touchmove', (event) => {
+            const touch = event.touches[0];
+            if (!touch) return;
+            moveWidgetTo(touch.clientX, touch.clientY, event);
+        }, { passive: false });
+
+        dragTarget.addEventListener('touchend', finishInteraction);
+
+        dragTarget.addEventListener('mousedown', (event) => {
+            if (event.button !== 0) return;
+            mouseTracking = true;
+            startInteraction(event.clientX, event.clientY);
+        });
+
+        document.addEventListener('mousemove', (event) => {
+            if (!mouseTracking) return;
+            moveWidgetTo(event.clientX, event.clientY, event);
+        });
+
+        document.addEventListener('mouseup', () => {
+            if (!mouseTracking) return;
+            mouseTracking = false;
+            finishInteraction();
+        });
+
+        dragTarget.addEventListener('click', (event) => {
             if (suppressClick) {
                 event.preventDefault();
                 event.stopImmediatePropagation();
@@ -440,15 +502,17 @@
         installAccessibilityDrag();
         installLogoSplash();
 
-        document.querySelector('[data-accessibility-toggle]')?.addEventListener('click', (event) => {
-            event.stopPropagation();
-            const widget = document.querySelector('[data-accessibility-widget]');
-            const isOpen = !widget.classList.contains('is-open');
-            widget.classList.toggle('is-open', isOpen);
-            event.currentTarget.setAttribute('aria-expanded', isOpen ? 'true' : 'false');
-        });
-
         document.querySelector('[data-accessibility-close]')?.addEventListener('click', closeMenu);
+
+        document.querySelector('[data-accessibility-state]')?.addEventListener('change', (event) => {
+            const toggle = document.querySelector('[data-accessibility-toggle]');
+            if (event.currentTarget.checked) {
+                openAccessibilityMenu();
+            } else {
+                document.querySelector('[data-accessibility-widget]')?.classList.remove('is-open');
+                toggle?.setAttribute('aria-expanded', 'false');
+            }
+        });
 
         document.querySelector('[data-theme-toggle]')?.addEventListener('click', () => {
             applyTheme(root.dataset.theme === 'dark' ? 'light' : 'dark');
@@ -481,8 +545,8 @@
         });
 
         document.addEventListener('click', (event) => {
-            if (!event.target.closest('[data-accessibility-widget]')) {
-                closeMenu();
+            if (ignoreNextAccessibilityOutsideClick) {
+                ignoreNextAccessibilityOutsideClick = false;
             }
             if (!event.target.closest('.navbar')) {
                 closeNavMenu();

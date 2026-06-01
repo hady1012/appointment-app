@@ -4212,6 +4212,29 @@ html[data-theme="light"] body {
     display: grid !important;
 }
 
+.accessibility-state {
+    position: absolute !important;
+    inset-inline-start: 0 !important;
+    top: 0 !important;
+    width: 56px !important;
+    height: 56px !important;
+    min-width: 56px !important;
+    min-height: 56px !important;
+    margin: 0 !important;
+    opacity: 0 !important;
+    pointer-events: auto !important;
+    z-index: 4 !important;
+    cursor: grab !important;
+    touch-action: none !important;
+}
+
+.accessibility-state:checked ~ .accessibility-panel {
+    display: block !important;
+    opacity: 1 !important;
+    pointer-events: auto !important;
+    transform: none !important;
+}
+
 /* Big-company mobile header and logo intro */
 .navbar[data-enhanced-nav="true"] {
     position: sticky !important;
@@ -4227,7 +4250,8 @@ html[data-theme="light"] body {
     background: rgba(255, 255, 255, 0.96) !important;
     box-shadow: 0 1px 0 rgba(15, 23, 42, 0.08) !important;
     display: grid !important;
-    grid-template-columns: minmax(110px, 1fr) auto;
+    direction: rtl;
+    grid-template-columns: auto minmax(0, 1fr);
     align-items: center !important;
     gap: 18px !important;
     transform: translateY(0);
@@ -4256,7 +4280,7 @@ html[data-theme="light"] body {
     gap: 10px !important;
     color: #111827 !important;
     text-decoration: none !important;
-    font-size: 1rem !important;
+    font-size: 0 !important;
     font-weight: 900 !important;
 }
 
@@ -4271,6 +4295,7 @@ html[data-theme="light"] body {
     align-items: center;
     justify-content: flex-end;
     gap: clamp(16px, 3.3vw, 34px);
+    direction: rtl;
 }
 
 .nav-icon-action {
@@ -4349,6 +4374,7 @@ html[data-theme="light"] body {
     z-index: 50000;
     display: grid;
     place-items: center;
+    pointer-events: none;
     background: #ffffff;
     animation: brand-splash-hold 1.45s ease both;
 }
@@ -4407,6 +4433,9 @@ html[data-theme="light"] body {
     box-shadow: 0 14px 28px rgba(24, 88, 156, 0.28) !important;
     cursor: grab !important;
     touch-action: none;
+    position: relative !important;
+    z-index: 2 !important;
+    pointer-events: none !important;
 }
 
 .accessibility-widget.is-dragging .accessibility-launcher {
@@ -4421,11 +4450,18 @@ html[data-theme="light"] body {
     background: transparent !important;
     color: inherit !important;
     text-decoration: none !important;
+    pointer-events: none !important;
 }
 
 .accessibility-person-icon svg {
     width: 100%;
     height: 100%;
+    pointer-events: none;
+}
+
+.accessibility-person-icon *,
+.accessibility-launcher b {
+    pointer-events: none;
 }
 
 .accessibility-person-icon circle:first-child {
@@ -4452,6 +4488,11 @@ html[data-theme="light"] body {
     right: auto !important;
     top: 68px !important;
     bottom: auto !important;
+}
+
+.accessibility-widget[data-position="custom"].panel-above .accessibility-panel {
+    top: auto !important;
+    bottom: 68px !important;
 }
 
 .accessibility-panel {
@@ -4523,12 +4564,7 @@ html[data-theme="light"] body {
 @media (max-width: 620px) {
     .navbar[data-enhanced-nav="true"] {
         min-height: 68px !important;
-        grid-template-columns: auto 1fr;
         padding-inline: 14px !important;
-    }
-
-    .navbar[data-enhanced-nav="true"] .nav-logo-link {
-        font-size: 0 !important;
     }
 
     .navbar[data-enhanced-nav="true"] .nav-logo-mark {
@@ -4554,6 +4590,13 @@ html[data-theme="light"] body {
     }
 
     .accessibility-launcher {
+        width: 52px !important;
+        height: 52px !important;
+        min-width: 52px !important;
+        min-height: 52px !important;
+    }
+
+    .accessibility-state {
         width: 52px !important;
         height: 52px !important;
         min-width: 52px !important;

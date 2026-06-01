@@ -59,7 +59,7 @@ https://appointment-app-2-1k3v.onrender.com/
 
 - Responsive layout for phones, tablets, and desktops
 - User-selectable dark mode saved in the browser
-- Accessibility widget with readable font, larger text, high contrast, link/headline highlighting, reading guide, reduced motion, four preset positions, and long-press drag repositioning
+- Accessibility widget with readable font, larger text, high contrast, link/headline highlighting, reading guide, reduced motion, four preset positions, and press-and-drag repositioning
 - Nike-style icon header with the Golan Pick logo as the home link, quick business search, account, appointment/owner shortcuts, and a compact menu drawer
 - First-visit logo splash intro that clears automatically in under 3 seconds
 - Premium visual styling across the main pages

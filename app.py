@@ -35,7 +35,7 @@ OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
-ASSET_VERSION = "20260601-nav-a11y-1"
+ASSET_VERSION = "20260601-nav-a11y-10"
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -3378,6 +3378,7 @@ def owner_rating_action(rating_id, action):
     return redirect(url_for("work"))
 
 
+@app.route("/appointments")
 @app.route("/my-bookings")
 def my_bookings():
     if "user_id" not in session or session.get("role") != "customer":
