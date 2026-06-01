@@ -1,0 +1,123 @@
+<!DOCTYPE html>
+<html lang="he" dir="rtl">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>החשבון שלי</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='style.css', v=asset_version) }}">
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            background: linear-gradient(to bottom, #eefaf8, #f8fbff);
+            min-height: 100vh;
+            margin: 0;
+        }
+
+        .account-wrap {
+            max-width: 920px;
+            margin: 42px auto 70px;
+            padding: 0 20px;
+        }
+
+        .account-panel {
+            background: #fff;
+            border: 1px solid #e2e8f0;
+            border-radius: 24px;
+            box-shadow: 0 18px 46px rgba(15, 23, 42, 0.11);
+            padding: 30px;
+        }
+
+        .account-panel h1 {
+            color: #0f172a;
+            font-size: 2rem;
+            font-weight: 900;
+            margin: 0 0 8px;
+        }
+
+        .account-panel p {
+            color: #64748b;
+            font-weight: 700;
+            margin: 0 0 22px;
+        }
+
+        .account-actions {
+            display: grid;
+            grid-template-columns: repeat(2, minmax(0, 1fr));
+            gap: 14px;
+        }
+
+        .account-action {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 12px;
+            border: 1px solid #dbe3ee;
+            border-radius: 16px;
+            padding: 18px;
+            color: #0f172a;
+            text-decoration: none;
+            font-weight: 850;
+            background: #f8fafc;
+            min-height: 76px;
+        }
+
+        .account-action.primary {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff;
+        }
+
+        .account-action:hover {
+            color: inherit;
+            transform: translateY(-1px);
+        }
+
+        @media (max-width: 680px) {
+            .account-actions {
+                grid-template-columns: 1fr;
+            }
+        }
+    </style>
+</head>
+<body>
+<nav class="navbar">
+    <div class="nav-logo"><img class="nav-logo-mark" src="{{ url_for('static', filename='golan-pick-mark.svg', v=asset_version) }}" alt="" aria-hidden="true">Golan Pick</div>
+    <div class="nav-links">
+        <a href="{{ url_for('home') }}">בית</a>
+        <a href="{{ url_for('pick') }}">עסקים</a>
+        <a href="{{ url_for('my_bookings') }}">התורים שלי</a>
+        <a href="{{ url_for('logout') }}">החלפת חשבון</a>
+    </div>
+</nav>
+
+<main class="account-wrap">
+    <section class="account-panel">
+        <h1>החשבון שלי</h1>
+        <p>בחר מה תרצה לעשות עכשיו.</p>
+
+        <div class="account-actions">
+            <a class="account-action primary" href="{{ url_for('my_bookings') }}">
+                <span>התורים שלי</span>
+                <span>←</span>
+            </a>
+            <a class="account-action" href="{{ url_for('pick') }}">
+                <span>חזרה לעסקים</span>
+                <span>←</span>
+            </a>
+            <a class="account-action" href="{{ url_for('logout') }}">
+                <span>החלפת חשבון</span>
+                <span>←</span>
+            </a>
+            <a class="account-action" href="{{ url_for('home') }}">
+                <span>דף הבית</span>
+                <span>←</span>
+            </a>
+        </div>
+    </section>
+</main>
+
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
+<script src="{{ url_for('static', filename='js/theme.js', v=asset_version) }}"></script>
+</body>
+</html>

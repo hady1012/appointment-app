@@ -35,7 +35,9 @@ OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
-ASSET_VERSION = "20260601-nav-a11y-10"
+ASSET_VERSION = "20260602-clock-share-reminders"
+REMINDER_TRAFFIC_LAST_RUN = None
+REMINDER_TRAFFIC_INTERVAL = timedelta(minutes=3)
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -103,9 +105,21 @@ def now_local():
     return datetime.now(APP_TIMEZONE).replace(tzinfo=None)
 
 
+def slugify_store_name(name):
+    slug = re.sub(r"[^\w\u0590-\u05FF\u0600-\u06FF]+", "-", (name or "").strip().lower(), flags=re.UNICODE)
+    slug = slug.strip("-")
+    return slug or "business"
+
+
+def store_details_url(store_id, store_name=None, external=False):
+    if store_name:
+        return url_for("store_details_by_slug", store_slug=slugify_store_name(store_name), _external=external)
+    return url_for("store_details", store_id=store_id, _external=external)
+
+
 @app.context_processor
 def inject_asset_version():
-    return {"asset_version": ASSET_VERSION}
+    return {"asset_version": ASSET_VERSION, "store_details_url": store_details_url}
 
 
 EMAIL_PATTERN = re.compile(r"^[A-Z0-9._%+-]+@[A-Z0-9.-]+\.[A-Z]{2,}$", re.IGNORECASE)
@@ -639,6 +653,99 @@ def send_booking_emails(appointment):
     return customer_sent, owner_sent
 
 
+def send_due_reminder_emails(limit=50):
+    if not email_configured():
+        return {"sent": 0, "email_configured": False}
+
+    conn = get_connection()
+    cursor = conn.cursor()
+    sent_count = 0
+    current_time = now_local()
+    window_end = current_time + timedelta(minutes=10)
+
+    try:
+        ensure_email_schema(cursor)
+        ensure_store_optional_schema(cursor)
+        cursor.execute(
+            """
+            SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time,
+                   cu.email, st.name, sv.name, ou.email, st.id,
+                   COALESCE(st.reminder_minutes_before, 30)
+            FROM appointments a
+            JOIN users cu ON cu.id = a.customer_id
+            JOIN stores st ON st.id = a.store_id
+            JOIN users ou ON ou.id = st.owner_id
+            LEFT JOIN services sv ON sv.id = a.service_id
+            WHERE a.reminder_sent_at IS NULL
+              AND (a.appointment_date + a.appointment_time) > %s
+              AND (
+                  (a.appointment_date + a.appointment_time)
+                  - (COALESCE(st.reminder_minutes_before, 30) * INTERVAL '1 minute')
+              ) <= %s
+            ORDER BY a.appointment_date, a.appointment_time
+            LIMIT %s
+            """,
+            (current_time, window_end, limit),
+        )
+        rows = cursor.fetchall()
+
+        for row in rows:
+            appointment = {
+                "id": row[0],
+                "customer_name": row[1],
+                "customer_phone": row[2],
+                "date": str(row[3]),
+                "time": str(row[4])[:5],
+                "customer_email": row[5],
+                "store_name": row[6],
+                "service_name": row[7] or "",
+                "owner_email": row[8],
+                "store_url": store_details_url(row[9], row[6], external=True),
+                "reminder_minutes": row[10],
+            }
+            reminder_label = REMINDER_OPTIONS.get(appointment["reminder_minutes"], "soon")
+            subject = f"Reminder: appointment at {appointment['time']} today"
+            body = build_appointment_email_body(
+                appointment,
+                f"Reminder: your appointment starts in {reminder_label}.",
+            )
+            if send_email(appointment["customer_email"], subject, body):
+                sent_count += 1
+                cursor.execute(
+                    "UPDATE appointments SET reminder_sent_at = %s WHERE id = %s",
+                    (now_local(), appointment["id"]),
+                )
+
+        conn.commit()
+        return {
+            "sent": sent_count,
+            "email_configured": True,
+            "window_start": current_time,
+            "window_end": window_end,
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
+def maybe_send_due_reminders_from_traffic():
+    global REMINDER_TRAFFIC_LAST_RUN
+    if request.endpoint in {"static", "available_slots", "send_reminders"}:
+        return
+    if not email_configured():
+        return
+
+    current_time = now_local()
+    if REMINDER_TRAFFIC_LAST_RUN and current_time - REMINDER_TRAFFIC_LAST_RUN < REMINDER_TRAFFIC_INTERVAL:
+        return
+
+    REMINDER_TRAFFIC_LAST_RUN = current_time
+    try:
+        send_due_reminder_emails(limit=20)
+    except Exception as exc:
+        app.logger.warning("Automatic reminder check failed: %s", exc)
+
+
 def send_password_reset_email(user_email, full_name, reset_code):
     subject = "Your My Marketplace password reset code"
     body = f"""Hi {full_name},
@@ -654,6 +761,8 @@ This code expires in 15 minutes. If you did not ask to reset your password, you 
 
 @app.before_request
 def keep_recent_users_signed_in():
+    maybe_send_due_reminders_from_traffic()
+
     if request.endpoint in {"static", "available_slots"}:
         return None
 
@@ -1964,16 +2073,13 @@ def get_owner_period_appointments(store_id, selected_date, period):
         anchor = date.today()
 
     if period == "month":
-        start_date = anchor.replace(day=1)
-        if start_date.month == 12:
-            end_date = start_date.replace(year=start_date.year + 1, month=1)
-        else:
-            end_date = start_date.replace(month=start_date.month + 1)
-        label = f"{start_date.strftime('%m/%Y')}"
+        start_date = anchor - timedelta(days=30)
+        end_date = anchor + timedelta(days=1)
+        label = f"{start_date.strftime('%d/%m')} - {anchor.strftime('%d/%m')}"
     elif period == "week":
-        start_date = anchor - timedelta(days=anchor.weekday())
-        end_date = start_date + timedelta(days=7)
-        label = f"{start_date.strftime('%d/%m')} - {(end_date - timedelta(days=1)).strftime('%d/%m')}"
+        start_date = anchor - timedelta(days=7)
+        end_date = anchor + timedelta(days=1)
+        label = f"{start_date.strftime('%d/%m')} - {anchor.strftime('%d/%m')}"
     else:
         start_date = anchor
         end_date = anchor + timedelta(days=1)
@@ -2396,6 +2502,15 @@ def logout():
     return redirect(url_for("home"))
 
 
+@app.route("/account")
+def account():
+    if "user_id" not in session:
+        return redirect(url_for("login"))
+    if session.get("role") == "owner":
+        return redirect(url_for("work"))
+    return render_template("account.html")
+
+
 @app.route("/work")
 def work():
     if "user_id" not in session or session.get("role") != "owner":
@@ -2746,6 +2861,7 @@ def pick():
                 "image_urls": parse_json_list(row[5]),
                 "location_lat": row[6],
                 "location_lng": row[7],
+                "public_url": store_details_url(row[0], row[1]),
             }
             for row in cursor.fetchall()
         ]
@@ -2914,6 +3030,24 @@ def get_owner_analytics(store_id):
         cursor.close()
         conn.close()
 
+@app.route("/business/<path:store_slug>")
+def store_details_by_slug(store_slug):
+    normalized_slug = (store_slug or "").strip("/")
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, name FROM stores ORDER BY id DESC")
+        for store_id, store_name in cursor.fetchall():
+            if slugify_store_name(store_name) == normalized_slug:
+                return store_details(store_id)
+    finally:
+        cursor.close()
+        conn.close()
+
+    return "Store not found", 404
+
+
 @app.route("/store/<int:store_id>")
 def store_details(store_id):
     conn = get_connection()
@@ -3015,6 +3149,7 @@ def store_details(store_id):
     return render_template(
         "store_details.html",
         store=store,
+        public_store_url=store_details_url(store_id, store["name"], external=True),
         services=services,
         appointments=appointments,
         is_owner_view=is_owner_view,
@@ -3121,7 +3256,7 @@ def book(store_id):
             "store_name": row[6],
             "service_name": row[7] or "",
             "owner_email": row[8],
-            "store_url": url_for("store_details", store_id=store_id, _external=True),
+            "store_url": store_details_url(store_id, row[6], external=True),
         }
         conn.commit()
         clear_available_slots_cache(store_id)
@@ -3149,76 +3284,14 @@ def send_reminders():
     if not reminder_secret or provided_secret != reminder_secret:
         return jsonify({"error": "unauthorized"}), 401
 
-    conn = get_connection()
-    cursor = conn.cursor()
-    sent_count = 0
-
-    try:
-        ensure_email_schema(cursor)
-        ensure_store_optional_schema(cursor)
-        current_time = now_local()
-        window_start = current_time
-        window_end = current_time + timedelta(minutes=10)
-
-        cursor.execute(
-            """
-            SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time,
-                   cu.email, st.name, sv.name, ou.email, st.id,
-                   COALESCE(st.reminder_minutes_before, 30)
-            FROM appointments a
-            JOIN users cu ON cu.id = a.customer_id
-            JOIN stores st ON st.id = a.store_id
-            JOIN users ou ON ou.id = st.owner_id
-            LEFT JOIN services sv ON sv.id = a.service_id
-            WHERE a.reminder_sent_at IS NULL
-              AND (a.appointment_date + a.appointment_time) > %s
-              AND (
-                  (a.appointment_date + a.appointment_time)
-                  - (COALESCE(st.reminder_minutes_before, 30) * INTERVAL '1 minute')
-              ) <= %s
-            ORDER BY a.appointment_date, a.appointment_time
-            LIMIT 50
-            """,
-            (current_time, window_end),
-        )
-        rows = cursor.fetchall()
-
-        for row in rows:
-            appointment = {
-                "id": row[0],
-                "customer_name": row[1],
-                "customer_phone": row[2],
-                "date": str(row[3]),
-                "time": str(row[4])[:5],
-                "customer_email": row[5],
-                "store_name": row[6],
-                "service_name": row[7] or "",
-                "owner_email": row[8],
-                "store_url": url_for("store_details", store_id=row[9], _external=True),
-                "reminder_minutes": row[10],
-            }
-            subject = f"Reminder: appointment at {appointment['time']} today"
-            reminder_label = REMINDER_OPTIONS.get(appointment["reminder_minutes"], "soon")
-            body = build_appointment_email_body(
-                appointment,
-                f"Reminder: your appointment starts in {reminder_label}.",
-            )
-            if send_email(appointment["customer_email"], subject, body):
-                sent_count += 1
-                cursor.execute(
-                    "UPDATE appointments SET reminder_sent_at = %s WHERE id = %s",
-                    (now_local(), appointment["id"]),
-                )
-
-        conn.commit()
-    finally:
-        cursor.close()
-        conn.close()
+    result = send_due_reminder_emails()
+    window_start = result.get("window_start", now_local())
+    window_end = result.get("window_end", window_start + timedelta(minutes=10))
 
     return jsonify(
         {
-            "sent": sent_count,
-            "email_configured": email_configured(),
+            "sent": result.get("sent", 0),
+            "email_configured": result.get("email_configured", email_configured()),
             "window_start": window_start.isoformat(timespec="minutes"),
             "window_end": window_end.isoformat(timespec="minutes"),
         }
@@ -3384,22 +3457,43 @@ def my_bookings():
     if "user_id" not in session or session.get("role") != "customer":
         return redirect(url_for("login"))
 
+    selected_category = normalize_category_name(request.args.get("category", ""))
     conn = get_connection()
     cursor = conn.cursor()
 
     try:
         cursor.execute(
             """
+            SELECT DISTINCT st.category
+            FROM appointments a
+            JOIN stores st ON st.id = a.store_id
+            WHERE a.customer_id = %s
+              AND st.category IS NOT NULL
+            ORDER BY st.category
+            """,
+            (session["user_id"],),
+        )
+        booking_categories = [row[0] for row in cursor.fetchall()]
+
+        params = [session["user_id"]]
+        category_filter = ""
+        if selected_category:
+            category_filter = " AND st.category = %s"
+            params.append(selected_category)
+
+        cursor.execute(
+            f"""
             SELECT a.id, st.name, sv.name, a.appointment_date, a.appointment_time,
-                   COALESCE(r.status, 'not_sent')
+                   COALESCE(r.status, 'not_sent'), st.category, st.id
             FROM appointments a
             JOIN stores st ON st.id = a.store_id
             LEFT JOIN services sv ON sv.id = a.service_id
             LEFT JOIN ratings r ON r.appointment_id = a.id
             WHERE a.customer_id = %s
+            {category_filter}
             ORDER BY a.appointment_date DESC, a.appointment_time DESC
             """,
-            (session["user_id"],),
+            tuple(params),
         )
         rows = cursor.fetchall()
     finally:
@@ -3414,11 +3508,18 @@ def my_bookings():
             "date": str(r[3]),
             "time": str(r[4])[:5],
             "rating_status": r[5],
+            "store_category": r[6] or "",
+            "store_url": store_details_url(r[7], r[1]),
         }
         for r in rows
     ]
 
-    return render_template("appointments.html", appointments=appointments)
+    return render_template(
+        "appointments.html",
+        appointments=appointments,
+        booking_categories=booking_categories,
+        selected_category=selected_category,
+    )
 
 
 if __name__ == "__main__":

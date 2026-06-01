@@ -91,6 +91,48 @@
             background: #fff;
         }
 
+        .share-business-box {
+            margin-top: 18px;
+            display: grid;
+            gap: 10px;
+            max-width: 680px;
+        }
+
+        .share-business-row {
+            display: flex;
+            gap: 10px;
+            align-items: stretch;
+        }
+
+        .share-business-row input {
+            min-width: 0;
+            flex: 1;
+            border: 1px solid rgba(255,255,255,0.34);
+            background: rgba(255,255,255,0.12);
+            color: #fff;
+            border-radius: 12px;
+            padding: 11px 12px;
+            font-weight: 700;
+            direction: ltr;
+            text-align: left;
+        }
+
+        .share-business-row button {
+            border: 0;
+            border-radius: 12px;
+            background: #fff;
+            color: #0f172a;
+            padding: 0 16px;
+            font-weight: 850;
+            cursor: pointer;
+        }
+
+        .share-business-status {
+            color: rgba(255,255,255,0.86);
+            font-weight: 700;
+            min-height: 20px;
+        }
+
         .store-gallery {
             display: grid;
             grid-template-columns: 2fr 1fr 1fr;
@@ -509,6 +551,13 @@
             דירוג ממוצע: {{ ratings_summary.average }} / 5
             ({{ ratings_summary.count }} דירוגים)
         </div>
+        <div class="share-business-box">
+            <div class="share-business-row">
+                <input id="businessShareLink" value="{{ public_store_url }}" readonly aria-label="Business share link">
+                <button type="button" id="businessShareBtn">שתף</button>
+            </div>
+            <div class="share-business-status" id="businessShareStatus"></div>
+        </div>
     </div>
 
     {% if store.image_urls %}
@@ -702,6 +751,9 @@ const timeSelect = document.getElementById('appointment_time');
 const bookingForm = document.querySelector('.booking-form');
 const slotsStatus = document.getElementById('slotsStatus');
 const bookSubmitBtn = document.getElementById('bookSubmitBtn');
+const businessShareBtn = document.getElementById('businessShareBtn');
+const businessShareLink = document.getElementById('businessShareLink');
+const businessShareStatus = document.getElementById('businessShareStatus');
 let slotsAbortController = null;
 const slotsCache = new Map();
 const bookingParams = new URLSearchParams(window.location.search);
@@ -882,6 +934,22 @@ function setRating(value) {
 document.getElementById('ratingModal').addEventListener('click', function (e) {
     if (e.target === this) {
         closeModal();
+    }
+});
+
+businessShareBtn?.addEventListener('click', async () => {
+    const link = businessShareLink?.value || window.location.href;
+    try {
+        if (navigator.share) {
+            await navigator.share({ title: '{{ store.name|e }}', url: link });
+            businessShareStatus.textContent = 'הקישור מוכן לשיתוף';
+            return;
+        }
+        await navigator.clipboard.writeText(link);
+        businessShareStatus.textContent = 'הקישור הועתק';
+    } catch (_error) {
+        businessShareLink?.select();
+        businessShareStatus.textContent = 'אפשר להעתיק את הקישור מהשדה';
     }
 });
 </script>

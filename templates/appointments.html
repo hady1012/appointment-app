@@ -82,6 +82,46 @@
             flex-wrap: wrap;
         }
 
+        .booking-filter {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            gap: 14px;
+            flex-wrap: wrap;
+            margin-bottom: 18px;
+            padding: 14px;
+            border: 1px solid #e2e8f0;
+            border-radius: 16px;
+            background: #f8fafc;
+        }
+
+        .booking-filter label {
+            font-weight: 850;
+            color: #0f172a;
+        }
+
+        .booking-filter select {
+            min-width: 210px;
+            border: 1px solid #dbe3ee;
+            border-radius: 12px;
+            background: #fff;
+            padding: 10px 12px;
+            font-weight: 700;
+        }
+
+        .store-cell a {
+            color: #0f766e;
+            font-weight: 850;
+            text-decoration: none;
+        }
+
+        .store-cell small {
+            display: block;
+            color: #64748b;
+            margin-top: 4px;
+            font-weight: 700;
+        }
+
         .rating-form select {
             padding: 8px 10px;
             border-radius: 10px;
@@ -200,6 +240,16 @@
 
     <div class="section-box">
 
+        <form class="booking-filter" method="GET" action="{{ url_for('my_bookings') }}">
+            <label for="bookingCategory">סינון לפי קטגוריה</label>
+            <select id="bookingCategory" name="category" onchange="this.form.submit()">
+                <option value="">כל הקטגוריות</option>
+                {% for category in booking_categories %}
+                <option value="{{ category }}" {% if selected_category == category %}selected{% endif %}>{{ category }}</option>
+                {% endfor %}
+            </select>
+        </form>
+
         {% if appointments %}
         <table class="appointments-table">
             <thead>
@@ -215,7 +265,12 @@
             <tbody>
                 {% for appointment in appointments %}
                 <tr>
-                    <td>{{ appointment.store_name }}</td>
+                    <td class="store-cell">
+                        <a href="{{ appointment.store_url }}">{{ appointment.store_name }}</a>
+                        {% if appointment.store_category %}
+                        <small>{{ appointment.store_category }}</small>
+                        {% endif %}
+                    </td>
                     <td>{{ appointment.service_name }}</td>
                     <td>{{ appointment.date }}</td>
                     <td>{{ appointment.time }}</td>

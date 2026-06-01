@@ -464,7 +464,7 @@
 
                 <div class="store-footer">
                     <div class="footer-actions">
-                        <a class="view-btn" href="{{ url_for('store_details', store_id=store.id) }}">לצפייה בעסק</a>
+                        <a class="view-btn" href="{{ store.public_url }}">לצפייה בעסק</a>
 
                         {% if session.get('role') == 'customer' %}
                         <button type="button" class="rate-btn"

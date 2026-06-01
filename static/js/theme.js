@@ -263,7 +263,7 @@
         const icons = {
             search: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5"></circle><path d="M16 16l5 5"></path></svg>',
             account: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="7" r="4"></circle><path d="M4.5 21a7.5 7.5 0 0 1 15 0"></path></svg>',
-            picks: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M6 7h12l-1 14H7L6 7Z"></path><path d="M9 7a3 3 0 0 1 6 0"></path></svg>',
+            picks: '<svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="8.25"></circle><path d="M12 7.5v5l4.25 2.75"></path></svg>',
             menu: '<svg viewBox="0 0 24 24" aria-hidden="true"><path d="M4 7h16"></path><path d="M4 12h16"></path><path d="M4 17h16"></path></svg>'
         };
         return icons[name] || icons.menu;
@@ -308,9 +308,9 @@
         const links = Array.from(originalLinks.querySelectorAll('a[href]'));
         const isLoggedIn = links.some((link) => link.getAttribute('href')?.includes('/logout'));
         const isOwner = links.some((link) => link.getAttribute('href')?.includes('/work')) || window.location.pathname === '/work';
-        const accountHref = isLoggedIn ? '/logout' : '/login';
-        const accountLabel = isLoggedIn ? 'התנתקות' : 'התחברות / הרשמה';
-        const picksHref = isOwner ? '/work' : (isLoggedIn ? '/my-bookings' : '/login');
+        const accountHref = isOwner ? '/work' : (isLoggedIn ? '/account' : '/login');
+        const accountLabel = isOwner ? 'האזור האישי' : (isLoggedIn ? 'החשבון שלי' : 'התחברות / הרשמה');
+        const picksHref = isOwner ? '/work?appointment_period=day' : (isLoggedIn ? '/my-bookings' : '/login');
         const picksLabel = isOwner ? 'התורים של היום' : 'התורים שלי';
 
         const quickActions = document.createElement('div');
