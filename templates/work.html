@@ -635,6 +635,14 @@
         </div>
 
         <h2 class="selected-day-title" style="font-size:1.3rem; margin-top:22px;">התורים של {{ selected_date }}</h2>
+        <div class="appointment-period-tools" aria-label="Appointment period filters">
+            <a class="{% if period_appointments.period == 'day' %}active{% endif %}"
+               href="{{ url_for('work', selected_date=selected_date, appointment_period='day') }}">יום</a>
+            <a class="{% if period_appointments.period == 'week' %}active{% endif %}"
+               href="{{ url_for('work', selected_date=selected_date, appointment_period='week') }}">שבוע</a>
+            <a class="{% if period_appointments.period == 'month' %}active{% endif %}"
+               href="{{ url_for('work', selected_date=selected_date, appointment_period='month') }}">חודש</a>
+        </div>
         <table class="appointments-table">
             <thead>
                 <tr>
@@ -655,6 +663,34 @@
                 {% else %}
                 <tr>
                     <td colspan="4">אין תורים ביום הזה.</td>
+                </tr>
+                {% endfor %}
+            </tbody>
+        </table>
+
+        <h2 style="font-size:1.3rem; margin-top:26px;">סיכום תורים: {{ period_appointments.label }}</h2>
+        <table class="appointments-table period-appointments-table">
+            <thead>
+                <tr>
+                    <th>תאריך</th>
+                    <th>שעה</th>
+                    <th>לקוח</th>
+                    <th>טלפון</th>
+                    <th>שירות</th>
+                </tr>
+            </thead>
+            <tbody>
+                {% for a in period_appointments["items"] %}
+                <tr>
+                    <td>{{ a.date }}</td>
+                    <td>{{ a.time }}</td>
+                    <td>{{ a.customer_name }}</td>
+                    <td>{{ a.customer_phone }}</td>
+                    <td>{{ a.service_name }}</td>
+                </tr>
+                {% else %}
+                <tr>
+                    <td colspan="5">אין תורים בטווח הזה.</td>
                 </tr>
                 {% endfor %}
             </tbody>

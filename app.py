@@ -35,7 +35,7 @@ OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
-ASSET_VERSION = "20260601-smart-ui-5"
+ASSET_VERSION = "20260601-nav-a11y-1"
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
 KEEP_IMAGE_PREFIX = "__keep_image_"
 DB_POOL = None
@@ -1957,6 +1957,67 @@ def get_owner_day_appointments(store_id, selected_date):
         conn.close()
 
 
+def get_owner_period_appointments(store_id, selected_date, period):
+    try:
+        anchor = datetime.strptime(selected_date, "%Y-%m-%d").date()
+    except ValueError:
+        anchor = date.today()
+
+    if period == "month":
+        start_date = anchor.replace(day=1)
+        if start_date.month == 12:
+            end_date = start_date.replace(year=start_date.year + 1, month=1)
+        else:
+            end_date = start_date.replace(month=start_date.month + 1)
+        label = f"{start_date.strftime('%m/%Y')}"
+    elif period == "week":
+        start_date = anchor - timedelta(days=anchor.weekday())
+        end_date = start_date + timedelta(days=7)
+        label = f"{start_date.strftime('%d/%m')} - {(end_date - timedelta(days=1)).strftime('%d/%m')}"
+    else:
+        start_date = anchor
+        end_date = anchor + timedelta(days=1)
+        label = anchor.strftime("%d/%m/%Y")
+        period = "day"
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute(
+            """
+            SELECT a.id, a.customer_name, a.customer_phone, a.appointment_date, a.appointment_time, s.name
+            FROM appointments a
+            LEFT JOIN services s ON a.service_id = s.id
+            WHERE a.store_id = %s
+              AND a.appointment_date >= %s
+              AND a.appointment_date < %s
+            ORDER BY a.appointment_date DESC, a.appointment_time DESC
+            LIMIT 120
+            """,
+            (store_id, start_date.isoformat(), end_date.isoformat()),
+        )
+        rows = cursor.fetchall()
+        return {
+            "period": period,
+            "label": label,
+            "items": [
+                {
+                    "id": r[0],
+                    "customer_name": r[1],
+                    "customer_phone": r[2],
+                    "date": str(r[3]),
+                    "time": str(r[4])[:5],
+                    "service_name": r[5] or "",
+                }
+                for r in rows
+            ],
+        }
+    finally:
+        cursor.close()
+        conn.close()
+
+
 def get_store_ratings_summary(store_id, cursor=None):
     internal_conn = None
     internal_cursor = cursor
@@ -2343,6 +2404,9 @@ def work():
     owner_id = session["user_id"]
     data = get_owner_store_full(owner_id)
     selected_date = request.args.get("selected_date") or date.today().isoformat()
+    appointment_period = request.args.get("appointment_period") or "day"
+    if appointment_period not in {"day", "week", "month"}:
+        appointment_period = "day"
 
     if not data:
         return render_template(
@@ -2354,6 +2418,7 @@ def work():
             calendar_days=[],
             selected_date=selected_date,
             day_appointments=[],
+            period_appointments={"period": appointment_period, "label": selected_date, "items": []},
             pending_ratings=[],
             analytics=empty_owner_analytics(),
             reminder_options=REMINDER_OPTIONS,
@@ -2375,6 +2440,11 @@ def work():
         day_appointments = []
 
     try:
+        period_appointments = get_owner_period_appointments(data["store"]["id"], selected_date, appointment_period)
+    except Exception:
+        period_appointments = {"period": appointment_period, "label": selected_date, "items": []}
+
+    try:
         analytics = get_owner_analytics(data["store"]["id"])
     except Exception:
         analytics = empty_owner_analytics()
@@ -2388,6 +2458,7 @@ def work():
         calendar_days=calendar_days,
         selected_date=selected_date,
         day_appointments=day_appointments,
+        period_appointments=period_appointments,
         pending_ratings=pending_ratings,
         analytics=analytics,
         reminder_options=REMINDER_OPTIONS,
