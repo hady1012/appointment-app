@@ -59,7 +59,7 @@ https://appointment-app-2-1k3v.onrender.com/
 
 - Responsive layout for phones, tablets, and desktops
 - User-selectable dark mode saved in the browser
-- Accessibility widget with readable font, larger text, high contrast, link/headline highlighting, reading guide, reduced motion, and a movable left/right launcher
+- Accessibility widget with readable font, larger text, high contrast, link/headline highlighting, reading guide, reduced motion, and a four-position launcher
 - Premium visual styling across the main pages
 - Live business filtering while typing
 - Home-page assistant with a ChatGPT-style composer, text or voice-chat mode, male-voice replies when the browser provides a male voice, live database-backed business/availability cards, area-first follow-up search, and one-business-at-a-time booking prefill links
