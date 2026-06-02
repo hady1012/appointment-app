@@ -31,12 +31,14 @@ APP_TIMEZONE = ZoneInfo(os.environ.get("APP_TIMEZONE", "Asia/Jerusalem"))
 STORE_OPTIONAL_SCHEMA_READY = False
 OWNER_SESSION_SCHEMA_READY = False
 OWNER_SESSION_TIMEOUT = timedelta(hours=12)
-OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
+OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=10)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
 STORE_SLUG_CACHE = {"created_at": None, "items": {}}
 STORE_SLUG_CACHE_TTL = 60
+OWNER_VIEW_CACHE = {}
+OWNER_VIEW_CACHE_TTL = 25
 ASSET_VERSION = "20260602-share-speed-credit"
 REMINDER_TRAFFIC_LAST_RUN = None
 REMINDER_TRAFFIC_INTERVAL = timedelta(minutes=3)
@@ -122,6 +124,36 @@ def store_details_url(store_id, store_name=None, external=False):
 def clear_store_slug_cache():
     STORE_SLUG_CACHE["created_at"] = None
     STORE_SLUG_CACHE["items"] = {}
+
+
+def cache_get(cache_key):
+    cached = OWNER_VIEW_CACHE.get(cache_key)
+    if not cached:
+        return None
+    if now_local() - cached["created_at"] > timedelta(seconds=OWNER_VIEW_CACHE_TTL):
+        OWNER_VIEW_CACHE.pop(cache_key, None)
+        return None
+    return cached["value"]
+
+
+def cache_set(cache_key, value):
+    OWNER_VIEW_CACHE[cache_key] = {"created_at": now_local(), "value": value}
+    if len(OWNER_VIEW_CACHE) > 80:
+        cutoff = now_local() - timedelta(seconds=OWNER_VIEW_CACHE_TTL)
+        for key in list(OWNER_VIEW_CACHE):
+            if OWNER_VIEW_CACHE[key]["created_at"] < cutoff:
+                OWNER_VIEW_CACHE.pop(key, None)
+    return value
+
+
+def clear_owner_view_cache(store_id=None, owner_id=None):
+    for key in list(OWNER_VIEW_CACHE):
+        cache_type = key[0] if key else ""
+        cache_id = key[1] if len(key) > 1 else None
+        if store_id is not None and cache_type in {"calendar", "analytics", "pending"} and cache_id == store_id:
+            OWNER_VIEW_CACHE.pop(key, None)
+        elif owner_id is not None and cache_type == "owner_store" and cache_id == owner_id:
+            OWNER_VIEW_CACHE.pop(key, None)
 
 
 def get_store_id_by_slug(store_slug):
@@ -761,7 +793,7 @@ def send_due_reminder_emails(limit=50):
 
 def maybe_send_due_reminders_from_traffic():
     global REMINDER_TRAFFIC_LAST_RUN
-    if request.endpoint not in {"work", "store_details", "store_details_by_slug", "book", "my_bookings"}:
+    if request.endpoint not in {"store_details", "store_details_by_slug", "book", "my_bookings"}:
         return
     if not email_configured():
         return
@@ -2064,6 +2096,46 @@ def get_owner_store_full(owner_id):
         conn.close()
 
 
+def get_cached_owner_store_full(owner_id):
+    cache_key = ("owner_store", owner_id)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    return cache_set(cache_key, get_owner_store_full(owner_id))
+
+
+def get_cached_store_calendar_days(store_id):
+    cache_key = ("calendar", store_id)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    return cache_set(cache_key, get_store_calendar_days(store_id))
+
+
+def get_cached_pending_owner_rating_requests(store_id):
+    cache_key = ("pending", store_id)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    return cache_set(cache_key, get_pending_owner_rating_requests(store_id))
+
+
+def get_cached_owner_analytics(store_id):
+    cache_key = ("analytics", store_id)
+    cached = cache_get(cache_key)
+    if cached is not None:
+        return cached
+    return cache_set(cache_key, get_owner_analytics(store_id))
+
+
+def owner_period_from_day(selected_date, day_appointments):
+    try:
+        label = datetime.strptime(selected_date, "%Y-%m-%d").strftime("%d/%m/%Y")
+    except ValueError:
+        label = selected_date
+    return {"period": "day", "label": label, "items": list(day_appointments)}
+
+
 def get_owner_day_appointments(store_id, selected_date):
     conn = get_connection()
     cursor = conn.cursor()
@@ -2548,7 +2620,7 @@ def work():
         return redirect(url_for("login"))
 
     owner_id = session["user_id"]
-    data = get_owner_store_full(owner_id)
+    data = get_cached_owner_store_full(owner_id)
     selected_date = request.args.get("selected_date") or date.today().isoformat()
     appointment_period = request.args.get("appointment_period") or "day"
     if appointment_period not in {"day", "week", "month"}:
@@ -2571,12 +2643,12 @@ def work():
         )
 
     try:
-        calendar_days = get_store_calendar_days(data["store"]["id"])
+        calendar_days = get_cached_store_calendar_days(data["store"]["id"])
     except Exception:
         calendar_days = []
 
     try:
-        pending_ratings = get_pending_owner_rating_requests(data["store"]["id"])
+        pending_ratings = get_cached_pending_owner_rating_requests(data["store"]["id"])
     except Exception:
         pending_ratings = []
 
@@ -2586,12 +2658,15 @@ def work():
         day_appointments = []
 
     try:
-        period_appointments = get_owner_period_appointments(data["store"]["id"], selected_date, appointment_period)
+        if appointment_period == "day":
+            period_appointments = owner_period_from_day(selected_date, day_appointments)
+        else:
+            period_appointments = get_owner_period_appointments(data["store"]["id"], selected_date, appointment_period)
     except Exception:
         period_appointments = {"period": appointment_period, "label": selected_date, "items": []}
 
     try:
-        analytics = get_owner_analytics(data["store"]["id"])
+        analytics = get_cached_owner_analytics(data["store"]["id"])
     except Exception:
         analytics = empty_owner_analytics()
 
@@ -2719,6 +2794,7 @@ def add_store():
 
         conn.commit()
         clear_store_slug_cache()
+        clear_owner_view_cache(owner_id=owner_id)
     finally:
         cursor.close()
         conn.close()
@@ -2825,6 +2901,7 @@ def update_store(store_id):
 
         conn.commit()
         clear_store_slug_cache()
+        clear_owner_view_cache(store_id=store_id, owner_id=owner_id)
         flash("העסק ושעות העבודה עודכנו בהצלחה.")
 
     except Exception as e:
@@ -2850,6 +2927,7 @@ def delete_store(store_id):
         cursor.execute("DELETE FROM stores WHERE id = %s AND owner_id = %s", (store_id, owner_id))
         conn.commit()
         clear_store_slug_cache()
+        clear_owner_view_cache(store_id=store_id, owner_id=owner_id)
     finally:
         cursor.close()
         conn.close()
@@ -2945,44 +3023,38 @@ def get_owner_analytics(store_id):
     try:
         cursor.execute(
             """
-            SELECT COUNT(*),
-                   COUNT(DISTINCT customer_id),
-                   COALESCE(SUM(COALESCE(s.price, 0)), 0)
+            SELECT
+                COUNT(*) FILTER (WHERE a.appointment_date >= %s AND a.appointment_date < %s),
+                COUNT(DISTINCT a.customer_id) FILTER (WHERE a.appointment_date >= %s AND a.appointment_date < %s),
+                COALESCE(SUM(COALESCE(s.price, 0)) FILTER (WHERE a.appointment_date >= %s AND a.appointment_date < %s), 0),
+                COUNT(*) FILTER (WHERE a.appointment_date >= %s AND a.appointment_date < %s),
+                COUNT(*) FILTER (WHERE (a.appointment_date + a.appointment_time) >= %s),
+                COUNT(*)
             FROM appointments a
             LEFT JOIN services s ON s.id = a.service_id
             WHERE a.store_id = %s
-              AND a.appointment_date >= %s
-              AND a.appointment_date < %s
             """,
-            (store_id, month_start, next_month),
+            (
+                month_start,
+                next_month,
+                month_start,
+                next_month,
+                month_start,
+                next_month,
+                today_start,
+                tomorrow,
+                current,
+                store_id,
+            ),
         )
-        month_count, month_customers, month_revenue = cursor.fetchone()
-
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM appointments
-            WHERE store_id = %s
-              AND appointment_date >= %s
-              AND appointment_date < %s
-            """,
-            (store_id, today_start, tomorrow),
-        )
-        today_appointments = cursor.fetchone()[0]
-
-        cursor.execute(
-            """
-            SELECT COUNT(*)
-            FROM appointments
-            WHERE store_id = %s
-              AND (appointment_date + appointment_time) >= %s
-            """,
-            (store_id, current),
-        )
-        upcoming_appointments = cursor.fetchone()[0]
-
-        cursor.execute("SELECT COUNT(*) FROM appointments WHERE store_id = %s", (store_id,))
-        all_time_appointments = cursor.fetchone()[0]
+        (
+            month_count,
+            month_customers,
+            month_revenue,
+            today_appointments,
+            upcoming_appointments,
+            all_time_appointments,
+        ) = cursor.fetchone()
 
         cursor.execute(
             """
@@ -3286,6 +3358,7 @@ def book(store_id):
         }
         conn.commit()
         clear_available_slots_cache(store_id)
+        clear_owner_view_cache(store_id=store_id)
     finally:
         cursor.close()
         conn.close()
@@ -3388,6 +3461,7 @@ def request_rating(appointment_id):
             (row[0], row[1], session["user_id"], session.get("full_name"), rating, comment),
         )
         conn.commit()
+        clear_owner_view_cache(store_id=row[1])
     finally:
         cursor.close()
         conn.close()
@@ -3435,6 +3509,7 @@ def add_rating_from_pick():
             ),
         )
         conn.commit()
+        clear_owner_view_cache(store_id=store_id)
     finally:
         cursor.close()
         conn.close()
@@ -3455,20 +3530,22 @@ def owner_rating_action(rating_id, action):
     try:
         cursor.execute(
             """
-            SELECT r.id
+            SELECT r.id, r.store_id
             FROM ratings r
             JOIN stores s ON s.id = r.store_id
             WHERE r.id = %s AND s.owner_id = %s
             """,
             (rating_id, session["user_id"]),
         )
-        if not cursor.fetchone():
+        rating_row = cursor.fetchone()
+        if not rating_row:
             flash("הדירוג לא נמצא או שאין הרשאה.")
             return redirect(url_for("work"))
 
         new_status = "accepted" if action == "accept" else "declined"
         cursor.execute("UPDATE ratings SET status = %s WHERE id = %s", (new_status, rating_id))
         conn.commit()
+        clear_owner_view_cache(store_id=rating_row[1])
     finally:
         cursor.close()
         conn.close()
