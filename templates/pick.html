@@ -219,6 +219,40 @@
             cursor: pointer;
         }
 
+        .store-share-btn {
+            width: 46px;
+            height: 46px;
+            border: 1px solid #dbe3ee;
+            border-radius: 50%;
+            background: #fff;
+            color: #0f172a;
+            display: inline-flex;
+            align-items: center;
+            justify-content: center;
+            cursor: pointer;
+            box-shadow: 0 8px 20px rgba(15, 23, 42, 0.08);
+        }
+
+        .store-share-btn svg {
+            width: 23px;
+            height: 23px;
+            stroke: currentColor;
+            stroke-width: 2.35;
+            fill: none;
+            stroke-linecap: round;
+            stroke-linejoin: round;
+        }
+
+        .store-share-btn:hover {
+            background: #f8fafc;
+        }
+
+        .store-share-btn.is-copied {
+            background: #0f766e;
+            border-color: #0f766e;
+            color: #fff;
+        }
+
         .rate-btn:hover {
             background: #eab308;
         }
@@ -465,6 +499,15 @@
                 <div class="store-footer">
                     <div class="footer-actions">
                         <a class="view-btn" href="{{ store.public_url }}">לצפייה בעסק</a>
+                        <button type="button" class="store-share-btn" aria-label="שתף את {{ store.name }}" data-share-url="{{ store.public_share_url }}" data-share-title="{{ store.name }}">
+                            <svg viewBox="0 0 24 24" aria-hidden="true">
+                                <circle cx="18" cy="5" r="3"></circle>
+                                <circle cx="6" cy="12" r="3"></circle>
+                                <circle cx="18" cy="19" r="3"></circle>
+                                <path d="M8.7 10.7 15.3 6.3"></path>
+                                <path d="M8.7 13.3 15.3 17.7"></path>
+                            </svg>
+                        </button>
 
                         {% if session.get('role') == 'customer' %}
                         <button type="button" class="rate-btn"
@@ -549,6 +592,24 @@ businessSearchForm?.addEventListener('submit', () => {
     }
 });
 
+document.querySelectorAll('.store-share-btn').forEach(button => {
+    button.addEventListener('click', async () => {
+        const link = button.dataset.shareUrl || window.location.href;
+        const title = button.dataset.shareTitle || document.title;
+        try {
+            if (navigator.share) {
+                await navigator.share({ title, url: link });
+                return;
+            }
+            await navigator.clipboard.writeText(link);
+            button.classList.add('is-copied');
+            window.setTimeout(() => button.classList.remove('is-copied'), 1200);
+        } catch (_error) {
+            button.classList.remove('is-copied');
+        }
+    });
+});
+
 function openRatingModal(storeId, storeName) {
     document.getElementById('modalStoreId').value = storeId;
     document.getElementById('ratingValue').value = '';
@@ -586,7 +647,7 @@ document.getElementById('ratingModal').addEventListener('click', function (e) {
 });
 </script>
 
-<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}"></script>
-<script src="{{ url_for('static', filename='js/theme.js', v=asset_version) }}"></script>
+<script src="{{ url_for('static', filename='js/bootstrap.min.js') }}" defer></script>
+<script src="{{ url_for('static', filename='js/theme.js', v=asset_version) }}" defer></script>
 </body>
 </html>

@@ -35,7 +35,9 @@ OWNER_SESSION_CHECK_INTERVAL = timedelta(minutes=2)
 PERFORMANCE_INDEXES_READY = False
 AVAILABLE_SLOTS_CACHE = {}
 AVAILABLE_SLOTS_CACHE_TTL = 20
-ASSET_VERSION = "20260602-clock-share-reminders"
+STORE_SLUG_CACHE = {"created_at": None, "items": {}}
+STORE_SLUG_CACHE_TTL = 60
+ASSET_VERSION = "20260602-share-speed-credit"
 REMINDER_TRAFFIC_LAST_RUN = None
 REMINDER_TRAFFIC_INTERVAL = timedelta(minutes=3)
 ALLOWED_IMAGE_EXTENSIONS = {"jpg", "jpeg", "png", "webp"}
@@ -115,6 +117,35 @@ def store_details_url(store_id, store_name=None, external=False):
     if store_name:
         return url_for("store_details_by_slug", store_slug=slugify_store_name(store_name), _external=external)
     return url_for("store_details", store_id=store_id, _external=external)
+
+
+def clear_store_slug_cache():
+    STORE_SLUG_CACHE["created_at"] = None
+    STORE_SLUG_CACHE["items"] = {}
+
+
+def get_store_id_by_slug(store_slug):
+    normalized_slug = (store_slug or "").strip("/")
+    current_time = now_local()
+    created_at = STORE_SLUG_CACHE.get("created_at")
+
+    if created_at and current_time - created_at < timedelta(seconds=STORE_SLUG_CACHE_TTL):
+        return STORE_SLUG_CACHE.get("items", {}).get(normalized_slug)
+
+    conn = get_connection()
+    cursor = conn.cursor()
+
+    try:
+        cursor.execute("SELECT id, name FROM stores ORDER BY id DESC")
+        STORE_SLUG_CACHE["items"] = {
+            slugify_store_name(store_name): store_id
+            for store_id, store_name in cursor.fetchall()
+        }
+        STORE_SLUG_CACHE["created_at"] = current_time
+        return STORE_SLUG_CACHE["items"].get(normalized_slug)
+    finally:
+        cursor.close()
+        conn.close()
 
 
 @app.context_processor
@@ -730,7 +761,7 @@ def send_due_reminder_emails(limit=50):
 
 def maybe_send_due_reminders_from_traffic():
     global REMINDER_TRAFFIC_LAST_RUN
-    if request.endpoint in {"static", "available_slots", "send_reminders"}:
+    if request.endpoint not in {"work", "store_details", "store_details_by_slug", "book", "my_bookings"}:
         return
     if not email_configured():
         return
@@ -2687,6 +2718,7 @@ def add_store():
             )
 
         conn.commit()
+        clear_store_slug_cache()
     finally:
         cursor.close()
         conn.close()
@@ -2792,6 +2824,7 @@ def update_store(store_id):
             )
 
         conn.commit()
+        clear_store_slug_cache()
         flash("העסק ושעות העבודה עודכנו בהצלחה.")
 
     except Exception as e:
@@ -2816,6 +2849,7 @@ def delete_store(store_id):
     try:
         cursor.execute("DELETE FROM stores WHERE id = %s AND owner_id = %s", (store_id, owner_id))
         conn.commit()
+        clear_store_slug_cache()
     finally:
         cursor.close()
         conn.close()
@@ -2862,6 +2896,7 @@ def pick():
                 "location_lat": row[6],
                 "location_lng": row[7],
                 "public_url": store_details_url(row[0], row[1]),
+                "public_share_url": store_details_url(row[0], row[1], external=True),
             }
             for row in cursor.fetchall()
         ]
@@ -3032,18 +3067,9 @@ def get_owner_analytics(store_id):
 
 @app.route("/business/<path:store_slug>")
 def store_details_by_slug(store_slug):
-    normalized_slug = (store_slug or "").strip("/")
-    conn = get_connection()
-    cursor = conn.cursor()
-
-    try:
-        cursor.execute("SELECT id, name FROM stores ORDER BY id DESC")
-        for store_id, store_name in cursor.fetchall():
-            if slugify_store_name(store_name) == normalized_slug:
-                return store_details(store_id)
-    finally:
-        cursor.close()
-        conn.close()
+    store_id = get_store_id_by_slug(store_slug)
+    if store_id:
+        return store_details(store_id)
 
     return "Store not found", 404
 
