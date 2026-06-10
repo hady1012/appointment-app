@@ -52,7 +52,7 @@
 
         .search-grid {
             display: grid;
-            grid-template-columns: 1.4fr 1fr auto;
+            grid-template-columns: minmax(260px, 1.25fr) minmax(220px, 0.9fr) auto;
             gap: 14px;
             align-items: center;
         }
@@ -60,11 +60,17 @@
         .search-grid input,
         .search-grid select {
             border: 1px solid #dbe3ee;
-            border-radius: 16px;
-            padding: 15px 16px;
+            border-radius: 12px;
+            padding: 13px 16px;
             font-size: 1rem;
             outline: none;
             background: #fff;
+            min-height: 54px;
+            text-align: right;
+        }
+
+        .search-grid select {
+            direction: rtl;
         }
 
         .search-grid input:focus,
@@ -77,11 +83,12 @@
             background: linear-gradient(135deg, #2563eb, #1d4ed8);
             color: #fff;
             border: none;
-            border-radius: 16px;
-            padding: 15px 26px;
+            border-radius: 12px;
+            padding: 13px 26px;
             font-size: 1rem;
             font-weight: 700;
             min-width: 120px;
+            min-height: 54px;
         }
 
         .search-grid button:hover {
@@ -112,7 +119,7 @@
 
         .stores-grid {
             display: grid;
-            grid-template-columns: repeat(3, 1fr);
+            grid-template-columns: repeat(3, minmax(0, 1fr));
             gap: 22px;
         }
 
@@ -139,7 +146,6 @@
             aspect-ratio: 16 / 9;
             object-fit: cover;
             border-radius: 14px;
-            margin-bottom: 16px;
             border: 1px solid #e2e8f0;
             background: #f8fafc;
         }
@@ -379,11 +385,11 @@
             }
 
             .search-grid {
-                grid-template-columns: 1fr 1fr;
+                grid-template-columns: 1fr 1fr auto;
             }
 
             .search-grid button {
-                grid-column: span 2;
+                grid-column: auto;
             }
         }
 
