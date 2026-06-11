@@ -3161,6 +3161,37 @@ textarea,
     .day-grid {
         grid-template-columns: minmax(190px, 0.85fr) minmax(210px, 1fr) minmax(210px, 1fr) !important;
     }
+
+    .dashboard-wrap .image-url-grid {
+        grid-template-columns: repeat(5, minmax(142px, 178px)) !important;
+        justify-content: start !important;
+        gap: 12px !important;
+    }
+
+    .dashboard-wrap .photo-upload-slot {
+        min-height: 104px !important;
+        max-height: 118px !important;
+        aspect-ratio: 16 / 10 !important;
+        padding: 8px !important;
+    }
+
+    .dashboard-wrap .photo-upload-slot img {
+        height: 100% !important;
+    }
+
+    .page-wrap .stores-grid {
+        grid-template-columns: repeat(3, minmax(280px, 360px)) !important;
+        justify-content: start !important;
+    }
+
+    .page-wrap .store-card {
+        max-width: 360px !important;
+    }
+
+    .page-wrap .store-media {
+        aspect-ratio: 16 / 8.5 !important;
+        max-height: 190px !important;
+    }
 }
 
 /* Compact weekly-hours controls on mobile */
